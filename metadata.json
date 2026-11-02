@@ -1,0 +1,8 @@
+{
+  "name": "Remix FleetCheck Pro - Heavy Equipment Inspection \u0026 Maintenance",
+  "description": "Aplikasi inspeksi harian alat berat (Rigid \u0026 Artic), BAP, Backlog, dan Aktivitas mekanik tambang terintegrasi Google Sheets, WhatsApp, dan cetak PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
