@@ -201,20 +201,7 @@ export default function App() {
           setDailyArticList(pulled.dailyArticList);
           setBacklogs(pulled.backlogs);
           setActivities(pulled.activities);
-          showToast(`Database default Google Sheet berhasil dimuat (${pulled.codeUnits.length} Unit terdaftar)`, 'success');
-        } else {
-          // If sheet is empty/newly created, seed current fleet units so Google Sheet stays populated
-          const localUnits = getCodeUnits();
-          if (localUnits.length > 0) {
-            pushAllDataToGoogleSheet({
-              codeUnits: localUnits,
-              bapList: getBAPList(),
-              dailyRigidList: getDailyRigidList(),
-              dailyArticList: getDailyArticList(),
-              backlogs: getBacklogs(),
-              activities: getActivities(),
-            }).catch(() => {});
-          }
+          showToast(`Database Google Sheet terhubung (${pulled.codeUnits.length} Unit terdaftar)`, 'success');
         }
       } catch (err: any) {
         console.warn('Initial Google Sheet sync notice:', err);

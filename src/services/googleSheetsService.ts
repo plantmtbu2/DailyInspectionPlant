@@ -20,14 +20,16 @@ const ENV_SHEET_ID = (import.meta.env.VITE_GOOGLE_SHEET_ID || '').trim();
 const ENV_WEBAPP_URL = (import.meta.env.VITE_GOOGLE_SHEET_WEBAPP_URL || '').trim();
 const ENV_SHEET_NAME = (import.meta.env.VITE_GOOGLE_SHEET_NAME || '').trim();
 
-// Default fallback ID for Plant 2 Mining Fleet maintenance database
+// Default fallback ID, WebApp URL, and Sheet Name for Plant 2 Mining Fleet maintenance database
 export const DEFAULT_FALLBACK_SHEET_ID = '1Edi1OqWr4YJ76tPvn3KaEV8Xfkxccfk9T4UiWwDFci4';
+export const DEFAULT_FALLBACK_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzusDZkOvVltf-h5c1BrhPIjw66IjQ-Fk41RkF1TMoINzVjFYz2XzxgjFIAnUQUwOl60Q/exec';
+export const DEFAULT_FALLBACK_SHEET_NAME = 'Daily Plant MTBU';
 
 export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
   spreadsheetId: ENV_SHEET_ID || DEFAULT_FALLBACK_SHEET_ID,
   spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${ENV_SHEET_ID || DEFAULT_FALLBACK_SHEET_ID}/edit`,
-  spreadsheetName: ENV_SHEET_NAME || 'Database Plant 2 FleetCheck (Default Terpusat)',
-  webAppUrl: ENV_WEBAPP_URL || undefined,
+  spreadsheetName: ENV_SHEET_NAME || DEFAULT_FALLBACK_SHEET_NAME,
+  webAppUrl: ENV_WEBAPP_URL || DEFAULT_FALLBACK_WEBAPP_URL,
   lastSyncedAt: new Date().toISOString(),
   isDefault: true,
 };
