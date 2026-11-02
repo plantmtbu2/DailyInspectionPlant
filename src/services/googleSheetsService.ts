@@ -21,7 +21,7 @@ const ENV_WEBAPP_URL = (import.meta.env.VITE_GOOGLE_SHEET_WEBAPP_URL || '').trim
 const ENV_SHEET_NAME = (import.meta.env.VITE_GOOGLE_SHEET_NAME || '').trim();
 
 // Default fallback ID for Plant 2 Mining Fleet maintenance database
-export const DEFAULT_FALLBACK_SHEET_ID = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
+export const DEFAULT_FALLBACK_SHEET_ID = '1Edi1OqWr4YJ76tPvn3KaEV8Xfkxccfk9T4UiWwDFci4';
 
 export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
   spreadsheetId: ENV_SHEET_ID || DEFAULT_FALLBACK_SHEET_ID,

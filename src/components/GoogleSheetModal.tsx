@@ -688,7 +688,7 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
                     type="text"
                     value={manualIdInput}
                     onChange={e => setManualIdInput(e.target.value)}
-                    placeholder="Contoh: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                    placeholder="Contoh: 1Edi1OqWr4YJ76tPvn3KaEV8Xfkxccfk9T4UiWwDFci4"
                     className="flex-1 bg-slate-850 border border-slate-700 text-white px-3 py-2 rounded-xl text-xs focus:outline-none focus:border-blue-400 font-mono"
                   />
                   <button
