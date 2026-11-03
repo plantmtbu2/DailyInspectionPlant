@@ -610,21 +610,35 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   </div>
                 )}
 
-                {report.data.photoUrl && (
-                  <div className="border border-slate-300 rounded p-3 bg-slate-50">
-                    <span className="font-bold block text-slate-800 mb-1.5 uppercase text-[11px]">
-                      Lampiran Dokumentasi Foto Kerusakan / Temuan:
-                    </span>
-                    <div className="flex justify-center">
-                      <img
-                        src={report.data.photoUrl}
-                        alt="Foto Temuan Kerusakan"
-                        crossOrigin="anonymous"
-                        className="max-h-56 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                      />
+                {(() => {
+                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
+                    ? report.data.photoUrls
+                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
+                  if (photos.length === 0) return null;
+
+                  return (
+                    <div className="border border-slate-300 rounded p-3 bg-slate-50">
+                      <span className="font-bold block text-slate-800 mb-1.5 uppercase text-[11px]">
+                        Lampiran Dokumentasi Foto Kerusakan / Temuan ({photos.length} Foto):
+                      </span>
+                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {photos.map((p, idx) => (
+                          <div key={idx} className="flex flex-col items-center">
+                            <img
+                              src={p}
+                              alt={`Foto Kerusakan ${idx + 1}`}
+                              crossOrigin="anonymous"
+                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
+                            />
+                            {photos.length > 1 && (
+                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
@@ -704,21 +718,35 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   <p className="text-slate-800">{report.data.temuanDeviasi || 'Nihil'}</p>
                 </div>
 
-                {report.data.photoUrl && (
-                  <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
-                    <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
-                      Lampiran Dokumentasi Foto Daily Check Rigid:
-                    </span>
-                    <div className="flex justify-center">
-                      <img
-                        src={report.data.photoUrl}
-                        alt="Foto Daily Check Rigid"
-                        crossOrigin="anonymous"
-                        className="max-h-56 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                      />
+                {(() => {
+                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
+                    ? report.data.photoUrls
+                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
+                  if (photos.length === 0) return null;
+
+                  return (
+                    <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
+                      <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
+                        Lampiran Dokumentasi Foto Daily Check / QA Rigid ({photos.length} Foto):
+                      </span>
+                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {photos.map((p, idx) => (
+                          <div key={idx} className="flex flex-col items-center">
+                            <img
+                              src={p}
+                              alt={`Foto Rigid ${idx + 1}`}
+                              crossOrigin="anonymous"
+                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
+                            />
+                            {photos.length > 1 && (
+                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
@@ -790,21 +818,35 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   <p className="text-slate-800">{report.data.temuanDeviasi || 'Nihil'}</p>
                 </div>
 
-                {report.data.photoUrl && (
-                  <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
-                    <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
-                      Lampiran Dokumentasi Foto Daily Check Artic (ADT):
-                    </span>
-                    <div className="flex justify-center">
-                      <img
-                        src={report.data.photoUrl}
-                        alt="Foto Daily Check Artic"
-                        crossOrigin="anonymous"
-                        className="max-h-56 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                      />
+                {(() => {
+                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
+                    ? report.data.photoUrls
+                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
+                  if (photos.length === 0) return null;
+
+                  return (
+                    <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
+                      <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
+                        Lampiran Dokumentasi Foto Daily Check / QA Artic ({photos.length} Foto):
+                      </span>
+                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {photos.map((p, idx) => (
+                          <div key={idx} className="flex flex-col items-center">
+                            <img
+                              src={p}
+                              alt={`Foto Artic ${idx + 1}`}
+                              crossOrigin="anonymous"
+                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
+                            />
+                            {photos.length > 1 && (
+                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
@@ -889,21 +931,35 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   <p className="text-slate-800 leading-relaxed">{report.data.deskripsiBacklog}</p>
                 </div>
 
-                {report.data.photoUrl && (
-                  <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
-                    <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
-                      Lampiran Dokumentasi Foto Sparepart / Backlog:
-                    </span>
-                    <div className="flex justify-center">
-                      <img
-                        src={report.data.photoUrl}
-                        alt="Foto Dokumentasi Backlog"
-                        crossOrigin="anonymous"
-                        className="max-h-56 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                      />
+                {(() => {
+                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
+                    ? report.data.photoUrls
+                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
+                  if (photos.length === 0) return null;
+
+                  return (
+                    <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
+                      <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
+                        Lampiran Dokumentasi Foto Sparepart / Backlog ({photos.length} Foto):
+                      </span>
+                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {photos.map((p, idx) => (
+                          <div key={idx} className="flex flex-col items-center">
+                            <img
+                              src={p}
+                              alt={`Foto Backlog ${idx + 1}`}
+                              crossOrigin="anonymous"
+                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
+                            />
+                            {photos.length > 1 && (
+                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
@@ -941,21 +997,35 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   <p className="text-slate-800">{report.data.action}</p>
                 </div>
 
-                {report.data.photoUrl && (
-                  <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
-                    <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
-                      Lampiran Dokumentasi Foto Pengerjaan / Tindakan:
-                    </span>
-                    <div className="flex justify-center">
-                      <img
-                        src={report.data.photoUrl}
-                        alt="Foto Dokumentasi Aktivitas"
-                        crossOrigin="anonymous"
-                        className="max-h-56 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                      />
+                {(() => {
+                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
+                    ? report.data.photoUrls
+                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
+                  if (photos.length === 0) return null;
+
+                  return (
+                    <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
+                      <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
+                        Lampiran Dokumentasi Foto Pengerjaan / Tindakan ({photos.length} Foto):
+                      </span>
+                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {photos.map((p, idx) => (
+                          <div key={idx} className="flex flex-col items-center">
+                            <img
+                              src={p}
+                              alt={`Foto Aktivitas ${idx + 1}`}
+                              crossOrigin="anonymous"
+                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
+                            />
+                            {photos.length > 1 && (
+                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 

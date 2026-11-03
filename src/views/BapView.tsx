@@ -33,7 +33,12 @@ export const BapView: React.FC<BapViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index?: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const filtered = bapList.filter(item => {
     const matchesSearch =
@@ -145,8 +150,14 @@ export const BapView: React.FC<BapViewProps> = ({
               {/* Action Buttons: WhatsApp, Print, Edit, Delete */}
               <div className="flex items-center space-x-1.5 shrink-0">
                 <button
-                  onClick={() => shareToWhatsApp(formatBAPWhatsApp(bap))}
-                  title="Share ke WhatsApp"
+                  onClick={() => {
+                    const allPhotos = bap.photoUrls && bap.photoUrls.length > 0 ? bap.photoUrls : (bap.photoUrl ? [bap.photoUrl] : []);
+                    shareToWhatsApp(formatBAPWhatsApp(bap), {
+                      photoUrls: allPhotos,
+                      title: `BAP ${bap.id} - ${bap.codeUnit}`,
+                    });
+                  }}
+                  title="Share ke WhatsApp (Disertai Foto Kerusakan)"
                   className="p-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 rounded-xl transition"
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -175,7 +186,7 @@ export const BapView: React.FC<BapViewProps> = ({
               </div>
             </div>
 
-            {/* Kerusakan Description & Photo Thumbnail */}
+            {/* Kerusakan Description & Photo Thumbnail Gallery */}
             <div className="bg-slate-850/80 rounded-xl p-3 border border-slate-800/80 text-xs text-slate-200 flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <span className="text-[10px] text-rose-400 font-bold block uppercase mb-1">
@@ -184,30 +195,43 @@ export const BapView: React.FC<BapViewProps> = ({
                 <p className="line-clamp-3 leading-relaxed whitespace-pre-line">{bap.kerusakan}</p>
               </div>
 
-              {bap.photoUrl && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPreviewPhoto({
-                      url: bap.photoUrl!,
-                      title: `BAP: ${bap.codeUnit} - Kerusakan`,
-                      subtitle: `ID: ${bap.id} | MO: ${bap.mo}`,
-                    })
-                  }
-                  className="relative group shrink-0 w-24 h-20 sm:w-28 sm:h-20 rounded-lg overflow-hidden border border-slate-700 hover:ring-2 hover:ring-rose-400 transition"
-                  title="Klik untuk memperbesar foto temuan"
-                >
-                  <img
-                    src={bap.photoUrl}
-                    alt="Foto Kerusakan"
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white space-x-1">
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>Lihat</span>
+              {(() => {
+                const photos = bap.photoUrls && bap.photoUrls.length > 0 ? bap.photoUrls : (bap.photoUrl ? [bap.photoUrl] : []);
+                if (photos.length === 0) return null;
+
+                return (
+                  <div className="flex flex-wrap sm:flex-nowrap gap-1.5 shrink-0">
+                    {photos.map((pUrl, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() =>
+                          setPreviewPhoto({
+                            urls: photos,
+                            index: pIdx,
+                            title: `BAP: ${bap.codeUnit} - Kerusakan`,
+                            subtitle: `Foto ${pIdx + 1} dari ${photos.length} | ID: ${bap.id} | MO: ${bap.mo}`,
+                          })
+                        }
+                        className="relative group w-20 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-700 hover:ring-2 hover:ring-rose-400 transition"
+                        title="Klik untuk memperbesar foto temuan kerusakan"
+                      >
+                        <img
+                          src={pUrl}
+                          alt={`Kerusakan ${pIdx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
+                        />
+                        <span className="absolute bottom-0 right-0 bg-slate-950/80 text-rose-300 text-[9px] font-bold px-1 rounded-tl">
+                          #{pIdx + 1}
+                        </span>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white space-x-1">
+                          <Camera className="w-3.5 h-3.5" />
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </button>
-              )}
+                );
+              })()}
             </div>
 
             {/* Meta tags */}
@@ -246,7 +270,9 @@ export const BapView: React.FC<BapViewProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrl={previewPhoto.urls[previewPhoto.index || 0]}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index || 0}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

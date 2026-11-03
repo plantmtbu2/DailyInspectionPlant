@@ -75,3 +75,57 @@ export const formatFileSize = (base64String: string): string => {
   if (sizeInBytes < 1024) return `${Math.round(sizeInBytes)} B`;
   return `${(sizeInBytes / 1024).toFixed(1)} KB`;
 };
+
+/**
+ * Converts a base64 / dataURL string into a standard native File object
+ * for Web Share API or download.
+ */
+export const dataUrlToFile = (dataUrl: string, filename: string): File => {
+  const arr = dataUrl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+};
+
+/**
+ * Programmatically downloads a dataUrl image to the device
+ */
+export const downloadDataUrl = (dataUrl: string, filename: string): void => {
+  try {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    console.warn('Gagal mendownload gambar:', err);
+  }
+};
+
+/**
+ * Compresses multiple files in parallel
+ */
+export const compressMultipleImages = async (
+  files: FileList | File[],
+  maxWidth = 960,
+  maxHeight = 960,
+  quality = 0.78
+): Promise<string[]> => {
+  const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+  const results: string[] = [];
+  for (const file of fileArray) {
+    try {
+      const compressed = await compressImage(file, maxWidth, maxHeight, quality);
+      results.push(compressed);
+    } catch (err) {
+      console.warn('Gagal mengompres salah satu foto:', err);
+    }
+  }
+  return results;
+};

@@ -49,8 +49,14 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
   const [status, setStatus] = useState<BacklogItem['status']>('WAITING_PART');
   const [tanggalTemuan, setTanggalTemuan] = useState(new Date().toISOString().slice(0, 10));
   const [pic, setPic] = useState('');
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(itemToEdit?.photoUrl);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedItem, setSavedItem] = useState<BacklogItem | null>(null);
@@ -91,13 +97,18 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setStatus(itemToEdit.status);
       setTanggalTemuan(itemToEdit.tanggalTemuan);
       setPic(itemToEdit.pic);
-      setPhotoUrl(itemToEdit.photoUrl || undefined);
+      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+        ? itemToEdit.photoUrls
+        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+      setPhotoUrls(existingPhotos);
+      setPhotoUrl(existingPhotos[0] || undefined);
       setSavedItem(null);
     } else if (initialCodeUnit) {
       setCodeUnit(initialCodeUnit);
       setSumberTemuan(source || 'MANUAL');
       setMoBacklog(`MO-BL-${Math.floor(1000 + Math.random() * 9000)}`);
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
+      setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
     } else {
@@ -106,6 +117,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setNomorReservasi('');
       setDeskripsiBacklog('');
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
+      setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
     }
@@ -202,7 +214,8 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         status,
         tanggalTemuan,
         pic: pic || 'Mekanik Maintenance',
-        photoUrl: photoUrl || itemToEdit?.photoUrl,
+        photoUrls: photoUrls,
+        photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
         syncedToSheets: true,
         createdAt: itemToEdit ? itemToEdit.createdAt : new Date().toISOString(),
       };
@@ -266,29 +279,38 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
                 </p>
               </div>
 
-              {savedItem.photoUrl && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPreviewPhoto({
-                        url: savedItem.photoUrl!,
-                        title: `Backlog: ${savedItem.codeUnit}`,
-                        subtitle: savedItem.deskripsiBacklog,
-                      })
-                    }
-                    className="relative group rounded-xl overflow-hidden border border-slate-700 max-h-36 shadow-md"
-                  >
-                    <img
-                      src={savedItem.photoUrl}
-                      alt="Foto Backlog"
-                      className="max-h-36 object-contain group-hover:scale-105 transition"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-semibold space-x-1">
-                      <Camera className="w-4 h-4" />
-                      <span>Lihat Foto</span>
-                    </div>
-                  </button>
+              {((savedItem.photoUrls && savedItem.photoUrls.length > 0) || savedItem.photoUrl) && (
+                <div className="pt-2">
+                  <span className="text-[11px] font-semibold text-slate-300 block mb-2">
+                    Foto Dokumentasi ({savedItem.photoUrls?.length || 1} Foto):
+                  </span>
+                  <div className="flex flex-wrap items-center justify-center gap-2 max-w-md mx-auto">
+                    {(savedItem.photoUrls || [savedItem.photoUrl!]).map((url, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() =>
+                          setPreviewPhoto({
+                            urls: savedItem.photoUrls || [savedItem.photoUrl!],
+                            index: idx,
+                            title: `Backlog: ${savedItem.codeUnit}`,
+                            subtitle: savedItem.deskripsiBacklog,
+                          })
+                        }
+                        className="relative group rounded-xl overflow-hidden border border-slate-700 h-20 w-24 bg-slate-950 shadow-md"
+                      >
+                        <img
+                          src={url}
+                          alt={`Foto Backlog ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-semibold space-x-1">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>#{idx + 1}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -296,11 +318,19 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
               <div className="pt-3 max-w-xs mx-auto">
                 <button
                   type="button"
-                  onClick={() => shareToWhatsApp(formatBacklogWhatsApp(savedItem))}
-                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20"
+                  onClick={() =>
+                    shareToWhatsApp(
+                      formatBacklogWhatsApp(savedItem),
+                      {
+                        photoUrls: savedItem.photoUrls || (savedItem.photoUrl ? [savedItem.photoUrl] : []),
+                        title: `Laporan Backlog ${savedItem.codeUnit}`,
+                      }
+                    )
+                  }
+                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Kirim Laporan via WhatsApp</span>
+                  <span>Kirim via WhatsApp (+ Foto)</span>
                 </button>
               </div>
 
@@ -539,13 +569,15 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
 
               {/* Dokumentasi Foto Temuan Backlog */}
               <PhotoUploader
-                photoUrl={photoUrl}
+                photoUrls={photoUrls}
+                onChangePhotos={setPhotoUrls}
                 onChange={setPhotoUrl}
-                label="Foto Dokumentasi Temuan Backlog / Sparepart"
+                label="Foto Dokumentasi Temuan Backlog / Sparepart (Bisa Lebih Dari 1)"
                 description="Ambil foto komponen aus, patah, bocor, atau label part number yang dibutuhkan dari kamera / galeri"
-                onPreviewFullscreen={url =>
+                onPreviewFullscreen={(url, idx, all) =>
                   setPreviewPhoto({
-                    url,
+                    urls: all || [url],
+                    index: idx || 0,
                     title: `Foto Backlog: ${codeUnit || 'Unit'}`,
                     subtitle: deskripsiBacklog || 'Temuan Backlog',
                   })
@@ -588,7 +620,8 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

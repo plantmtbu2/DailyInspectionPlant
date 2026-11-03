@@ -38,7 +38,12 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterUnit, setFilterUnit] = useState<string>('ALL');
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index?: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const availableUnits = Array.from(new Set(activities.map(a => a.codeUnit)));
 
@@ -186,8 +191,14 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
               {/* Actions: WA, Print, Edit, Delete */}
               <div className="flex items-center space-x-1.5 shrink-0">
                 <button
-                  onClick={() => shareToWhatsApp(formatActivityWhatsApp(item))}
-                  title="Share ke WhatsApp"
+                  onClick={() => {
+                    const allPhotos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
+                    shareToWhatsApp(formatActivityWhatsApp(item), {
+                      photoUrls: allPhotos,
+                      title: `Aktivitas ${item.id} - ${item.codeUnit}`,
+                    });
+                  }}
+                  title="Share ke WhatsApp (Disertai Foto Aktivitas)"
                   className="p-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 rounded-xl transition"
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -235,37 +246,51 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
               </div>
             </div>
 
-            {/* Foto Dokumentasi Aktivitas */}
-            {item.photoUrl && (
-              <div className="flex items-center space-x-3 bg-slate-850/60 p-2 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPreviewPhoto({
-                      url: item.photoUrl!,
-                      title: `Aktivitas Mekanik: ${item.codeUnit}`,
-                      subtitle: `${item.tanggalTemuan} (${item.status}) | PIC: ${item.pic}`,
-                    })
-                  }
-                  className="relative group w-20 h-16 rounded-lg overflow-hidden border border-slate-700 shrink-0 hover:ring-2 hover:ring-emerald-400 transition"
-                  title="Klik untuk memperbesar foto aktivitas"
-                >
-                  <img
-                    src={item.photoUrl}
-                    alt="Foto Aktivitas"
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white space-x-1">
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>Lihat</span>
+            {/* Foto Dokumentasi Aktivitas (Bisa Lebih dari 1 Foto) */}
+            {(() => {
+              const photos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
+              if (photos.length === 0) return null;
+
+              return (
+                <div className="bg-slate-850/60 p-2.5 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
+                      <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Foto Dokumentasi Aktivitas ({photos.length} Foto)</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">Klik untuk melihat galeri</span>
                   </div>
-                </button>
-                <div className="text-xs text-slate-400">
-                  <span className="font-semibold text-slate-300 block text-[11px]">Foto Dokumentasi Aktivitas</span>
-                  <span className="text-[10px] text-slate-500">Klik gambar untuk melihat foto detail pengerjaan</span>
+
+                  <div className="flex flex-wrap gap-2">
+                    {photos.map((pUrl, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() =>
+                          setPreviewPhoto({
+                            urls: photos,
+                            index: pIdx,
+                            title: `Aktivitas Mekanik: ${item.codeUnit}`,
+                            subtitle: `Foto ${pIdx + 1} dari ${photos.length} | ${item.tanggalTemuan} (${item.status}) | PIC: ${item.pic}`,
+                          })
+                        }
+                        className="relative group w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-700 hover:ring-2 hover:ring-emerald-400 transition"
+                        title="Klik untuk melihat foto aktivitas"
+                      >
+                        <img
+                          src={pUrl}
+                          alt={`Aktivitas ${pIdx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
+                        />
+                        <span className="absolute bottom-0 right-0 bg-slate-950/80 text-emerald-300 text-[9px] font-bold px-1 rounded-tl">
+                          #{pIdx + 1}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Status Change Footer */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
@@ -308,7 +333,9 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrl={previewPhoto.urls[previewPhoto.index || 0]}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index || 0}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

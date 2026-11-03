@@ -23,7 +23,12 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUnit, setEditingUnit] = useState<Partial<CodeUnit> | null>(null);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index?: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -46,12 +51,17 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
       currentHm: 0,
       statusUnit: 'READY',
       photoUrl: undefined,
+      photoUrls: [],
     });
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUnit?.codeUnit || !editingUnit.egi) return;
+
+    const finalPhotoUrls = editingUnit.photoUrls && editingUnit.photoUrls.length > 0
+      ? editingUnit.photoUrls
+      : (editingUnit.photoUrl ? [editingUnit.photoUrl] : undefined);
 
     const unitToSave: CodeUnit = {
       id: editingUnit.id || `CU-${Date.now().toString().slice(-4)}`,
@@ -62,7 +72,8 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
       lokasiPit: editingUnit.lokasiPit || 'PIT Barat',
       currentHm: Number(editingUnit.currentHm) || 0,
       statusUnit: editingUnit.statusUnit || 'READY',
-      photoUrl: editingUnit.photoUrl,
+      photoUrl: finalPhotoUrls?.[0],
+      photoUrls: finalPhotoUrls,
       lastInspectionDate: editingUnit.lastInspectionDate,
     };
 
@@ -224,12 +235,21 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
                 <div className="sm:col-span-2">
                   <PhotoUploader
                     photoUrl={editingUnit.photoUrl}
-                    onChange={url => setEditingUnit({ ...editingUnit, photoUrl: url })}
+                    photoUrls={editingUnit.photoUrls || (editingUnit.photoUrl ? [editingUnit.photoUrl] : [])}
+                    onChange={url => setEditingUnit({ ...editingUnit, photoUrl: url, photoUrls: url ? [url] : [] })}
+                    onChangeMultiple={urls =>
+                      setEditingUnit({
+                        ...editingUnit,
+                        photoUrls: urls,
+                        photoUrl: urls[0],
+                      })
+                    }
                     label="Foto Unit Alat Berat"
-                    description="Ambil foto fisik unit / plat nomor dari kamera perangkat atau pilih dari galeri"
-                    onPreviewFullscreen={url =>
+                    description="Ambil foto fisik unit / plat nomor dari kamera perangkat atau pilih dari galeri (bisa lebih dari 1 foto)"
+                    onPreviewFullscreen={(url, idx, allUrls) =>
                       setPreviewPhoto({
-                        url,
+                        urls: allUrls || [url],
+                        index: idx ?? 0,
                         title: editingUnit.codeUnit || 'Unit Alat Berat',
                         subtitle: editingUnit.egi,
                       })
@@ -286,12 +306,41 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
                     className="bg-slate-800/40 hover:bg-slate-800/70 border border-slate-800 rounded-xl p-3 text-xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                   >
                     <div className="flex items-start space-x-3">
-                      {unit.photoUrl ? (
+                      {unit.photoUrls && unit.photoUrls.length > 0 ? (
                         <button
                           type="button"
                           onClick={() =>
                             setPreviewPhoto({
-                              url: unit.photoUrl!,
+                              urls: unit.photoUrls!,
+                              index: 0,
+                              title: unit.codeUnit,
+                              subtitle: `${unit.egi} (${unit.photoUrls!.length} Foto)`,
+                            })
+                          }
+                          className="relative w-12 h-12 rounded-lg overflow-hidden border border-slate-700 shrink-0 group hover:ring-2 hover:ring-amber-400 transition"
+                          title="Klik untuk melihat galeri foto unit"
+                        >
+                          <img
+                            src={unit.photoUrls[0]}
+                            alt={unit.codeUnit}
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
+                          />
+                          {unit.photoUrls.length > 1 && (
+                            <span className="absolute bottom-0 right-0 bg-slate-900/90 text-amber-400 text-[9px] font-bold px-1 rounded-tl">
+                              +{unit.photoUrls.length}
+                            </span>
+                          )}
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                            <Camera className="w-3.5 h-3.5 text-white" />
+                          </div>
+                        </button>
+                      ) : unit.photoUrl ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewPhoto({
+                              urls: [unit.photoUrl!],
+                              index: 0,
                               title: unit.codeUnit,
                               subtitle: unit.egi,
                             })
@@ -391,7 +440,9 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrl={previewPhoto.urls[previewPhoto.index || 0]}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index || 0}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

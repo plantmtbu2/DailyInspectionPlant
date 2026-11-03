@@ -741,6 +741,8 @@ export default function App() {
         {activeTab === 'daily-rigid' && (
           <DailyRigidView
             list={dailyRigidList}
+            backlogs={backlogs}
+            activities={activities}
             activeQaType="DAILY_INSPECTION"
             onChangeQaType={t => {
               if (t === 'DAILY_INSPECTION') setActiveTab('daily-rigid');
@@ -779,6 +781,8 @@ export default function App() {
         {activeTab === 'daily-artic' && (
           <DailyArticView
             list={dailyArticList}
+            backlogs={backlogs}
+            activities={activities}
             activeQaType="DAILY_INSPECTION"
             onChangeQaType={t => {
               if (t === 'DAILY_INSPECTION') setActiveTab('daily-artic');
@@ -817,6 +821,8 @@ export default function App() {
         {activeTab === 'qa1-rigid' && (
           <DailyRigidView
             list={dailyRigidList}
+            backlogs={backlogs}
+            activities={activities}
             activeQaType="QA1_PRE"
             onChangeQaType={t => {
               if (t === 'DAILY_INSPECTION') setActiveTab('daily-rigid');
@@ -855,6 +861,8 @@ export default function App() {
         {activeTab === 'qa7-rigid' && (
           <DailyRigidView
             list={dailyRigidList}
+            backlogs={backlogs}
+            activities={activities}
             activeQaType="QA7_FINAL"
             onChangeQaType={t => {
               if (t === 'DAILY_INSPECTION') setActiveTab('daily-rigid');
@@ -893,6 +901,8 @@ export default function App() {
         {activeTab === 'qa1-artic' && (
           <DailyArticView
             list={dailyArticList}
+            backlogs={backlogs}
+            activities={activities}
             activeQaType="QA1_PRE"
             onChangeQaType={t => {
               if (t === 'DAILY_INSPECTION') setActiveTab('daily-artic');
@@ -931,6 +941,8 @@ export default function App() {
         {activeTab === 'qa7-artic' && (
           <DailyArticView
             list={dailyArticList}
+            backlogs={backlogs}
+            activities={activities}
             activeQaType="QA7_FINAL"
             onChangeQaType={t => {
               if (t === 'DAILY_INSPECTION') setActiveTab('daily-artic');

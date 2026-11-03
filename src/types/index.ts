@@ -8,7 +8,8 @@ export interface CodeUnit {
   currentHm: number;
   statusUnit: 'READY' | 'BREAKDOWN' | 'MAINTENANCE' | 'STANDBY';
   lastInspectionDate?: string;
-  photoUrl?: string; // Foto unit alat berat
+  photoUrl?: string; // Foto unit alat berat (primary / single)
+  photoUrls?: string[]; // Foto unit alat berat (multi foto)
 }
 
 export interface BAPRecord {
@@ -25,7 +26,8 @@ export interface BAPRecord {
   status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
   catatanTambahan?: string;
   syncedToSheets?: boolean;
-  photoUrl?: string; // Foto kerusakan / bukti fisik BAP
+  photoUrl?: string; // Foto kerusakan / bukti fisik BAP (primary / single)
+  photoUrls?: string[]; // Foto kerusakan / bukti fisik BAP (multi foto)
   createdAt: string;
 }
 
@@ -58,7 +60,8 @@ export interface DailyCheckRigid {
   temuanDeviasi: string; // Temuan Deviasi / ADD ACTIVITIES
   jumlahBacklog: number;
   jumlahAktivitas: number;
-  photoUrl?: string; // Foto temuan deviasi / inspeksi unit rigid
+  photoUrl?: string; // Foto temuan deviasi / inspeksi unit rigid (primary / single)
+  photoUrls?: string[]; // Foto temuan deviasi / inspeksi unit rigid (multi foto)
   syncedToSheets?: boolean;
   createdAt: string;
 }
@@ -81,7 +84,8 @@ export interface DailyCheckArtic {
   temuanDeviasi: string;
   jumlahBacklog: number;
   jumlahAktivitas: number;
-  photoUrl?: string; // Foto temuan deviasi / inspeksi unit artic
+  photoUrl?: string; // Foto temuan deviasi / inspeksi unit artic (primary / single)
+  photoUrls?: string[]; // Foto temuan deviasi / inspeksi unit artic (multi foto)
   syncedToSheets?: boolean;
   createdAt: string;
 }
@@ -108,7 +112,8 @@ export interface BacklogItem {
   tanggalTemuan: string;
   pic: string;
   relatedInspectionId?: string;
-  photoUrl?: string; // Foto komponen / kerusakan backlog
+  photoUrl?: string; // Foto komponen / kerusakan backlog (primary / single)
+  photoUrls?: string[]; // Foto komponen / kerusakan backlog (multi foto)
   syncedToSheets?: boolean;
   createdAt: string;
 }
@@ -122,7 +127,8 @@ export interface AddActivityItem {
   tanggalTemuan: string;
   pic: string;
   relatedInspectionId?: string;
-  photoUrl?: string; // Foto hasil pekerjaan / progres aktivitas mekanik
+  photoUrl?: string; // Foto hasil pekerjaan / progres aktivitas mekanik (primary / single)
+  photoUrls?: string[]; // Foto hasil pekerjaan / progres aktivitas mekanik (multi foto)
   syncedToSheets?: boolean;
   createdAt: string;
 }

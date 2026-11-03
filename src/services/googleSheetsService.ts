@@ -399,6 +399,26 @@ export const ADD_ACTIVITIES_SHEET_HEADERS = [
   'Foto Aktivitas',
 ];
 
+export const serializePhotos = (urls?: string[], single?: string): string => {
+  if (urls && urls.length > 0) return urls.join(' \n ');
+  return single || '';
+};
+
+export const parsePhotos = (cellVal?: any): { photoUrl?: string; photoUrls?: string[] } => {
+  if (!cellVal) return {};
+  const str = String(cellVal).trim();
+  if (!str) return {};
+  if (str.includes('\n')) {
+    const list = str.split('\n').map(s => s.trim()).filter(Boolean);
+    return { photoUrl: list[0], photoUrls: list };
+  }
+  if (str.includes(' ; ')) {
+    const list = str.split(' ; ').map(s => s.trim()).filter(Boolean);
+    return { photoUrl: list[0], photoUrls: list };
+  }
+  return { photoUrl: str, photoUrls: [str] };
+};
+
 export const buildRigidSheetRow = (r: DailyCheckRigid): (string | number)[] => {
   const qaLabel =
     r.qaType === 'QA7_FINAL'
@@ -434,7 +454,7 @@ export const buildRigidSheetRow = (r: DailyCheckRigid): (string | number)[] => {
     r.jumlahAktivitas || 0,
     r.divalidasiOleh || '-',
     r.createdAt,
-    r.photoUrl || '',
+    serializePhotos(r.photoUrls, r.photoUrl),
   ];
 };
 
@@ -470,7 +490,7 @@ export const buildArticSheetRow = (a: DailyCheckArtic): (string | number)[] => {
     a.jumlahAktivitas || 0,
     a.divalidasiOleh || '-',
     a.createdAt,
-    a.photoUrl || '',
+    serializePhotos(a.photoUrls, a.photoUrl),
   ];
 };
 
@@ -499,7 +519,7 @@ export const buildBacklogSheetRow = (bl: BacklogItem): (string | number)[] => {
     bl.tanggalTemuan,
     bl.pic,
     bl.createdAt || new Date().toISOString(),
-    bl.photoUrl || '',
+    serializePhotos(bl.photoUrls, bl.photoUrl),
   ];
 };
 
@@ -517,7 +537,7 @@ export const buildBapSheetRow = (b: BAPRecord): (string | number)[] => [
   b.status,
   b.catatanTambahan || '',
   b.createdAt,
-  b.photoUrl || '',
+  serializePhotos(b.photoUrls, b.photoUrl),
 ];
 
 export const buildActivitySheetRow = (act: AddActivityItem): (string | number)[] => [
@@ -529,7 +549,7 @@ export const buildActivitySheetRow = (act: AddActivityItem): (string | number)[]
   act.tanggalTemuan,
   act.pic,
   act.createdAt,
-  act.photoUrl || '',
+  serializePhotos(act.photoUrls, act.photoUrl),
 ];
 
 export const buildCodeUnitSheetRow = (u: CodeUnit): (string | number)[] => [
@@ -541,7 +561,7 @@ export const buildCodeUnitSheetRow = (u: CodeUnit): (string | number)[] => [
   u.lokasiPit,
   u.currentHm,
   u.statusUnit,
-  u.photoUrl || '',
+  serializePhotos(u.photoUrls, u.photoUrl),
 ];
 
 /**
@@ -788,39 +808,47 @@ export const overwriteSheetRows = async (sheetName: string, rows: (string | numb
 const parseCodeUnitRows = (rows: any[][]): CodeUnit[] => {
   return rows
     .filter(r => r[0] && r[1])
-    .map(r => ({
-      id: String(r[0] || ''),
-      codeUnit: String(r[1] || '').toUpperCase(),
-      egi: String(r[2] || ''),
-      tipeAlat: String(r[3] || 'Rigid Dump Truck'),
-      brand: String(r[4] || 'Caterpillar'),
-      lokasiPit: String(r[5] || 'PIT Area'),
-      currentHm: Number(r[6]) || 0,
-      statusUnit: (['READY', 'BREAKDOWN', 'MAINTENANCE', 'STANDBY'].includes(r[7]) ? r[7] : 'READY') as any,
-      photoUrl: String(r[8] || '') || undefined,
-    }));
+    .map(r => {
+      const photos = parsePhotos(r[8]);
+      return {
+        id: String(r[0] || ''),
+        codeUnit: String(r[1] || '').toUpperCase(),
+        egi: String(r[2] || ''),
+        tipeAlat: String(r[3] || 'Rigid Dump Truck'),
+        brand: String(r[4] || 'Caterpillar'),
+        lokasiPit: String(r[5] || 'PIT Area'),
+        currentHm: Number(r[6]) || 0,
+        statusUnit: (['READY', 'BREAKDOWN', 'MAINTENANCE', 'STANDBY'].includes(r[7]) ? r[7] : 'READY') as any,
+        photoUrl: photos.photoUrl,
+        photoUrls: photos.photoUrls,
+      };
+    });
 };
 
 const parseBapRows = (rows: any[][]): BAPRecord[] => {
   return rows
     .filter(r => r[0] && r[1])
-    .map(r => ({
-      id: String(r[0]),
-      codeUnit: String(r[1]),
-      hm: Number(r[2]) || 0,
-      kerusakan: String(r[3] || ''),
-      estimasiPekerjaan: String(r[4] || '4 Jam'),
-      lokasiPekerjaan: String(r[5] || 'PIT Area'),
-      mo: String(r[6] || ''),
-      tanggal: String(r[7] || new Date().toISOString().slice(0, 10)),
-      jam: String(r[8] || '08:00'),
-      picMekanik: String(r[9] || ''),
-      status: (['OPEN', 'IN_PROGRESS', 'COMPLETED'].includes(r[10]) ? r[10] : 'OPEN') as any,
-      catatanTambahan: String(r[11] || ''),
-      syncedToSheets: true,
-      createdAt: String(r[12] || new Date().toISOString()),
-      photoUrl: String(r[13] || '') || undefined,
-    }));
+    .map(r => {
+      const photos = parsePhotos(r[13]);
+      return {
+        id: String(r[0]),
+        codeUnit: String(r[1]),
+        hm: Number(r[2]) || 0,
+        kerusakan: String(r[3] || ''),
+        estimasiPekerjaan: String(r[4] || '4 Jam'),
+        lokasiPekerjaan: String(r[5] || 'PIT Area'),
+        mo: String(r[6] || ''),
+        tanggal: String(r[7] || new Date().toISOString().slice(0, 10)),
+        jam: String(r[8] || '08:00'),
+        picMekanik: String(r[9] || ''),
+        status: (['OPEN', 'IN_PROGRESS', 'COMPLETED'].includes(r[10]) ? r[10] : 'OPEN') as any,
+        catatanTambahan: String(r[11] || ''),
+        syncedToSheets: true,
+        createdAt: String(r[12] || new Date().toISOString()),
+        photoUrl: photos.photoUrl,
+        photoUrls: photos.photoUrls,
+      };
+    });
 };
 
 const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
@@ -880,7 +908,7 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
         const jumlahAktivitas = Number(r[32]) || 0;
         const divalidasiOleh = String(r[33] || '');
         const createdAt = String(r[34] || new Date().toISOString());
-        const photoUrl = String(r[35] || '') || undefined;
+        const photos = parsePhotos(r[35]);
 
         return {
           id,
@@ -900,7 +928,8 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
           jumlahAktivitas,
           divalidasiOleh,
           createdAt,
-          photoUrl,
+          photoUrl: photos.photoUrl,
+          photoUrls: photos.photoUrls,
           syncedToSheets: true,
         };
       }
@@ -918,6 +947,8 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
           parsedItems = JSON.parse(r[16]);
         } catch {}
       }
+
+      const legacyPhotos = parsePhotos(r[18]);
 
       return {
         id: String(r[0]),
@@ -938,7 +969,8 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
         items: parsedItems,
         syncedToSheets: true,
         createdAt: String(r[17] || new Date().toISOString()),
-        photoUrl: String(r[18] || '') || undefined,
+        photoUrl: legacyPhotos.photoUrl,
+        photoUrls: legacyPhotos.photoUrls,
       };
     });
 };
@@ -990,7 +1022,7 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
         const jumlahAktivitas = Number(r[49]) || 0;
         const divalidasiOleh = String(r[50] || '');
         const createdAt = String(r[51] || new Date().toISOString());
-        const photoUrl = String(r[52] || '') || undefined;
+        const photos = parsePhotos(r[52]);
 
         return {
           id,
@@ -1010,7 +1042,8 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
           jumlahAktivitas,
           divalidasiOleh,
           createdAt,
-          photoUrl,
+          photoUrl: photos.photoUrl,
+          photoUrls: photos.photoUrls,
           syncedToSheets: true,
         };
       }
@@ -1028,6 +1061,8 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
           parsedItems = JSON.parse(r[15]);
         } catch {}
       }
+
+      const legacyPhotos = parsePhotos(r[17]);
 
       return {
         id: String(r[0]),
@@ -1048,7 +1083,8 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
         items: parsedItems,
         syncedToSheets: true,
         createdAt: String(r[16] || new Date().toISOString()),
-        photoUrl: String(r[17] || '') || undefined,
+        photoUrl: legacyPhotos.photoUrl,
+        photoUrls: legacyPhotos.photoUrls,
       };
     });
 };
@@ -1074,7 +1110,7 @@ const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
         const tanggalTemuan = String(r[11] || new Date().toISOString().slice(0, 10));
         const pic = String(r[12] || '');
         const createdAt = String(r[13] || new Date().toISOString());
-        const photoUrl = String(r[14] || '') || undefined;
+        const photos = parsePhotos(r[14]);
 
         let parts: BacklogPart[] | undefined = undefined;
         if (rawDetailedParts && rawDetailedParts.includes('[Part')) {
@@ -1107,7 +1143,8 @@ const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
           tanggalTemuan,
           pic,
           createdAt,
-          photoUrl,
+          photoUrl: photos.photoUrl,
+          photoUrls: photos.photoUrls,
           syncedToSheets: true,
         };
       }
@@ -1116,6 +1153,7 @@ const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
       const rawPartNo = String(r[5] || '');
       const rawDesc = String(r[6] || '');
       const rawQty = r[7] ? (isNaN(Number(r[7])) ? String(r[7]) : Number(r[7])) : 1;
+      const legacyPhotos = parsePhotos(r[12]);
 
       return {
         id: String(r[0]),
@@ -1132,7 +1170,8 @@ const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
         pic: String(r[11] || ''),
         syncedToSheets: true,
         createdAt: new Date().toISOString(),
-        photoUrl: String(r[12] || '') || undefined,
+        photoUrl: legacyPhotos.photoUrl,
+        photoUrls: legacyPhotos.photoUrls,
       };
     });
 };
@@ -1140,18 +1179,22 @@ const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
 const parseActivityRows = (rows: any[][]): AddActivityItem[] => {
   return rows
     .filter(r => r[0] && r[1])
-    .map(r => ({
-      id: String(r[0]),
-      codeUnit: String(r[1]),
-      deskripsiAktivitas: String(r[2] || ''),
-      action: String(r[3] || ''),
-      status: (['DONE', 'MONITORING', 'PENDING'].includes(r[4]) ? r[4] : 'DONE') as any,
-      tanggalTemuan: String(r[5] || new Date().toISOString().slice(0, 10)),
-      pic: String(r[6] || ''),
-      syncedToSheets: true,
-      createdAt: String(r[7] || new Date().toISOString()),
-      photoUrl: String(r[8] || '') || undefined,
-    }));
+    .map(r => {
+      const photos = parsePhotos(r[8]);
+      return {
+        id: String(r[0]),
+        codeUnit: String(r[1]),
+        deskripsiAktivitas: String(r[2] || ''),
+        action: String(r[3] || ''),
+        status: (['DONE', 'MONITORING', 'PENDING'].includes(r[4]) ? r[4] : 'DONE') as any,
+        tanggalTemuan: String(r[5] || new Date().toISOString().slice(0, 10)),
+        pic: String(r[6] || ''),
+        syncedToSheets: true,
+        createdAt: String(r[7] || new Date().toISOString()),
+        photoUrl: photos.photoUrl,
+        photoUrls: photos.photoUrls,
+      };
+    });
 };
 
 /**

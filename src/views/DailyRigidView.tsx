@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DailyCheckRigid, QAType } from '../types';
+import { DailyCheckRigid, QAType, BacklogItem, AddActivityItem } from '../types';
 import {
   Truck,
   Plus,
@@ -16,6 +16,8 @@ import {
   Camera,
   ShieldCheck,
   Zap,
+  ListTodo,
+  Wrench,
 } from 'lucide-react';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { formatDailyRigidWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
@@ -30,6 +32,8 @@ interface DailyRigidViewProps {
   onPrintPreview: (item: DailyCheckRigid) => void;
   onOpenAddBacklog?: (codeUnit: string) => void;
   onOpenAddActivity?: (codeUnit: string) => void;
+  backlogs?: BacklogItem[];
+  activities?: AddActivityItem[];
 }
 
 export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
@@ -42,9 +46,16 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
   onPrintPreview,
   onOpenAddBacklog,
   onOpenAddActivity,
+  backlogs = [],
+  activities = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index?: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const isDaily = activeQaType === 'DAILY_INSPECTION';
   const isFinal = activeQaType === 'QA7_FINAL';
@@ -289,8 +300,14 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
                 {/* Actions: WA, Print, Edit, Delete */}
                 <div className="flex items-center space-x-1.5 shrink-0">
                   <button
-                    onClick={() => shareToWhatsApp(formatDailyRigidWhatsApp(item))}
-                    title="Share ke WhatsApp"
+                    onClick={() => {
+                      const allPhotos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
+                      shareToWhatsApp(formatDailyRigidWhatsApp(item), {
+                        photoUrls: allPhotos,
+                        title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Rigid' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Rigid' : 'QA 1 Pre Rigid'} - ${item.codeUnit}`,
+                      });
+                    }}
+                    title="Share ke WhatsApp (Disertai Foto)"
                     className="p-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 rounded-xl transition"
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -368,68 +385,162 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
                 </div>
               )}
 
-              {/* Foto Dokumentasi Inspeksi Unit */}
-              {item.photoUrl && (
-                <div className="flex items-center space-x-3 bg-slate-850/60 p-2 rounded-xl border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPreviewPhoto({
-                        url: item.photoUrl!,
-                        title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Rigid' : 'QA 1 Pre Rigid'} - ${item.codeUnit}`,
-                        subtitle: `${item.tanggal} (${item.status}) | HM: ${item.hmUnit}`,
-                      })
-                    }
-                    className="relative group w-20 h-16 rounded-lg overflow-hidden border border-slate-700 shrink-0 hover:ring-2 hover:ring-amber-400 transition"
-                  >
-                    <img
-                      src={item.photoUrl}
-                      alt="Foto Inspeksi"
-                      className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white space-x-1">
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>Lihat</span>
+              {/* Foto Dokumentasi Inspeksi Unit (Bisa lebih dari 1 foto) */}
+              {(() => {
+                const photos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
+                if (photos.length === 0) return null;
+
+                return (
+                  <div className="bg-slate-850/60 p-2.5 rounded-xl border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
+                        <Camera className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Dokumentasi Foto Inspeksi ({photos.length} Foto)</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">Klik untuk melihat galeri</span>
                     </div>
-                  </button>
-                  <div className="text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300 block text-[11px]">Foto Dokumentasi Terlampir</span>
-                    <span className="text-[10px] text-slate-500">Klik gambar untuk melihat detail fisik inspeksi</span>
+
+                    <div className="flex flex-wrap gap-2">
+                      {photos.map((pUrl, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          onClick={() =>
+                            setPreviewPhoto({
+                              urls: photos,
+                              index: pIdx,
+                              title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Rigid' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Rigid' : 'QA 1 Pre Rigid'} - ${item.codeUnit}`,
+                              subtitle: `Foto ${pIdx + 1} dari ${photos.length} | ${item.tanggal} (${item.status})`,
+                            })
+                          }
+                          className="relative group w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-700 hover:ring-2 hover:ring-amber-400 transition"
+                        >
+                          <img
+                            src={pUrl}
+                            alt={`Foto ${pIdx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
+                          />
+                          <span className="absolute bottom-0 right-0 bg-slate-950/80 text-amber-400 text-[9px] font-bold px-1 rounded-tl">
+                            #{pIdx + 1}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
+
+              {/* Live Connected Backlogs & Activities Panel */}
+              {(() => {
+                const unitBacklogs = backlogs.filter(
+                  b => b.codeUnit.toUpperCase() === item.codeUnit.toUpperCase() && b.statusBacklog !== 'DONE'
+                );
+                const unitActs = activities.filter(
+                  a => a.codeUnit.toUpperCase() === item.codeUnit.toUpperCase()
+                );
+
+                if (unitBacklogs.length === 0 && unitActs.length === 0) return null;
+
+                return (
+                  <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-2.5 text-xs space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span className="font-semibold text-slate-300">Terhubung Otomatis ke Unit {item.codeUnit}:</span>
+                      <span className="text-[10px] text-amber-400 font-mono">
+                        {unitBacklogs.length} Backlog Aktif • {unitActs.length} Aktivitas
+                      </span>
+                    </div>
+
+                    {unitBacklogs.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-amber-400 uppercase flex items-center space-x-1">
+                          <ListTodo className="w-3 h-3" />
+                          <span>Daftar Backlog Terhubung:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {unitBacklogs.map(b => (
+                            <span
+                              key={b.id}
+                              className={`text-[10px] px-2 py-0.5 rounded border ${
+                                b.priority === 'HIGH'
+                                  ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                                  : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                              }`}
+                            >
+                              [{b.priority}] {b.itemProblem} ({b.statusBacklog})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {unitActs.length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-slate-800/60">
+                        <div className="text-[10px] font-bold text-emerald-400 uppercase flex items-center space-x-1">
+                          <Wrench className="w-3 h-3" />
+                          <span>Aktivitas Mekanik Terakhir:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {unitActs.slice(0, 3).map(a => (
+                            <span
+                              key={a.id}
+                              className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                            >
+                              {a.deskripsiAktivitas} ({a.status})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Bottom Footer Meta & Interconnected Backlog/Activity Links */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>PIC: <strong className="text-slate-200">{item.picMekanik}</strong></span>
-                  <span>Foreman: <strong className="text-slate-200">{item.divalidasiOleh}</strong></span>
-                </div>
-                <div className="flex items-center space-x-2 text-[10px]">
-                  <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 font-semibold font-mono">
-                    Backlog: {item.jumlahBacklog}
-                  </span>
-                  <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold font-mono">
-                    Aktivitas: {item.jumlahAktivitas}
-                  </span>
-                  {onOpenAddBacklog && (
-                    <button
-                      onClick={() => onOpenAddBacklog(item.codeUnit)}
-                      className="text-amber-400 hover:text-amber-300 underline font-semibold"
-                    >
-                      +BL
-                    </button>
-                  )}
-                  {onOpenAddActivity && (
-                    <button
-                      onClick={() => onOpenAddActivity(item.codeUnit)}
-                      className="text-emerald-400 hover:text-emerald-300 underline font-semibold"
-                    >
-                      +ACT
-                    </button>
-                  )}
-                </div>
-              </div>
+              {(() => {
+                const liveBacklogs = backlogs.filter(
+                  b => b.codeUnit.toUpperCase() === item.codeUnit.toUpperCase() && b.statusBacklog !== 'DONE'
+                );
+                const liveActivities = activities.filter(
+                  a => a.codeUnit.toUpperCase() === item.codeUnit.toUpperCase()
+                );
+                const countBL = liveBacklogs.length > 0 ? liveBacklogs.length : item.jumlahBacklog;
+                const countAct = liveActivities.length > 0 ? liveActivities.length : item.jumlahAktivitas;
+
+                return (
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span>PIC: <strong className="text-slate-200">{item.picMekanik}</strong></span>
+                      <span>Foreman: <strong className="text-slate-200">{item.divalidasiOleh}</strong></span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-[10px]">
+                      <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 font-semibold font-mono">
+                        Backlog: {countBL}
+                      </span>
+                      <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold font-mono">
+                        Aktivitas: {countAct}
+                      </span>
+                      {onOpenAddBacklog && (
+                        <button
+                          onClick={() => onOpenAddBacklog(item.codeUnit)}
+                          className="text-amber-400 hover:text-amber-300 underline font-semibold"
+                          title="Tambah Backlog untuk Unit Ini"
+                        >
+                          +BL
+                        </button>
+                      )}
+                      {onOpenAddActivity && (
+                        <button
+                          onClick={() => onOpenAddActivity(item.codeUnit)}
+                          className="text-emerald-400 hover:text-emerald-300 underline font-semibold"
+                          title="Tambah Aktivitas untuk Unit Ini"
+                        >
+                          +ACT
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -451,7 +562,9 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrl={previewPhoto.urls[previewPhoto.index || 0]}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index || 0}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

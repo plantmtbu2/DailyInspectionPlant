@@ -3,14 +3,7 @@ import { AddActivityItem, CodeUnit } from '../types';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
-import {
-  X,
-  Wrench,
-  Save,
-  MessageSquare,
-  CheckCircle,
-  Camera,
-} from 'lucide-react';
+import { X, Wrench, Save, CheckCircle, MessageSquare, Camera } from 'lucide-react';
 import { formatActivityWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 
 interface ActivityModalProps {
@@ -36,8 +29,14 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [status, setStatus] = useState<AddActivityItem['status']>('DONE');
   const [tanggalTemuan, setTanggalTemuan] = useState(new Date().toISOString().slice(0, 10));
   const [pic, setPic] = useState('');
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(itemToEdit?.photoUrl);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedItem, setSavedItem] = useState<AddActivityItem | null>(null);
@@ -52,16 +51,22 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       setStatus(itemToEdit.status);
       setTanggalTemuan(itemToEdit.tanggalTemuan);
       setPic(itemToEdit.pic);
-      setPhotoUrl(itemToEdit.photoUrl || undefined);
+      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+        ? itemToEdit.photoUrls
+        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+      setPhotoUrls(existingPhotos);
+      setPhotoUrl(existingPhotos[0] || undefined);
       setSavedItem(null);
     } else if (initialCodeUnit) {
       setCodeUnit(initialCodeUnit);
+      setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
     } else {
       setCodeUnit('');
       setDeskripsiAktivitas('');
       setAction('');
+      setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
     }
@@ -91,7 +96,8 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         status,
         tanggalTemuan,
         pic: pic || 'Mekanik Maintenance',
-        photoUrl: photoUrl || itemToEdit?.photoUrl,
+        photoUrls: photoUrls,
+        photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
         syncedToSheets: true,
         createdAt: itemToEdit ? itemToEdit.createdAt : new Date().toISOString(),
       };
@@ -145,39 +151,46 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">
-                  {itemToEdit ? 'Aktivitas Berhasil Diperbarui!' : 'Aktivitas Berhasil Dicatat!'}
+                  Aktivitas Mekanik Berhasil Disimpan!
                 </h3>
-                <p className="text-xs text-slate-300 mt-1">
-                  ID: <strong className="text-emerald-400">{savedItem.id}</strong> ({savedItem.codeUnit})
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Tersimpan di perangkat & otomatis masuk ke Google Sheet tab ADD_ACTIVITIES.
+                <p className="text-slate-400 text-xs mt-1">
+                  ID: <span className="font-mono text-emerald-400 font-bold">{savedItem.id}</span> • Unit: {savedItem.codeUnit}
                 </p>
               </div>
 
-              {savedItem.photoUrl && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPreviewPhoto({
-                        url: savedItem.photoUrl!,
-                        title: `Aktivitas: ${savedItem.codeUnit}`,
-                        subtitle: savedItem.deskripsiAktivitas,
-                      })
-                    }
-                    className="relative group rounded-xl overflow-hidden border border-slate-700 max-h-36 shadow-md"
-                  >
-                    <img
-                      src={savedItem.photoUrl}
-                      alt="Foto Aktivitas"
-                      className="max-h-36 object-contain group-hover:scale-105 transition"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-semibold space-x-1">
-                      <Camera className="w-4 h-4" />
-                      <span>Lihat Foto</span>
-                    </div>
-                  </button>
+              {/* Photos Gallery */}
+              {((savedItem.photoUrls && savedItem.photoUrls.length > 0) || savedItem.photoUrl) && (
+                <div className="pt-2">
+                  <span className="text-[11px] font-semibold text-slate-300 block mb-2">
+                    Foto Dokumentasi ({savedItem.photoUrls?.length || 1} Foto):
+                  </span>
+                  <div className="flex flex-wrap items-center justify-center gap-2 max-w-md mx-auto">
+                    {(savedItem.photoUrls || [savedItem.photoUrl!]).map((url, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() =>
+                          setPreviewPhoto({
+                            urls: savedItem.photoUrls || [savedItem.photoUrl!],
+                            index: idx,
+                            title: `Aktivitas: ${savedItem.codeUnit}`,
+                            subtitle: savedItem.deskripsiAktivitas,
+                          })
+                        }
+                        className="relative group rounded-xl overflow-hidden border border-slate-700 h-20 w-24 bg-slate-950 shadow-md"
+                      >
+                        <img
+                          src={url}
+                          alt={`Foto Aktivitas ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-semibold space-x-1">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>#{idx + 1}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -185,11 +198,19 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               <div className="pt-3 max-w-xs mx-auto">
                 <button
                   type="button"
-                  onClick={() => shareToWhatsApp(formatActivityWhatsApp(savedItem))}
-                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20"
+                  onClick={() =>
+                    shareToWhatsApp(
+                      formatActivityWhatsApp(savedItem),
+                      {
+                        photoUrls: savedItem.photoUrls || (savedItem.photoUrl ? [savedItem.photoUrl] : []),
+                        title: `Laporan Aktivitas ${savedItem.codeUnit}`,
+                      }
+                    )
+                  }
+                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Kirim via WhatsApp</span>
+                  <span>Kirim via WhatsApp (+ Foto)</span>
                 </button>
               </div>
 
@@ -213,30 +234,31 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
               <CodeUnitSelector
                 units={units}
-                selectedCodeUnit={codeUnit}
-                onChange={u => setCodeUnit(u ? u.codeUnit : '')}
+                selectedUnit={codeUnit}
+                onSelectUnit={u => setCodeUnit(u ? u.codeUnit : '')}
+                label="Code Unit Alat Berat *"
               />
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Deskripsi Aktivitas *</label>
+                <label className="block text-slate-300 font-semibold mb-1">Deskripsi Aktivitas / Temuan *</label>
                 <textarea
-                  required
                   rows={2}
+                  required
                   value={deskripsiAktivitas}
                   onChange={e => setDeskripsiAktivitas(e.target.value)}
-                  placeholder="Contoh: Pembersihan filter udara, penggantian O-ring saluran hidrolik, bleeding angin rem..."
+                  placeholder="Contoh: Pengecekan getaran pin artic, flushing filter hidrolik, adjustment rem..."
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:border-amber-400 outline-none resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Action (Tindakan yang Dilakukan) *</label>
+                <label className="block text-slate-300 font-semibold mb-1">Action / Tindakan yang Dilakukan *</label>
                 <textarea
-                  required
                   rows={2}
+                  required
                   value={action}
                   onChange={e => setAction(e.target.value)}
-                  placeholder="Contoh: Melakukan flushing oli, penggantian seal kit baru, running test selama 15 menit..."
+                  placeholder="Contoh: Dilakukan greasing ulang dengan grease EP-2 dan pengencangan baut flange 120 Nm..."
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:border-amber-400 outline-none resize-none"
                 />
               </div>
@@ -249,14 +271,14 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                     onChange={e => setStatus(e.target.value as any)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:border-amber-400 outline-none"
                   >
-                    <option value="DONE">DONE (Selesai Dikerjakan)</option>
-                    <option value="MONITORING">MONITORING (Dalam Pantauan)</option>
-                    <option value="PENDING">PENDING (Menunggu Eksekusi)</option>
+                    <option value="DONE">DONE (Selesai Tuntas)</option>
+                    <option value="MONITORING">MONITORING (Perlu Pantauan)</option>
+                    <option value="PENDING">PENDING (Menunggu Tindak Lanjut)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Tanggal Temuan / Pengerjaan</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Tanggal</label>
                   <input
                     type="date"
                     value={tanggalTemuan}
@@ -278,15 +300,17 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                 </div>
               </div>
 
-              {/* Dokumentasi Foto Aktivitas */}
+              {/* Dokumentasi Foto Aktivitas (Bisa Banyak) */}
               <PhotoUploader
-                photoUrl={photoUrl}
+                photoUrls={photoUrls}
+                onChangePhotos={setPhotoUrls}
                 onChange={setPhotoUrl}
-                label="Foto Dokumentasi Pengerjaan / Tindakan Mekanik"
+                label="Foto Dokumentasi Pengerjaan / Tindakan Mekanik (Bisa Lebih Dari 1)"
                 description="Ambil foto proses servis, penggantian sparepart baru, atau hasil akhir pengerjaan dari kamera / galeri"
-                onPreviewFullscreen={url =>
+                onPreviewFullscreen={(url, idx, all) =>
                   setPreviewPhoto({
-                    url,
+                    urls: all || [url],
+                    index: idx || 0,
                     title: `Foto Aktivitas: ${codeUnit || 'Unit'}`,
                     subtitle: deskripsiAktivitas || 'Dokumentasi Aktivitas',
                   })
@@ -329,7 +353,8 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

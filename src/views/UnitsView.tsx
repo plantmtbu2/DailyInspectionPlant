@@ -43,7 +43,12 @@ export const UnitsView: React.FC<UnitsViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('ALL');
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index?: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const readyCount = units.filter(u => u.statusUnit === 'READY').length;
   const breakdownCount = units.filter(u => u.statusUnit === 'BREAKDOWN').length;
@@ -217,37 +222,51 @@ export const UnitsView: React.FC<UnitsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Foto Unit jika ada */}
-                {unit.photoUrl && (
-                  <div className="flex items-center space-x-3 bg-slate-850/60 p-2 rounded-xl border border-slate-800 mt-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPreviewPhoto({
-                          url: unit.photoUrl!,
-                          title: `Unit ${unit.codeUnit} - ${unit.brand} ${unit.egi}`,
-                          subtitle: `Lokasi PIT: ${unit.lokasiPit} | Status: ${unit.statusUnit} | ${unit.currentHm.toLocaleString()} HM`,
-                        })
-                      }
-                      className="relative group w-20 h-16 rounded-lg overflow-hidden border border-slate-700 shrink-0 hover:ring-2 hover:ring-amber-400 transition"
-                      title="Klik untuk memperbesar foto unit"
-                    >
-                      <img
-                        src={unit.photoUrl}
-                        alt={`Foto Unit ${unit.codeUnit}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white space-x-1">
-                        <Camera className="w-3.5 h-3.5" />
-                        <span>Lihat</span>
+                {/* Foto Unit jika ada (Bisa lebih dari 1 foto) */}
+                {(() => {
+                  const photos = unit.photoUrls && unit.photoUrls.length > 0 ? unit.photoUrls : (unit.photoUrl ? [unit.photoUrl] : []);
+                  if (photos.length === 0) return null;
+
+                  return (
+                    <div className="bg-slate-850/60 p-2 rounded-xl border border-slate-800 mt-2 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-slate-300">
+                        <span className="font-semibold flex items-center space-x-1">
+                          <Camera className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Foto Armada ({photos.length} Foto)</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500">Klik untuk melihat galeri</span>
                       </div>
-                    </button>
-                    <div className="text-xs text-slate-400">
-                      <span className="font-semibold text-slate-300 block text-[11px]">Foto Armada Terlampir</span>
-                      <span className="text-[10px] text-slate-500">Klik gambar untuk melihat detail unit</span>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {photos.map((pUrl, pIdx) => (
+                          <button
+                            key={pIdx}
+                            type="button"
+                            onClick={() =>
+                              setPreviewPhoto({
+                                urls: photos,
+                                index: pIdx,
+                                title: `Unit ${unit.codeUnit} - ${unit.brand} ${unit.egi}`,
+                                subtitle: `Foto ${pIdx + 1} dari ${photos.length} | Lokasi PIT: ${unit.lokasiPit} | Status: ${unit.statusUnit} | ${unit.currentHm.toLocaleString()} HM`,
+                              })
+                            }
+                            className="relative group w-16 h-14 rounded-lg overflow-hidden border border-slate-700 hover:ring-2 hover:ring-amber-400 transition"
+                            title="Klik untuk melihat foto unit"
+                          >
+                            <img
+                              src={pUrl}
+                              alt={`Unit ${unit.codeUnit} #${pIdx + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
+                            />
+                            <span className="absolute bottom-0 right-0 bg-slate-950/80 text-amber-400 text-[9px] font-bold px-1 rounded-tl">
+                              #{pIdx + 1}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Connected Stats Row */}
                 <div className="grid grid-cols-4 gap-1.5 pt-2 text-center text-xs">
@@ -332,7 +351,9 @@ export const UnitsView: React.FC<UnitsViewProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrl={previewPhoto.urls[previewPhoto.index || 0]}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index || 0}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

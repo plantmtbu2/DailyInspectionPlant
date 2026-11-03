@@ -3,12 +3,15 @@ import {
   DailyCheckRigid,
   CodeUnit,
   ChecklistItemStatus,
+  BacklogItem,
+  AddActivityItem,
+  QAType,
 } from '../types';
 import { RIGID_CHECKLIST_ITEMS } from '../constants/checklists';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
-import { getUnitStats } from '../services/storageService';
+import { getBacklogs, getActivities } from '../services/storageService';
 import {
   X,
   Truck,
@@ -21,10 +24,12 @@ import {
   Plus,
   CheckCheck,
   Camera,
+  Link,
+  Wrench,
+  AlertOctagon,
+  ExternalLink,
 } from 'lucide-react';
 import { formatDailyRigidWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
-
-import { QAType } from '../types';
 
 interface DailyRigidModalProps {
   isOpen: boolean;
@@ -37,6 +42,8 @@ interface DailyRigidModalProps {
   initialCodeUnit?: string;
   itemToEdit?: DailyCheckRigid | null;
   qaType?: QAType;
+  backlogs?: BacklogItem[];
+  activities?: AddActivityItem[];
 }
 
 export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
@@ -50,6 +57,8 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
   initialCodeUnit = '',
   itemToEdit = null,
   qaType = 'QA1_PRE',
+  backlogs,
+  activities,
 }) => {
   const [codeUnit, setCodeUnit] = useState(initialCodeUnit);
   const [egi, setEgi] = useState('');
@@ -74,10 +83,13 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
   );
 
   const [temuanDeviasi, setTemuanDeviasi] = useState('');
-  const [jumlahBacklog, setJumlahBacklog] = useState(0);
-  const [jumlahAktivitas, setJumlahAktivitas] = useState(0);
-  const [photoUrl, setPhotoUrl] = useState<string | undefined>(itemToEdit?.photoUrl);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    urls: string[];
+    index: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedSuccessRecord, setSavedSuccessRecord] = useState<DailyCheckRigid | null>(null);
@@ -97,6 +109,22 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     }
   }, [startTime, finishTime]);
 
+  // Compute live linked backlogs & activities for the currently selected code unit
+  const allBacklogs = backlogs || getBacklogs();
+  const allActivities = activities || getActivities();
+
+  const activeUnitBacklogs = codeUnit
+    ? allBacklogs.filter(
+        b => b.codeUnit && b.codeUnit.trim().toLowerCase() === codeUnit.trim().toLowerCase() && b.status !== 'CLOSED'
+      )
+    : [];
+
+  const unitActivities = codeUnit
+    ? allActivities.filter(
+        a => a.codeUnit && a.codeUnit.trim().toLowerCase() === codeUnit.trim().toLowerCase()
+      )
+    : [];
+
   // Initialize form ONLY when modal opens or itemToEdit changes
   useEffect(() => {
     const wasClosed = !prevIsOpenRef.current;
@@ -114,9 +142,11 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
         setDivalidasiOleh(itemToEdit.divalidasiOleh);
         setItems(itemToEdit.items);
         setTemuanDeviasi(itemToEdit.temuanDeviasi);
-        setJumlahBacklog(itemToEdit.jumlahBacklog);
-        setJumlahAktivitas(itemToEdit.jumlahAktivitas);
-        setPhotoUrl(itemToEdit.photoUrl || undefined);
+
+        const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+          ? itemToEdit.photoUrls
+          : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+        setPhotoUrls(existingPhotos);
       } else if (initialCodeUnit) {
         setCodeUnit(initialCodeUnit);
         const allUnits = units && units.length > 0 ? units : [];
@@ -127,14 +157,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
           setEgi(matched.egi);
           setHmUnit(matched.currentHm);
         }
-        try {
-          const stats = getUnitStats(initialCodeUnit);
-          setJumlahBacklog(stats.backlogCount);
-          setJumlahAktivitas(stats.activityCount);
-        } catch {
-          // Ignore stats error
-        }
-        setPhotoUrl(undefined);
+        setPhotoUrls([]);
       } else {
         setCodeUnit('');
         setEgi('');
@@ -149,14 +172,13 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
           }))
         );
         setTemuanDeviasi('');
-        setJumlahBacklog(0);
-        setJumlahAktivitas(0);
-        setPhotoUrl(undefined);
+        setPhotoUrls([]);
       }
       setSavedSuccessRecord(null);
+      setFormError(null);
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, itemToEdit, initialCodeUnit]);
+  }, [isOpen, itemToEdit, initialCodeUnit, units]);
 
   if (!isOpen) return null;
 
@@ -166,20 +188,10 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setCodeUnit(unit.codeUnit);
       setEgi(unit.egi || '');
       setHmUnit(Number(unit.currentHm) || 0);
-      try {
-        const stats = getUnitStats(unit.codeUnit);
-        setJumlahBacklog(stats.backlogCount || 0);
-        setJumlahAktivitas(stats.activityCount || 0);
-      } catch {
-        setJumlahBacklog(0);
-        setJumlahAktivitas(0);
-      }
     } else {
       setCodeUnit('');
       setEgi('');
       setHmUnit(0);
-      setJumlahBacklog(0);
-      setJumlahAktivitas(0);
     }
   };
 
@@ -200,6 +212,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       prev.map(it => ({
         ...it,
         status: 'OK',
+        remark: '',
       }))
     );
   };
@@ -219,6 +232,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       const isFinal = activeQaType === 'QA7_FINAL';
       const prefix = isDaily ? 'DAILY-RIG' : isFinal ? 'QA7-RIG' : 'QA1-RIG';
       const randomSuffix = Math.floor(100 + Math.random() * 900);
+
       const record: DailyCheckRigid = {
         id: itemToEdit ? itemToEdit.id : `${prefix}-${tanggal.replace(/-/g, '')}-${codeUnit}-${randomSuffix}`,
         qaType: activeQaType,
@@ -234,9 +248,10 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
         divalidasiOleh: divalidasiOleh || 'Foreman Maintenance',
         items,
         temuanDeviasi: temuanDeviasi || 'Nihil / Parameter Sesuai Standar',
-        jumlahBacklog,
-        jumlahAktivitas,
-        photoUrl: photoUrl || itemToEdit?.photoUrl,
+        jumlahBacklog: activeUnitBacklogs.length,
+        jumlahAktivitas: unitActivities.length,
+        photoUrls: photoUrls,
+        photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
         syncedToSheets: true,
         createdAt: itemToEdit ? itemToEdit.createdAt : new Date().toISOString(),
       };
@@ -321,39 +336,51 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">
-                  {itemToEdit ? 'Inspeksi Rigid Berhasil Diperbarui!' : 'Laporan Daily Check Rigid Berhasil Disimpan!'}
+                  Inspeksi Rigid Berhasil Disimpan & Tersinkron!
                 </h3>
-                <p className="text-xs text-slate-300 mt-1">
-                  Unit: <strong className="text-amber-400">{savedSuccessRecord.codeUnit}</strong> ({savedSuccessRecord.egi})
+                <p className="text-slate-400 text-xs mt-1">
+                  ID: <span className="font-mono text-amber-400 font-bold">{savedSuccessRecord.id}</span> • Unit: {savedSuccessRecord.codeUnit}
                 </p>
-                <p className="text-[11px] text-slate-400">
-                  Data otomatis tercatat di Google Sheet tab DAILY_CHECK_RIGID.
-                </p>
+                <div className="inline-flex items-center space-x-2 mt-2 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700 text-[11px] text-slate-300">
+                  <span>Backlog Terkait: <strong className="text-amber-400 font-mono">{savedSuccessRecord.jumlahBacklog}</strong></span>
+                  <span>•</span>
+                  <span>Aktivitas Terkait: <strong className="text-emerald-400 font-mono">{savedSuccessRecord.jumlahAktivitas}</strong></span>
+                </div>
               </div>
 
-              {savedSuccessRecord.photoUrl && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPreviewPhoto({
-                        url: savedSuccessRecord.photoUrl!,
-                        title: `Daily Check Rigid - ${savedSuccessRecord.codeUnit}`,
-                        subtitle: `${savedSuccessRecord.tanggal} (${savedSuccessRecord.status})`,
-                      })
-                    }
-                    className="relative group rounded-xl overflow-hidden border border-slate-700 max-h-36 shadow-md"
-                  >
-                    <img
-                      src={savedSuccessRecord.photoUrl}
-                      alt="Foto Inspeksi"
-                      className="max-h-36 object-contain group-hover:scale-105 transition"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-semibold space-x-1">
-                      <Camera className="w-4 h-4" />
-                      <span>Lihat Foto</span>
-                    </div>
-                  </button>
+              {/* Photos Preview if available */}
+              {((savedSuccessRecord.photoUrls && savedSuccessRecord.photoUrls.length > 0) || savedSuccessRecord.photoUrl) && (
+                <div className="pt-2">
+                  <span className="text-[11px] font-semibold text-slate-300 block mb-2">
+                    Foto Dokumentasi Terlampir ({savedSuccessRecord.photoUrls?.length || 1} Foto):
+                  </span>
+                  <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg mx-auto">
+                    {(savedSuccessRecord.photoUrls || [savedSuccessRecord.photoUrl!]).map((url, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() =>
+                          setPreviewPhoto({
+                            urls: savedSuccessRecord.photoUrls || [savedSuccessRecord.photoUrl!],
+                            index: idx,
+                            title: `Inspeksi Rigid - ${savedSuccessRecord.codeUnit}`,
+                            subtitle: `${savedSuccessRecord.tanggal} (${savedSuccessRecord.status})`,
+                          })
+                        }
+                        className="relative group rounded-xl overflow-hidden border border-slate-700 h-24 w-28 bg-slate-950 shadow-md"
+                      >
+                        <img
+                          src={url}
+                          alt={`Foto Inspeksi ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-semibold space-x-1">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>#{idx + 1}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -361,64 +388,75 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
               <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto">
                 <button
                   type="button"
-                  onClick={() => shareToWhatsApp(formatDailyRigidWhatsApp(savedSuccessRecord))}
-                  className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20"
+                  onClick={() =>
+                    shareToWhatsApp(
+                      formatDailyRigidWhatsApp(savedSuccessRecord),
+                      {
+                        photoUrls: savedSuccessRecord.photoUrls || (savedSuccessRecord.photoUrl ? [savedSuccessRecord.photoUrl] : []),
+                        title: `Laporan ${savedSuccessRecord.codeUnit} - ${savedSuccessRecord.qaType || 'Rigid'}`,
+                      }
+                    )
+                  }
+                  className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Share ke WhatsApp</span>
+                  <span>Share WhatsApp (+ Foto)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onPrintPreview(savedSuccessRecord)}
-                  className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center space-x-2"
+                  className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 active:scale-95 transition"
                 >
                   <Printer className="w-4 h-4 text-amber-400" />
                   <span>Cetak / Simpan PDF</span>
                 </button>
               </div>
 
-              <div className="pt-3 border-t border-slate-800">
+              <div className="pt-2">
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
                 >
-                  Tutup
+                  Tutup & Kembali
                 </button>
               </div>
             </div>
           ) : (
             <form id="daily-rigid-form" onSubmit={handleSubmit} className="space-y-4">
               {formError && (
-                <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-semibold">
-                  {formError}
+                <div className="p-3 bg-rose-500/15 border border-rose-500/30 text-rose-300 rounded-xl text-xs flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{formError}</span>
                 </div>
               )}
 
-              {/* Unit Selector */}
-              <CodeUnitSelector
-                units={units}
-                selectedCodeUnit={codeUnit}
-                onChange={handleUnitSelect}
-                filterType="Rigid"
-              />
-
-              {/* Header Info Grid */}
-              <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-semibold mb-1">EGI Unit</label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={egi}
-                    placeholder="Auto-fill dari Master Unit"
-                    className="w-full bg-slate-900/60 border border-slate-700/60 rounded-lg px-2.5 py-1.5 text-slate-300 outline-none"
+              {/* Metadata Form Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-850/80 p-3.5 rounded-xl border border-slate-800">
+                {/* Code Unit Selector */}
+                <div className="sm:col-span-2">
+                  <CodeUnitSelector
+                    units={units}
+                    selectedUnit={codeUnit}
+                    onSelectUnit={handleUnitSelect}
+                    label="Code Unit Rigid Dump Truck *"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Tanggal Inspeksi *</label>
+                  <label className="block text-slate-400 font-semibold mb-1">EGI Unit</label>
+                  <input
+                    type="text"
+                    value={egi}
+                    onChange={e => setEgi(e.target.value)}
+                    placeholder="Contoh: HD785-7, 777D"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Tanggal Inspeksi *</label>
                   <input
                     type="date"
                     required
@@ -429,33 +467,31 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Status Unit *</label>
+                  <label className="block text-slate-400 font-semibold mb-1">Status Kesiapan Unit *</label>
                   <select
                     value={status}
                     onChange={e => setStatus(e.target.value as any)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-amber-400"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-amber-400 font-medium"
                   >
                     <option value="RUNNING">RUNNING (Siap Operasi)</option>
-                    <option value="BREAKDOWN">BREAKDOWN (Rusak)</option>
-                    <option value="SCHEDULED_SERVICE">SCHEDULED SERVICE (PS)</option>
-                    <option value="STANDBY">STANDBY (Tidak Beroperasi)</option>
+                    <option value="BREAKDOWN">BREAKDOWN (Rusak / Stop)</option>
+                    <option value="SCHEDULED_SERVICE">SCHEDULED SERVICE (Jadwal PM)</option>
+                    <option value="STANDBY">STANDBY (Tersedia Non-Aktif)</option>
                   </select>
                 </div>
 
-                {/* Time & Total Jam */}
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1 flex items-center space-x-1">
-                    <Clock className="w-3 h-3 text-amber-400" />
-                    <span>Start - Finish Time *</span>
-                  </label>
-                  <div className="flex items-center space-x-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Start Time</label>
                     <input
                       type="time"
                       value={startTime}
                       onChange={e => setStartTime(e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-white outline-none"
                     />
-                    <span className="text-slate-500">-</span>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Finish Time</label>
                     <input
                       type="time"
                       value={finishTime}
@@ -518,87 +554,103 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <span className="font-bold text-white text-xs uppercase tracking-wider">
-                      DAFTAR 19 ITEM CHECKLIST RIGID
+                      19 Item Checklist Inspeksi Rigid
                     </span>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">
-                      19 Parameter
+                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">
+                      19 Item Standar Plant 2
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleSetAllOK}
-                    className="flex items-center space-x-1 text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg hover:bg-emerald-500/20 font-semibold transition"
+                    className="px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-lg text-[11px] font-semibold flex items-center space-x-1 transition"
                   >
-                    <CheckCheck className="w-3.5 h-3.5" />
+                    <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Set Semua OK</span>
                   </button>
                 </div>
 
-                {/* Items Container */}
-                <div className="space-y-2">
-                  {items.map(current => {
-                    const def = RIGID_CHECKLIST_ITEMS.find(d => d.id === current.id);
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {items.map(it => {
+                    const def = RIGID_CHECKLIST_ITEMS.find(d => d.id === it.id);
                     const isMeasurement = def?.type === 'measurement';
 
                     return (
                       <div
-                        key={current.id}
-                        className={`p-2.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
-                          current.status === 'DEFECT'
+                        key={it.id}
+                        className={`p-3 rounded-xl border transition ${
+                          it.status === 'DEFECT'
                             ? 'bg-rose-950/20 border-rose-500/40'
-                            : current.status === 'MONITOR'
+                            : it.status === 'MONITOR'
                             ? 'bg-amber-950/20 border-amber-500/40'
-                            : 'bg-slate-800/40 border-slate-800/80 hover:bg-slate-800/60'
+                            : 'bg-slate-850/60 border-slate-800 hover:border-slate-700'
                         }`}
                       >
-                        <div className="flex-1">
-                          <span className="font-semibold text-slate-200 block text-xs">
-                            {current.name}
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-slate-200 text-xs flex-1">
+                            {it.name}
                           </span>
-                          {isMeasurement && (
-                            <span className="text-[10px] text-amber-400/80 font-medium">
-                              Input Nilai Pengukuran ({def?.unit})
-                            </span>
-                          )}
-                        </div>
 
-                        {/* Controls */}
-                        <div className="flex items-center space-x-2 shrink-0">
-                          {isMeasurement ? (
-                            <div className="flex items-center space-x-1.5">
-                              <input
-                                type="text"
-                                value={current.value || ''}
-                                onChange={e => handleValueChange(current.id, e.target.value)}
-                                placeholder={def?.placeholder}
-                                className="w-32 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:border-amber-400 outline-none"
-                              />
-                              <span className="text-[10px] text-slate-400 font-mono w-12 truncate">
-                                {def?.unit}
-                              </span>
-                            </div>
-                          ) : null}
-
-                          {/* Status Toggles: OK, MONITOR, DEFECT */}
-                          <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-                            {(['OK', 'MONITOR', 'DEFECT'] as const).map(st => (
+                          <div className="flex items-center space-x-1 shrink-0">
+                            {(['OK', 'DEFECT', 'MONITOR', 'NA'] as const).map(st => (
                               <button
                                 key={st}
                                 type="button"
-                                onClick={() => handleStatusChange(current.id, st)}
-                                className={`px-2 py-1 rounded-md text-[10px] font-bold transition ${
-                                  current.status === st
+                                onClick={() => handleStatusChange(it.id, st)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider transition ${
+                                  it.status === st
                                     ? st === 'OK'
-                                      ? 'bg-emerald-600 text-white shadow'
+                                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                      : st === 'DEFECT'
+                                      ? 'bg-rose-500 text-white shadow-sm'
                                       : st === 'MONITOR'
-                                      ? 'bg-amber-500 text-slate-950 shadow'
-                                      : 'bg-rose-600 text-white shadow'
-                                    : 'text-slate-400 hover:text-slate-200'
+                                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                                      : 'bg-slate-600 text-white'
+                                    : 'bg-slate-800 text-slate-400 hover:text-white'
                                 }`}
                               >
                                 {st}
                               </button>
                             ))}
+                          </div>
+                        </div>
+
+                        {/* Additional measurement / remark input if needed */}
+                        <div className="mt-2 pt-2 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {isMeasurement ? (
+                            <div>
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                                <span>Nilai Ukur:</span>
+                                {def?.unit && <span className="font-mono text-amber-400">{def.unit}</span>}
+                              </div>
+                              <input
+                                type="text"
+                                value={it.value || ''}
+                                onChange={e => handleValueChange(it.id, e.target.value)}
+                                placeholder={def?.placeholder || 'Masukkan hasil ukur'}
+                                className="w-full bg-slate-900 border border-slate-750 rounded px-2 py-1 text-[11px] text-amber-300 font-mono outline-none focus:border-amber-400"
+                              />
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-500 italic flex items-center">
+                              Pemeriksaan visual & fungsi operasional
+                            </div>
+                          )}
+
+                          <div>
+                            <span className="text-[10px] text-slate-400 block mb-0.5">Catatan / Keterangan:</span>
+                            <input
+                              type="text"
+                              value={it.remark || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setItems(prev =>
+                                  prev.map(item => (item.id === it.id ? { ...item, remark: val } : item))
+                                );
+                              }}
+                              placeholder="Keterangan temuan (opsional)"
+                              className="w-full bg-slate-900 border border-slate-750 rounded px-2 py-1 text-[11px] text-slate-300 outline-none focus:border-slate-500"
+                            />
                           </div>
                         </div>
                       </div>
@@ -621,70 +673,121 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
                 />
               </div>
 
-              {/* Dokumentasi Foto Pemeriksaan Rigid Dump Truck */}
+              {/* SECTION: FOTO DOKUMENTASI (BISA LEBIH DARI 1) */}
               <PhotoUploader
-                photoUrl={photoUrl}
-                onChange={setPhotoUrl}
-                label="Foto Dokumentasi Daily Check Rigid"
+                photoUrls={photoUrls}
+                onChangePhotos={setPhotoUrls}
+                label="Foto Dokumentasi Daily Check Rigid (Bisa Lebih Dari 1)"
                 description="Ambil foto fisik unit, walkaround ban, suspensi, engine bay, atau deviasi temuan dari kamera / galeri"
-                onPreviewFullscreen={url =>
+                onPreviewFullscreen={(url, idx, all) =>
                   setPreviewPhoto({
-                    url,
-                    title: `Foto Daily Check Rigid: ${codeUnit || 'Unit'}`,
-                    subtitle: `Inspeksi ${tanggal}`,
+                    urls: all || [url],
+                    index: idx || 0,
+                    title: `Foto ${menuTitle} - ${codeUnit || 'Unit'}`,
+                    subtitle: `Inspeksi ${tanggal} (${status})`,
                   })
                 }
               />
 
-              {/* Interconnected Backlog & Activity Section */}
-              <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5 space-y-3">
+              {/* SECTION: KETERHUBUNGAN OTOMATIS KE BACKLOG & AKTIVITAS UNIT */}
+              <div className="bg-slate-850/90 border border-amber-500/30 rounded-xl p-3.5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <Link className="w-4 h-4 text-amber-400" />
                     <span className="font-bold text-slate-200 text-xs">
-                      KETERHUBUNGAN BACKLOG & AKTIVITAS ({codeUnit || 'Belum Dipilih'})
+                      STATUS TERHUBUNG OTOMATIS: UNIT {codeUnit || '(PILIH UNIT TERLEBIH DAHULU)'}
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400">
-                    Otomatis sinkron dengan Code Unit
+                  <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Auto-Linked
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-900/70 border border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">Jumlah Backlog</span>
-                      <span className="text-base font-bold text-amber-400 font-mono">
-                        {jumlahBacklog} Item
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Backlogs box */}
+                  <div className="bg-slate-900/80 border border-slate-800 p-3 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <AlertOctagon className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-[11px] font-bold text-slate-300">Backlog Unit Aktif</span>
+                      </div>
+                      <span className="text-xs font-bold text-amber-400 font-mono bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+                        {activeUnitBacklogs.length} Item
                       </span>
                     </div>
+
+                    {activeUnitBacklogs.length > 0 ? (
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                        {activeUnitBacklogs.map(b => (
+                          <div key={b.id} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px]">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-200">{b.partNumber || b.moBacklog}</span>
+                              <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 font-mono">
+                                {b.status}
+                              </span>
+                            </div>
+                            <p className="text-slate-400 truncate mt-0.5">{b.deskripsiBacklog}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 italic py-1">
+                        Tidak ada backlog aktif yang tertunda untuk unit ini.
+                      </p>
+                    )}
+
                     {codeUnit && (
                       <button
                         type="button"
                         onClick={() => onOpenAddBacklog(codeUnit)}
-                        className="p-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg text-[10px] font-semibold flex items-center space-x-1"
+                        className="w-full py-1.5 px-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 rounded-lg text-[10px] font-semibold flex items-center justify-center space-x-1 transition"
                       >
                         <Plus className="w-3 h-3" />
-                        <span>+ Backlog</span>
+                        <span>+ Tambah Backlog Unit Ini</span>
                       </button>
                     )}
                   </div>
 
-                  <div className="bg-slate-900/70 border border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">Jumlah Aktivitas</span>
-                      <span className="text-base font-bold text-emerald-400 font-mono">
-                        {jumlahAktivitas} Item
+                  {/* Activities box */}
+                  <div className="bg-slate-900/80 border border-slate-800 p-3 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <Wrench className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-[11px] font-bold text-slate-300">Aktivitas Terkait Unit</span>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-400 font-mono bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30">
+                        {unitActivities.length} Catatan
                       </span>
                     </div>
+
+                    {unitActivities.length > 0 ? (
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                        {unitActivities.slice(0, 4).map(a => (
+                          <div key={a.id} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px]">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-200">{a.tanggalTemuan}</span>
+                              <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-300 font-mono">
+                                {a.status}
+                              </span>
+                            </div>
+                            <p className="text-slate-400 truncate mt-0.5">{a.deskripsiAktivitas}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 italic py-1">
+                        Belum ada catatan aktivitas mekanik untuk unit ini.
+                      </p>
+                    )}
+
                     {codeUnit && (
                       <button
                         type="button"
                         onClick={() => onOpenAddActivity(codeUnit)}
-                        className="p-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-[10px] font-semibold flex items-center space-x-1"
+                        className="w-full py-1.5 px-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-semibold flex items-center justify-center space-x-1 transition"
                       >
                         <Plus className="w-3 h-3" />
-                        <span>+ Aktivitas</span>
+                        <span>+ Catat Aktivitas Unit Ini</span>
                       </button>
                     )}
                   </div>
@@ -727,7 +830,8 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
         <PhotoPreviewModal
           isOpen={true}
           onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.url}
+          photoUrls={previewPhoto.urls}
+          initialIndex={previewPhoto.index}
           title={previewPhoto.title}
           subtitle={previewPhoto.subtitle}
         />

@@ -13,19 +13,31 @@ import {
 
 interface CodeUnitSelectorProps {
   units?: CodeUnit[];
-  selectedCodeUnit: string;
-  onChange: (unit: CodeUnit | undefined) => void;
+  selectedCodeUnit?: string;
+  selectedUnit?: string;
+  onChange?: (unit: CodeUnit | undefined) => void;
+  onSelectUnit?: (unit: CodeUnit | undefined) => void;
   onAddNewUnit?: () => void;
   filterType?: string; // e.g. "Rigid", "Artic"
+  label?: string;
 }
 
 export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
   units,
   selectedCodeUnit,
+  selectedUnit,
   onChange,
+  onSelectUnit,
   onAddNewUnit,
   filterType,
+  label,
 }) => {
+  const activeSelectedCode = selectedCodeUnit !== undefined ? selectedCodeUnit : (selectedUnit !== undefined ? selectedUnit : '');
+  const triggerChange = (u: CodeUnit | undefined) => {
+    if (onChange) onChange(u);
+    if (onSelectUnit) onSelectUnit(u);
+  };
+
   // Ensure we ALWAYS have unit data available even if parent passed empty array
   const allUnits = useMemo(() => {
     if (units && units.length > 0) return units;
@@ -39,10 +51,10 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
 
   // Find currently selected unit (case-insensitive & trimmed)
   const currentUnit = useMemo(() => {
-    if (!selectedCodeUnit) return undefined;
-    const clean = selectedCodeUnit.trim().toLowerCase();
+    if (!activeSelectedCode) return undefined;
+    const clean = activeSelectedCode.trim().toLowerCase();
     return allUnits.find(u => u.codeUnit.trim().toLowerCase() === clean);
-  }, [allUnits, selectedCodeUnit]);
+  }, [allUnits, activeSelectedCode]);
 
   // Filtered units if search term is typed
   const displayedUnits = useMemo(() => {
@@ -61,7 +73,7 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
     setIsManualMode(false);
     setManualCode('');
     setManualEgi('');
-    onChange(undefined);
+    triggerChange(undefined);
   };
 
   const handleApplyManual = () => {
@@ -77,22 +89,22 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
       currentHm: 0,
       statusUnit: 'READY',
     };
-    onChange(fallbackUnit);
+    triggerChange(fallbackUnit);
   };
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value.trim();
     if (!val) {
-      onChange(undefined);
+      triggerChange(undefined);
       return;
     }
     const found = allUnits.find(
       u => u.codeUnit.trim().toLowerCase() === val.toLowerCase()
     );
     if (found) {
-      onChange(found);
+      triggerChange(found);
     } else {
-      onChange({
+      triggerChange({
         id: `CU-CUSTOM-${Date.now().toString().slice(-4)}`,
         codeUnit: val,
         egi: val,
@@ -130,7 +142,7 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
           </div>
           <div>
             <label className="text-xs font-bold text-white uppercase tracking-wider block">
-              PILIH CODE UNIT (MASTER DATA) *
+              {label || 'PILIH CODE UNIT (MASTER DATA) *'}
             </label>
             <span className="text-[10px] text-slate-400 block">
               Pilih unit alat berat dari daftar master data
