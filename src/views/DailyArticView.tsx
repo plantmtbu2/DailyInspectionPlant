@@ -34,6 +34,7 @@ interface DailyArticViewProps {
   onOpenAddActivity?: (codeUnit: string) => void;
   backlogs?: BacklogItem[];
   activities?: AddActivityItem[];
+  onEditBacklog?: (item: BacklogItem) => void;
 }
 
 export const DailyArticView: React.FC<DailyArticViewProps> = ({
@@ -48,6 +49,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
   onOpenAddActivity,
   backlogs = [],
   activities = [],
+  onEditBacklog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [previewPhoto, setPreviewPhoto] = useState<{
@@ -99,10 +101,10 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
   const viewBadge = isDaily
     ? 'DAILY INSPECTION'
     : isFinal
-    ? 'FINAL QUALITY VALIDATION'
+    ? 'FINAL QUALITY VALIDATION (QA7)'
     : isAll
     ? 'ALL INSPECTIONS'
-    : 'PRE-OPERATIONAL CHECK';
+    : 'PRE-OPERATIONAL CHECK (QA1)';
 
   const createButtonLabel = isDaily
     ? '+ Buat Daily Inspection Artic'
@@ -364,7 +366,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                   <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800">
                     {defects.map(d => (
                       <span
-                        key={d.id}
+                        key={`${item.id}-def-${d.id}`}
                         className="text-[10px] bg-rose-950/40 border border-rose-500/30 px-2 py-0.5 rounded text-rose-300 font-semibold"
                       >
                         ⚠️ {d.name}
@@ -372,7 +374,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                     ))}
                     {monitors.map(m => (
                       <span
-                        key={m.id}
+                        key={`${item.id}-mon-${m.id}`}
                         className="text-[10px] bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded text-amber-300 font-semibold"
                       >
                         🔍 {m.name}
@@ -410,7 +412,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                     <div className="flex flex-wrap gap-2">
                       {photos.map((pUrl, pIdx) => (
                         <button
-                          key={pIdx}
+                          key={`${item.id}-photo-${pIdx}`}
                           type="button"
                           onClick={() =>
                             setPreviewPhoto({
@@ -440,7 +442,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
               {/* Live Connected Backlogs & Activities Panel */}
               {(() => {
                 const unitBacklogs = backlogs.filter(
-                  b => b.codeUnit.toUpperCase() === item.codeUnit.toUpperCase() && b.statusBacklog !== 'DONE'
+                  b => b.codeUnit.toUpperCase() === item.codeUnit.toUpperCase() && b.status !== 'CLOSED'
                 );
                 const unitActs = activities.filter(
                   a => a.codeUnit.toUpperCase() === item.codeUnit.toUpperCase()
@@ -463,18 +465,34 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                           <ListTodo className="w-3 h-3" />
                           <span>Daftar Backlog Terhubung:</span>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {unitBacklogs.map(b => (
-                            <span
-                              key={b.id}
-                              className={`text-[10px] px-2 py-0.5 rounded border ${
-                                b.priority === 'HIGH'
-                                  ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                        <div className="space-y-1.5">
+                          {unitBacklogs.map((b, bIdx) => (
+                            <div
+                              key={`${item.id}-bl-${b.id}-${bIdx}`}
+                              className={`text-[10px] px-2.5 py-1.5 rounded-lg border flex items-center justify-between gap-2 ${
+                                b.status === 'READY_TO_INSTALL'
+                                  ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
                                   : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
                               }`}
                             >
-                              [{b.priority}] {b.itemProblem} ({b.statusBacklog})
-                            </span>
+                              <div className="min-w-0">
+                                <span className="font-bold font-mono">[{b.status}]</span>{' '}
+                                <span className="truncate">{b.deskripsiBacklog}</span>
+                                {b.partNumber && b.partNumber !== '-' && (
+                                  <span className="text-slate-400 font-mono ml-1">({b.partNumber})</span>
+                                )}
+                              </div>
+                              {onEditBacklog && (
+                                <button
+                                  type="button"
+                                  onClick={() => onEditBacklog(b)}
+                                  className="px-2 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded font-bold transition flex items-center space-x-1 shrink-0"
+                                  title="Edit Backlog Ini"
+                                >
+                                  <span>Edit</span>
+                                </button>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -487,9 +505,9 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                           <span>Aktivitas Mekanik Terakhir:</span>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {unitActs.slice(0, 3).map(a => (
+                          {unitActs.slice(0, 3).map((a, aIdx) => (
                             <span
-                              key={a.id}
+                              key={`${item.id}-act-${a.id}-${aIdx}`}
                               className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
                             >
                               {a.deskripsiAktivitas} ({a.status})
@@ -505,7 +523,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
               {/* Bottom Footer Meta & Interconnected Backlog/Activity Links */}
               {(() => {
                 const liveBacklogs = backlogs.filter(
-                  b => b.codeUnit.toUpperCase() === item.codeUnit.toUpperCase() && b.statusBacklog !== 'DONE'
+                  b => b.codeUnit.toUpperCase() === item.codeUnit.toUpperCase() && b.status !== 'CLOSED'
                 );
                 const liveActivities = activities.filter(
                   a => a.codeUnit.toUpperCase() === item.codeUnit.toUpperCase()

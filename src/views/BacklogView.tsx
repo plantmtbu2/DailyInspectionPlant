@@ -159,7 +159,7 @@ export const BacklogView: React.FC<BacklogViewProps> = ({
               const uCount = backlogs.filter(b => b.codeUnit === u).length;
               return (
                 <button
-                  key={u}
+                  key={`bl-unit-${u}`}
                   onClick={() => setFilterUnit(u)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold whitespace-nowrap transition border ${
                     filterUnit === u
@@ -270,7 +270,7 @@ export const BacklogView: React.FC<BacklogViewProps> = ({
                 <div className="space-y-1.5">
                   {item.parts.map((p, pIdx) => (
                     <div
-                      key={p.id || pIdx}
+                      key={`${item.id}-part-${p.id || pIdx}`}
                       className="flex items-center justify-between gap-2 p-2 bg-slate-900/80 border border-slate-800/80 rounded-lg"
                     >
                       <div className="flex items-center space-x-2 min-w-0">
@@ -334,7 +334,7 @@ export const BacklogView: React.FC<BacklogViewProps> = ({
                   <div className="flex flex-wrap gap-2">
                     {photos.map((pUrl, pIdx) => (
                       <button
-                        key={pIdx}
+                        key={`${item.id}-photo-${pIdx}`}
                         type="button"
                         onClick={() =>
                           setPreviewPhoto({

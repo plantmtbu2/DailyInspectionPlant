@@ -146,7 +146,7 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
               const uCount = activities.filter(a => a.codeUnit === u).length;
               return (
                 <button
-                  key={u}
+                  key={`act-unit-${u}`}
                   onClick={() => setFilterUnit(u)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold whitespace-nowrap transition border ${
                     filterUnit === u
@@ -264,7 +264,7 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
                   <div className="flex flex-wrap gap-2">
                     {photos.map((pUrl, pIdx) => (
                       <button
-                        key={pIdx}
+                        key={`${item.id}-photo-${pIdx}`}
                         type="button"
                         onClick={() =>
                           setPreviewPhoto({

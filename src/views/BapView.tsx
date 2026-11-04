@@ -203,7 +203,7 @@ export const BapView: React.FC<BapViewProps> = ({
                   <div className="flex flex-wrap sm:flex-nowrap gap-1.5 shrink-0">
                     {photos.map((pUrl, pIdx) => (
                       <button
-                        key={pIdx}
+                        key={`${bap.id}-photo-${pIdx}`}
                         type="button"
                         onClick={() =>
                           setPreviewPhoto({

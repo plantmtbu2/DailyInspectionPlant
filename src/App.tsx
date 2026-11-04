@@ -774,6 +774,11 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onEditBacklog={item => {
+              setEditingBacklogItem(item);
+              setSelectedUnitForBacklog(item.codeUnit);
+              setIsBacklogModalOpen(true);
+            }}
           />
         )}
 
@@ -813,6 +818,11 @@ export default function App() {
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
+            }}
+            onEditBacklog={item => {
+              setEditingBacklogItem(item);
+              setSelectedUnitForBacklog(item.codeUnit);
+              setIsBacklogModalOpen(true);
             }}
           />
         )}
@@ -854,6 +864,11 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onEditBacklog={item => {
+              setEditingBacklogItem(item);
+              setSelectedUnitForBacklog(item.codeUnit);
+              setIsBacklogModalOpen(true);
+            }}
           />
         )}
 
@@ -893,6 +908,11 @@ export default function App() {
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
+            }}
+            onEditBacklog={item => {
+              setEditingBacklogItem(item);
+              setSelectedUnitForBacklog(item.codeUnit);
+              setIsBacklogModalOpen(true);
             }}
           />
         )}
@@ -934,6 +954,11 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onEditBacklog={item => {
+              setEditingBacklogItem(item);
+              setSelectedUnitForBacklog(item.codeUnit);
+              setIsBacklogModalOpen(true);
+            }}
           />
         )}
 
@@ -973,6 +998,11 @@ export default function App() {
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
+            }}
+            onEditBacklog={item => {
+              setEditingBacklogItem(item);
+              setSelectedUnitForBacklog(item.codeUnit);
+              setIsBacklogModalOpen(true);
             }}
           />
         )}

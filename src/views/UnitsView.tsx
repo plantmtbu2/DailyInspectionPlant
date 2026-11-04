@@ -240,7 +240,7 @@ export const UnitsView: React.FC<UnitsViewProps> = ({
                       <div className="flex flex-wrap gap-1.5">
                         {photos.map((pUrl, pIdx) => (
                           <button
-                            key={pIdx}
+                            key={`${unit.id}-photo-${pIdx}`}
                             type="button"
                             onClick={() =>
                               setPreviewPhoto({

@@ -277,7 +277,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
     : isFinalInspection
     ? '4. QA 7 FINAL INSPECTION ARTIC'
     : '3. QA 1 PRE INSPECTION ARTIC';
-  const badgeLabel = isDaily ? 'DAILY CHECK (QA 7)' : isFinalInspection ? 'FINAL RELEASE' : 'PRE-OPERATIONAL';
+  const badgeLabel = isDaily ? 'DAILY CHECK' : isFinalInspection ? 'FINAL RELEASE' : 'PRE-OPERATIONAL';
   const badgeColor = isDaily
     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
     : isFinalInspection

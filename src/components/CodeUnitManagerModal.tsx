@@ -237,7 +237,7 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
                     photoUrl={editingUnit.photoUrl}
                     photoUrls={editingUnit.photoUrls || (editingUnit.photoUrl ? [editingUnit.photoUrl] : [])}
                     onChange={url => setEditingUnit({ ...editingUnit, photoUrl: url, photoUrls: url ? [url] : [] })}
-                    onChangeMultiple={urls =>
+                    onChangePhotos={urls =>
                       setEditingUnit({
                         ...editingUnit,
                         photoUrls: urls,
