@@ -323,7 +323,7 @@ export const BapModal: React.FC<BapModalProps> = ({
                     required
                     value={lokasiPekerjaan}
                     onChange={e => setLokasiPekerjaan(e.target.value)}
-                    placeholder="Contoh: PIT Barat Sub-4, Workshop Bay 2"
+                    placeholder="Contoh: PIT HOTSPURS, WORKSHOP WHEEL, PIT PATAGONIA, PIT MAHAYUNG, PIT TAMAN, PIT LINGKAR"
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:border-amber-400 outline-none"
                   />
                 </div>

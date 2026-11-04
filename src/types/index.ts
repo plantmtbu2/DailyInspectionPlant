@@ -54,7 +54,7 @@ export interface DailyCheckRigid {
   totalJam: string; // Calculated hours e.g. "1.5 Jam"
   hmUnit: number;
   picMekanik: string;
-  divalidasiOleh: string; // Foreman / Pengawas
+  divalidasiOleh: string; // Group Leader / Pengawas
   // 19 Items
   items: ChecklistItemStatus[];
   temuanDeviasi: string; // Temuan Deviasi / ADD ACTIVITIES

@@ -130,12 +130,12 @@ export const shareToWhatsApp = async (
 };
 
 /**
- * Formats a pre-filled summary message addressed directly to a supervisor
+ * Formats a pre-filled summary message addressed directly to a Group Leader / Pengawas
  */
-export const formatSupervisorReportWhatsApp = (
+export const formatGroupLeaderReportWhatsApp = (
   type: 'BAP' | 'DAILY_RIGID' | 'DAILY_ARTIC' | 'BACKLOG' | 'ACTIVITY',
   data: any,
-  supervisorName = 'Bapak/Ibu Supervisor',
+  GroupLeaderName = 'Bapak/Ibu GroupLeader',
   sheetUrl?: string
 ): string => {
   let body = '';
@@ -145,7 +145,7 @@ export const formatSupervisorReportWhatsApp = (
   else if (type === 'BACKLOG') body = formatBacklogWhatsApp(data);
   else if (type === 'ACTIVITY') body = formatActivityWhatsApp(data);
 
-  const header = `*Yth. ${supervisorName}*\nMohon izin mengirimkan laporan inspeksi & perawatan unit alat berat:\n\n`;
+  const header = `*Yth. ${GroupLeaderName}*\nMohon izin mengirimkan laporan inspeksi & perawatan unit alat berat:\n\n`;
   const sheetFooter = sheetUrl ? `\n\n📊 *Live Google Sheets:* ${sheetUrl}` : '';
 
   return `${header}${body}${sheetFooter}`;
@@ -233,7 +233,7 @@ ${item.temuanDeviasi || 'Nihil / Semua item dalam toleransi'}
 • Jumlah Aktivitas Terkait: *${item.jumlahAktivitas}*
 ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Hasil Inspeksi` : ''}
 ---------------------------------------
-_Aplikasi Plant 2 - PT. Pamapersada Nusantara_`;
+_Aplikasi Plant 2 MTBU- PT. Pamapersada Nusantara_`;
 };
 
 export const formatDailyArticWhatsApp = (item: DailyCheckArtic): string => {
@@ -281,7 +281,7 @@ ${item.temuanDeviasi || 'Nihil / Semua item dalam kondisi baik'}
 • Jumlah Aktivitas Terkait: *${item.jumlahAktivitas}*
 ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Hasil Inspeksi` : ''}
 ---------------------------------------
-_Aplikasi Plant 2 - PT. Pamapersada Nusantara_`;
+_Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
 
 export const formatBacklogWhatsApp = (bl: BacklogItem): string => {
@@ -323,7 +323,7 @@ ${bl.deskripsiBacklog}
 ${partsText}
 ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Part / Kerusakan` : ''}
 ---------------------------------------
-_Aplikasi Plant 2 - PT. Pamapersada Nusantara_`;
+_Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
 
 export const formatActivityWhatsApp = (act: AddActivityItem): string => {
@@ -346,5 +346,5 @@ ${act.deskripsiAktivitas}
 ${act.action}
 ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Progres Pekerjaan` : ''}
 ---------------------------------------
-_Aplikasi Plant 2 - PT. Pamapersada Nusantara_`;
+_Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };

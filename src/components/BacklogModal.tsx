@@ -363,10 +363,9 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
                   <label className="block text-slate-300 font-semibold mb-1">MO Backlog *</label>
                   <input
                     type="text"
-                    required
                     value={moBacklog}
                     onChange={e => setMoBacklog(e.target.value)}
-                    placeholder="Contoh: MO-BL-5024"
+                    placeholder="Contoh: 1178678"
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-400 outline-none uppercase"
                   />
                 </div>

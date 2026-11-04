@@ -24,7 +24,7 @@ import html2canvas from 'html2canvas-pro';
 import {
   shareToWhatsApp,
   constructWhatsAppDeepLink,
-  formatSupervisorReportWhatsApp,
+  formatGroupLeaderReportWhatsApp,
   formatBAPWhatsApp,
   formatDailyRigidWhatsApp,
   formatDailyArticWhatsApp,
@@ -56,33 +56,33 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   const [isSharing, setIsSharing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Supervisor & WhatsApp Deep Link state
-  const SUPERVISOR_PHONE_KEY = 'plant2_supervisor_phone';
-  const SUPERVISOR_NAME_KEY = 'plant2_supervisor_name';
+  // GroupLeader & WhatsApp Deep Link state
+  const GroupLeader_PHONE_KEY = 'plant2_GroupLeader_phone';
+  const GroupLeader_NAME_KEY = 'plant2_GroupLeader_name';
 
-  const defaultSupervisor = (() => {
-    if (!report) return 'Foreman / Pengawas Maintenance';
+  const defaultGroupLeader = (() => {
+    if (!report) return 'GroupLeader';
     if ('divalidasiOleh' in report.data && report.data.divalidasiOleh) return report.data.divalidasiOleh;
-    return 'Foreman / Pengawas Maintenance';
+    return 'GroupLeader';
   })();
 
-  const [supervisorPhone, setSupervisorPhone] = useState<string>(() => {
+  const [GroupLeaderPhone, setGroupLeaderPhone] = useState<string>(() => {
     try {
-      return localStorage.getItem(SUPERVISOR_PHONE_KEY) || '';
+      return localStorage.getItem(GroupLeader_PHONE_KEY) || '';
     } catch {
       return '';
     }
   });
 
-  const [supervisorName, setSupervisorName] = useState<string>(() => {
+  const [GroupLeaderName, setGroupLeaderName] = useState<string>(() => {
     try {
-      return localStorage.getItem(SUPERVISOR_NAME_KEY) || defaultSupervisor;
+      return localStorage.getItem(GroupLeader_NAME_KEY) || defaultGroupLeader;
     } catch {
-      return defaultSupervisor;
+      return defaultGroupLeader;
     }
   });
 
-  const [showSupervisorPanel, setShowSupervisorPanel] = useState(false);
+  const [showGroupLeaderPanel, setShowGroupLeaderPanel] = useState(false);
   const [isCopiedLink, setIsCopiedLink] = useState(false);
 
   if (!isOpen || !report) return null;
@@ -195,34 +195,34 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     }
   };
 
-  const handleUpdateSupervisorPhone = (val: string) => {
-    setSupervisorPhone(val);
+  const handleUpdateGroupLeaderPhone = (val: string) => {
+    setGroupLeaderPhone(val);
     try {
-      localStorage.setItem(SUPERVISOR_PHONE_KEY, val);
+      localStorage.setItem(GroupLeader_PHONE_KEY, val);
     } catch {}
   };
 
-  const handleUpdateSupervisorName = (val: string) => {
-    setSupervisorName(val);
+  const handleUpdateGroupLeaderName = (val: string) => {
+    setGroupLeaderName(val);
     try {
-      localStorage.setItem(SUPERVISOR_NAME_KEY, val);
+      localStorage.setItem(GroupLeader_NAME_KEY, val);
     } catch {}
   };
 
   const getWhatsAppMessage = () => {
     const sheetsConfig = getStoredSheetsConfig();
     const sheetUrl = sheetsConfig?.spreadsheetUrl;
-    return formatSupervisorReportWhatsApp(
+    return formatGroupLeaderReportWhatsApp(
       report.type,
       report.data,
-      supervisorName || 'Foreman / Supervisor Maintenance',
+      GroupLeaderName || 'Group Leader',
       sheetUrl
     );
   };
 
   const getWhatsAppDeepLink = (targetPhone?: string) => {
     const text = getWhatsAppMessage();
-    const phone = targetPhone !== undefined ? targetPhone : supervisorPhone;
+    const phone = targetPhone !== undefined ? targetPhone :GroupLeaderPhone;
     return constructWhatsAppDeepLink(text, phone);
   };
 
@@ -246,7 +246,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   const handleShareWhatsApp = async (targetPhone?: string) => {
     try {
       setIsSharing(true);
-      const phoneToSend = targetPhone !== undefined ? targetPhone : supervisorPhone;
+      const phoneToSend = targetPhone !== undefined ? targetPhone : GroupLeaderPhone;
       const waText = getWhatsAppMessage();
       const deepLink = constructWhatsAppDeepLink(waText, phoneToSend);
 
@@ -298,7 +298,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
       link.click();
       document.body.removeChild(link);
 
-      setToastMessage('PDF tersimpan & WhatsApp API dibuka dengan laporan Supervisor!');
+      setToastMessage('PDF tersimpan & WhatsApp API dibuka dengan laporan GroupLeader!');
       setTimeout(() => setToastMessage(null), 4500);
     } catch (err: any) {
       console.error('Share WhatsApp error:', err);
@@ -364,7 +364,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               onClick={() => handleShareWhatsApp()}
               disabled={isGeneratingPDF || isSharing}
               className="py-1.5 px-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-lg shadow-emerald-600/20 transition disabled:opacity-50"
-              title="Kirim laporan dan PDF langsung ke WhatsApp Supervisor"
+              title="Kirim laporan dan PDF langsung ke WhatsApp GroupLeader"
             >
               {isSharing ? (
                 <>
@@ -379,19 +379,19 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               )}
             </button>
 
-            {/* Tombol Pengawas / Supervisor Setting Panel */}
+            {/* Tombol Pengawas / GroupLeader Setting Panel */}
             <button
-              onClick={() => setShowSupervisorPanel(!showSupervisorPanel)}
+              onClick={() => setShowGroupLeaderPanel(!showGroupLeaderPanel)}
               className={`p-2 sm:py-1.5 sm:px-2.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 border transition ${
-                showSupervisorPanel
+                showGroupLeaderPanel
                   ? 'bg-emerald-800/60 text-white border-emerald-500 shadow-sm'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
               }`}
-              title="Atur Nama & No. WA Supervisor / Pengawas tujuan"
+              title="Atur Nama & No. WA GroupLeader / Pengawas tujuan"
             >
               <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">
-                {supervisorPhone ? `WA: ${supervisorPhone}` : 'Pilih Pengawas'}
+                {GroupLeaderPhone ? `WA: ${GroupLeaderPhone}` : 'Pilih Pengawas'}
               </span>
             </button>
 
@@ -416,13 +416,13 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           </div>
         </div>
 
-        {/* Supervisor & WhatsApp Deep Link Bar */}
-        {showSupervisorPanel && (
+        {/* GroupLeader & WhatsApp Deep Link Bar */}
+        {showGroupLeaderPanel && (
           <div className="no-print px-4 sm:px-5 py-3 bg-slate-850/90 border-b border-slate-800 animate-fadeIn text-xs space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center space-x-2 text-slate-200 font-semibold">
                 <UserCheck className="w-4 h-4 text-emerald-400" />
-                <span>Pengiriman Laporan ke Supervisor via WhatsApp API</span>
+                <span>Pengiriman Laporan ke GroupLeader via WhatsApp API</span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
@@ -449,31 +449,31 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[11px] text-slate-400 mb-1">
-                  Nama Supervisor / Pengawas:
+                  Nama Group Leader / Pengawas:
                 </label>
                 <input
                   type="text"
-                  value={supervisorName}
-                  onChange={e => handleUpdateSupervisorName(e.target.value)}
-                  placeholder="Contoh: Bpk. Foreman Maintenance"
+                  value={GroupLeaderName}
+                  onChange={e => handleUpdateGroupLeaderName(e.target.value)}
+                  placeholder="Contoh: Bpk. Group Leader"
                   className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-1.5 rounded-xl text-xs focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
                 <label className="block text-[11px] text-slate-400 mb-1">
-                  No. WhatsApp Supervisor (Opsional):
+                  No. WhatsApp Group Leader / Pengawas (Opsional):
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="tel"
-                    value={supervisorPhone}
-                    onChange={e => handleUpdateSupervisorPhone(e.target.value)}
+                    value={GroupLeaderPhone}
+                    onChange={e => handleUpdateGroupLeaderPhone(e.target.value)}
                     placeholder="Contoh: 08123456789 atau 62812..."
                     className="flex-1 bg-slate-900 border border-slate-700 text-white px-3 py-1.5 rounded-xl text-xs focus:outline-none focus:border-emerald-500"
                   />
                   <button
-                    onClick={() => handleShareWhatsApp(supervisorPhone)}
+                    onClick={() => handleShareWhatsApp(GroupLeaderPhone)}
                     disabled={isGeneratingPDF || isSharing}
                     className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center space-x-1 shadow transition disabled:opacity-50 whitespace-nowrap"
                   >
@@ -485,7 +485,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-400">
-              💡 Tombol <strong className="text-emerald-400">Share via WhatsApp</strong> akan menyusun tautan mendalam (WhatsApp Deep Link) resmi berisikan ringkasan laporan & mengunduh PDF untuk dikirim langsung ke pengawas/supervisor.
+              💡 Tombol <strong className="text-emerald-400">Share via WhatsApp</strong> akan menyusun tautan mendalam (WhatsApp Deep Link) resmi berisikan ringkasan laporan & mengunduh PDF untuk dikirim langsung ke pengawas/GroupLeader.
             </p>
           </div>
         )}
@@ -1053,7 +1053,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                 <p className="text-[10px] text-slate-500 uppercase font-semibold">Diperiksa / Divalidasi:</p>
                 <div className="h-16 flex items-end justify-center">
                   <span className="font-bold underline text-slate-900">
-                    {'divalidasiOleh' in report.data ? report.data.divalidasiOleh : 'Foreman Plant'}
+                    {'divalidasiOleh' in report.data ? report.data.divalidasiOleh : 'Group Leader'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500">Group Leader</p>
@@ -1062,7 +1062,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               <div>
                 <p className="text-[10px] text-slate-500 uppercase font-semibold">Diketahui Oleh:</p>
                 <div className="h-16 flex items-end justify-center">
-                  <span className="font-bold underline text-slate-900">Erik/Daniel/Rismanto</span>
+                  <span className="font-bold underline text-slate-900">David/Erik/Daniel/Rismanto/Anggun</span>
                 </div>
                 <p className="text-[10px] text-slate-500">LCE</p>
               </div>

@@ -104,7 +104,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
     ? 'FINAL QUALITY VALIDATION (QA7)'
     : isAll
     ? 'ALL INSPECTIONS'
-    : 'PRE-OPERATIONAL CHECK (QA1)';
+    : 'PRE-MAINTENANCE CHECK (QA1)';
 
   const createButtonLabel = isDaily
     ? '+ Buat Daily Inspection Artic'
@@ -535,7 +535,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span>PIC: <strong className="text-slate-200">{item.picMekanik}</strong></span>
-                      <span>Foreman: <strong className="text-slate-200">{item.divalidasiOleh}</strong></span>
+                      <span>Group Leader: <strong className="text-slate-200">{item.divalidasiOleh}</strong></span>
                     </div>
                     <div className="flex items-center space-x-2 text-[10px]">
                       <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 font-semibold font-mono">

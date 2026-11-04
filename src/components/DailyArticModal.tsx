@@ -69,7 +69,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
   const [totalJam, setTotalJam] = useState('');
   const [hmUnit, setHmUnit] = useState<number>(0);
   const [picMekanik, setPicMekanik] = useState('');
-  const [divalidasiOleh, setDivalidasiOleh] = useState('Foreman Pit Artic');
+  const [divalidasiOleh, setDivalidasiOleh] = useState('Group Leader');
 
   // Checklist Items initialization (36 items)
   const [items, setItems] = useState<ChecklistItemStatus[]>(() =>
@@ -240,7 +240,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
         totalJam,
         hmUnit: Number(hmUnit) || 0,
         picMekanik: picMekanik || 'Mekanik Heavy Equipment',
-        divalidasiOleh: divalidasiOleh || 'Foreman Artic',
+        divalidasiOleh: divalidasiOleh || 'Group Leader',
         items,
         temuanDeviasi: temuanDeviasi || 'Nihil / Seluruh 36 parameter memenuhi standar kelayakan operasi',
         jumlahBacklog: activeUnitBacklogs.length,
@@ -536,13 +536,13 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-slate-300 font-semibold mb-1">Divalidasi Oleh (Foreman / Pengawas) *</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Divalidasi Oleh (Group Leader / Pengawas) *</label>
                   <input
                     type="text"
                     required
                     value={divalidasiOleh}
                     onChange={e => setDivalidasiOleh(e.target.value)}
-                    placeholder="Nama Pengawas / Foreman Artic"
+                    placeholder="Nama Pengawas / Group Leader"
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-amber-400"
                   />
                 </div>
