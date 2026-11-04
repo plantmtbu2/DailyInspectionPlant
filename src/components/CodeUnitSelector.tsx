@@ -262,9 +262,9 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
                 </option>
               )}
 
-              {displayedUnits.map(unit => (
+              {displayedUnits.map((unit, unitIdx) => (
                 <option
-                  key={unit.id}
+                  key={`${unit.id}-${unitIdx}`}
                   value={unit.codeUnit}
                   style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
                   className="bg-slate-900 text-white py-1.5"

@@ -871,9 +871,9 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
         const egi = String(r[3] || '');
         const tanggal = String(r[4] || '');
         const status = (['RUNNING', 'BREAKDOWN', 'SCHEDULED_SERVICE', 'STANDBY'].includes(r[5]) ? r[5] : 'RUNNING') as any;
-        const startTime = String(r[6] || '07:00');
-        const finishTime = String(r[7] || '08:30');
-        const totalJam = String(r[8] || '1.5 Jam');
+        const startTime = String(r[6] || '');
+        const finishTime = String(r[7] || '');
+        const totalJam = String(r[8] || '');
         const hmUnit = Number(r[9]) || 0;
         const picMekanik = String(r[10] || '');
 
@@ -957,9 +957,9 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
         egi: String(r[2] || ''),
         tanggal: String(r[3] || ''),
         status: (['RUNNING', 'BREAKDOWN', 'SCHEDULED_SERVICE', 'STANDBY'].includes(r[4]) ? r[4] : 'RUNNING') as any,
-        startTime: String(r[5] || '07:00'),
-        finishTime: String(r[6] || '08:30'),
-        totalJam: String(r[7] || '1.5 Jam'),
+        startTime: String(r[5] || ''),
+        finishTime: String(r[6] || ''),
+        totalJam: String(r[7] || ''),
         hmUnit: Number(r[8]) || 0,
         picMekanik: String(r[9] || ''),
         temuanDeviasi: String(r[11] || ''),
@@ -995,9 +995,9 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
         const egi = String(r[3] || '');
         const tanggal = String(r[4] || '');
         const status = (['RUNNING', 'BREAKDOWN', 'SCHEDULED_SERVICE', 'STANDBY'].includes(r[5]) ? r[5] : 'RUNNING') as any;
-        const startTime = String(r[6] || '07:00');
-        const finishTime = String(r[7] || '08:30');
-        const totalJam = String(r[8] || '1.5 Jam');
+        const startTime = String(r[6] || '');
+        const finishTime = String(r[7] || '');
+        const totalJam = String(r[8] || '');
         const hmUnit = Number(r[9]) || 0;
         const picMekanik = String(r[10] || '');
 
@@ -1071,9 +1071,9 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
         egi: String(r[2] || ''),
         tanggal: String(r[3] || ''),
         status: (['RUNNING', 'BREAKDOWN', 'SCHEDULED_SERVICE', 'STANDBY'].includes(r[4]) ? r[4] : 'RUNNING') as any,
-        startTime: String(r[5] || '07:00'),
-        finishTime: String(r[6] || '08:30'),
-        totalJam: String(r[7] || '1.5 Jam'),
+        startTime: String(r[5] || ''),
+        finishTime: String(r[6] || ''),
+        totalJam: String(r[7] || ''),
         hmUnit: Number(r[8]) || 0,
         picMekanik: String(r[9] || ''),
         temuanDeviasi: String(r[11] || ''),

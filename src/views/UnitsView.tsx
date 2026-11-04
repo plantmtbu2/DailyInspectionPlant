@@ -147,7 +147,7 @@ export const UnitsView: React.FC<UnitsViewProps> = ({
 
       {/* Code Unit Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {filtered.map(unit => {
+        {filtered.map((unit, unitIdx) => {
           const stats = getUnitStats(unit.codeUnit);
           const isRigid =
             unit.tipeAlat.toLowerCase().includes('rigid') ||
@@ -159,7 +159,7 @@ export const UnitsView: React.FC<UnitsViewProps> = ({
 
           return (
             <div
-              key={unit.id}
+              key={`${unit.id}-${unitIdx}`}
               className="bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-4 space-y-3.5 transition shadow-sm flex flex-col justify-between"
             >
               <div>
