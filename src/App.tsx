@@ -551,6 +551,13 @@ export default function App() {
         onOpenSheetsModal={() => setIsSheetsModalOpen(true)}
         onPullData={handlePullData}
         onPushData={handlePushData}
+        codeUnits={codeUnits}
+        backlogs={backlogs}
+        bapList={bapList}
+        dailyRigidList={dailyRigidList}
+        dailyArticList={dailyArticList}
+        activities={activities}
+        onNavigateToTab={tab => setActiveTab(tab)}
       />
 
       {/* Prominent Quick-Switch Menu Bar for All Inspection Menus & Modules */}
