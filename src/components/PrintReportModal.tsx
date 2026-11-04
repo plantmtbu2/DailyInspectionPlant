@@ -500,15 +500,19 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             <div className="border-b-2 border-slate-900 pb-4 mb-4 flex items-start justify-between">
               <div>
                 <div className="flex items-center space-x-2 text-slate-900">
-                  <div className="w-7 h-7 bg-amber-500 text-slate-950 font-black rounded flex items-center justify-center text-xs">
-                    PAMA
+                  <div className="flex items-center space-x-2.5">
+                    <img
+                      src="/assets/aistudio/PAMA_SMALL_4167d1d0.png"
+                      alt="Logo PT Pamapersada Nusantara"
+                      className="h-11 w-auto object-contain"
+                    />
+                    <h1 className="text-base font-black tracking-tight uppercase">
+                      PT.PAMAPERSADA NUSANTARA
+                    </h1>
                   </div>
-                  <h1 className="text-base font-black tracking-tight uppercase">
-                    PT.PAMAPERSADA NUSANTARA
-                  </h1>
                 </div>
                 <p className="text-[11px] text-slate-600 font-semibold tracking-wide mt-0.5">
-                  PLANT & HEAVY EQUIPMENT MAINTENANCE DIVISION
+                  PLANT MTBU 2
                 </p>
                 <p className="text-[10px] text-slate-500">
                   Mining Operations & Fleet Maintenance Support System

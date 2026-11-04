@@ -556,7 +556,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">PIC (Mekanik / Planner) *</label>
+                <label className="block text-slate-300 font-semibold mb-1">PIC (Mekanik) *</label>
                 <input
                   type="text"
                   required
