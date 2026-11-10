@@ -8,9 +8,11 @@ import {
   Layers,
   Zap,
   ShieldCheck,
+  BarChart3,
 } from 'lucide-react';
 
 export type ActiveTab =
+  | 'dashboard'
   | 'daily-rigid'
   | 'daily-artic'
   | 'qa1-rigid'
@@ -44,6 +46,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   dailyArticCount,
 }) => {
   const navItems = [
+    {
+      id: 'dashboard' as ActiveTab,
+      label: 'Dashboard',
+      shortLabel: 'Dashboard',
+      icon: BarChart3,
+      badge: null,
+      highlightColor: 'text-[#facc15]',
+      activeIndicator: 'bg-[#facc15]',
+    },
     {
       id: 'daily-rigid' as ActiveTab,
       label: 'Daily Rigid',
@@ -139,8 +150,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="no-print fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 safe-bottom">
-      <div className="max-w-7xl mx-auto px-1 sm:px-3">
+    <nav className="no-print lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111113]/95 backdrop-blur-md border-t border-[rgba(242,239,235,0.1)] safe-bottom">
+      <div className="w-full px-1 sm:px-3">
         <div className="flex items-center justify-between overflow-x-auto py-1 scrollbar-none gap-0.5">
           {navItems.map(item => {
             const Icon = item.icon;
@@ -149,28 +160,30 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <button
                 key={item.id}
                 onClick={() => onChangeTab(item.id)}
-                className={`relative flex flex-col items-center justify-center flex-1 min-w-[58px] sm:min-w-[70px] py-1.5 px-1 rounded-xl transition-all duration-150 ${
+                className={`relative flex flex-col items-center justify-center flex-1 min-w-[56px] sm:min-w-[68px] py-1.5 px-1 rounded transition-all duration-150 ${
                   isActive
-                    ? `${item.highlightColor} font-bold bg-slate-900/60`
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-[#facc15] font-bold bg-[rgba(250,204,21,0.08)]'
+                    : 'text-[rgba(242,239,235,0.5)] hover:text-[#f2efeb]'
                 }`}
               >
                 {isActive && (
-                  <span className={`absolute -top-1 w-6 sm:w-8 h-1 ${item.activeIndicator} rounded-full`} />
+                  <span className="absolute -top-1 w-6 sm:w-8 h-0.5 bg-[#facc15]" />
                 )}
                 <div className="relative">
-                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isActive ? 'scale-110 text-[#facc15]' : ''}`} />
                   {item.badge !== null && (
                     <span
-                      className={`absolute -top-1 -right-2 min-w-3.5 h-3.5 px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center ${
-                        item.badgeColor || 'bg-amber-500'
+                      className={`absolute -top-1 -right-2 min-w-3.5 h-3.5 px-1 rounded text-[9px] font-mono font-bold flex items-center justify-center ${
+                        item.id === 'backlog'
+                          ? 'bg-[#fb7185] text-[#111113]'
+                          : 'bg-[#facc15] text-[#111113]'
                       }`}
                     >
                       {item.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-[9px] sm:text-[11px] mt-1 tracking-tight truncate max-w-[72px] text-center">
+                <span className="text-[9px] sm:text-[10px] font-mono mt-1 tracking-tight truncate max-w-[70px] text-center uppercase">
                   {item.shortLabel}
                 </span>
               </button>

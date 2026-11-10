@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { formatBacklogWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
+import { formatDateDDMMYYYY } from '../utils/dateUtils';
 
 interface BacklogModalProps {
   isOpen: boolean;
@@ -200,10 +201,17 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
           : finalParts.map((p, i) => `${i + 1}. ${p.deskripsiPart} (${p.partNumber} x${p.qty})`).join('; ');
       const totalQty = finalParts.reduce((acc, p) => acc + (Number(p.qty) || 1), 0);
 
+      const formattedDate = formatDateDDMMYYYY(tanggalTemuan);
+      const generatedId = itemToEdit
+        ? itemToEdit.id
+        : moBacklog.trim()
+        ? `${codeUnit}-${moBacklog.trim()}`
+        : `${codeUnit}-AUTO-${Date.now().toString().slice(-4)}`;
+
       const item: BacklogItem = {
-        id: itemToEdit ? itemToEdit.id : `BL-${Date.now().toString().slice(-5)}`,
+        id: generatedId,
         codeUnit,
-        moBacklog: moBacklog || `MO-BL-${Date.now().toString().slice(-4)}`,
+        moBacklog: moBacklog.trim() || '-',
         nomorReservasi: nomorReservasi || '-',
         deskripsiBacklog,
         parts: finalParts,
@@ -212,7 +220,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         qty: totalQty,
         sumberTemuan,
         status,
-        tanggalTemuan,
+        tanggalTemuan: formattedDate,
         pic: pic || 'Mekanik Maintenance',
         photoUrls: photoUrls,
         photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
@@ -235,7 +243,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60 shrink-0">
@@ -360,11 +368,15 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">MO Backlog *</label>
+                  <label className="block text-slate-300 font-semibold mb-1">MO Backlog (Opsional, Hanya Angka)</label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={moBacklog}
-                    onChange={e => setMoBacklog(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setMoBacklog(val);
+                    }}
                     placeholder="Contoh: 1178678"
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-400 outline-none uppercase"
                   />
@@ -376,7 +388,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
                     type="text"
                     value={nomorReservasi}
                     onChange={e => setNomorReservasi(e.target.value)}
-                    placeholder="Contoh: RES-99410"
+                    placeholder="Contoh: 1625973"
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:border-amber-400 outline-none uppercase"
                   />
                 </div>

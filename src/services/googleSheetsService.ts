@@ -165,12 +165,25 @@ function handleRequest(e) {
 function writeTab(ss, sheetName, rows, defaultCols) {
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) return;
-  if (sheet.getLastRow() > 1) {
-    sheet.getRange(2, 1, sheet.getLastRow() - 1, Math.max(sheet.getLastColumn(), defaultCols)).clearContent();
+  var lastRow = sheet.getLastRow();
+  var existingData = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues() : [];
+  var idMap = {};
+  for (var i = 0; i < existingData.length; i++) {
+    var rowId = String(existingData[i][0] || '').trim();
+    if (rowId) {
+      idMap[rowId] = i + 2;
+    }
   }
   if (rows && rows.length > 0) {
-    var cols = rows[0].length || defaultCols;
-    sheet.getRange(2, 1, rows.length, cols).setValues(rows);
+    rows.forEach(function(r) {
+      var rId = String(r[0] || '').trim();
+      if (rId && idMap[rId]) {
+        var rowNum = idMap[rId];
+        sheet.getRange(rowNum, 1, 1, r.length).setValues([r]);
+      } else {
+        sheet.appendRow(r);
+      }
+    });
   }
 }
 
@@ -754,50 +767,45 @@ export const overwriteSheetRows = async (sheetName: string, rows: (string | numb
     const token = await getAccessToken();
     if (!token) return false;
 
-    // 1. Clear existing data rows using batchClear with proper JSON body
-    await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values:batchClear`,
+    // Non-destructive upsert: fetch existing rows, map ID (col 0) to row number, update existing or append new
+    const getRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${sheetName}!A2:Z1000`,
       {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ranges: [`${sheetName}!A2:${endCol}`],
-        }),
+        headers: { Authorization: `Bearer ${token}` },
       }
-    ).catch(err => {
-      console.warn(`Non-fatal batchClear warning on ${sheetName}:`, err);
+    );
+    const getData = await getRes.json().catch(() => ({}));
+    const existingValues: any[][] = getData.values || [];
+    const idMap: { [id: string]: number } = {};
+    existingValues.forEach((r, idx) => {
+      const idVal = String(r[0] || '').trim();
+      if (idVal) {
+        idMap[idVal] = idx + 2; // spreadsheet row (1-indexed, header is row 1)
+      }
     });
 
-    // 2. If there are rows to write, write them starting at A2 using batchUpdate
-    if (rows.length > 0) {
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            valueInputOption: 'USER_ENTERED',
-            data: [
-              {
-                range: `${sheetName}!A2`,
-                values: rows,
-              },
-            ],
-          }),
-        }
-      ).catch(err => {
-        console.warn(`Non-fatal batchUpdate warning on ${sheetName}:`, err);
-      });
+    for (const r of rows) {
+      const rId = String(r[0] || '').trim();
+      if (rId && idMap[rId]) {
+        const rowNum = idMap[rId];
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/${sheetName}!A${rowNum}?valueInputOption=USER_ENTERED`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ values: [r] }),
+          }
+        ).catch(() => {});
+      } else {
+        await appendRowToSheet(sheetName, r);
+      }
     }
     return true;
   } catch (err) {
-    console.error(`Error overwriting sheet ${sheetName}:`, err);
+    console.error(`Error in non-destructive sync for sheet ${sheetName}:`, err);
     return false;
   }
 };

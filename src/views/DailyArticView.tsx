@@ -18,6 +18,7 @@ import {
   Zap,
   ListTodo,
   Wrench,
+  Eye,
 } from 'lucide-react';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { formatDailyArticWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
@@ -27,6 +28,7 @@ interface DailyArticViewProps {
   activeQaType: QAType | 'ALL';
   onChangeQaType?: (type: QAType | 'ALL') => void;
   onOpenCreate: (type?: QAType) => void;
+  onViewItem?: (item: DailyCheckArtic) => void;
   onEditItem: (item: DailyCheckArtic) => void;
   onDeleteItem: (item: DailyCheckArtic) => void;
   onPrintPreview: (item: DailyCheckArtic) => void;
@@ -34,6 +36,7 @@ interface DailyArticViewProps {
   onOpenAddActivity?: (codeUnit: string) => void;
   backlogs?: BacklogItem[];
   activities?: AddActivityItem[];
+  onViewBacklog?: (item: BacklogItem) => void;
   onEditBacklog?: (item: BacklogItem) => void;
 }
 
@@ -42,6 +45,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
   activeQaType,
   onChangeQaType,
   onOpenCreate,
+  onViewItem,
   onEditItem,
   onDeleteItem,
   onPrintPreview,
@@ -49,6 +53,7 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
   onOpenAddActivity,
   backlogs = [],
   activities = [],
+  onViewBacklog,
   onEditBacklog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,20 +120,20 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
   return (
     <div className="space-y-4 pb-20">
       {/* Sub-toggle selector between Daily, QA 1 Pre, QA 7 Final, and All */}
-      <div className="bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-1.5">
+      <div className="bg-[#18181b] p-1.5 rounded border border-[rgba(242,239,235,0.1)] flex flex-wrap items-center gap-1.5">
         {/* DAILY INSPECTION ARTIC */}
         <button
           onClick={() => onChangeQaType && onChangeQaType('DAILY_INSPECTION')}
-          className={`flex-1 min-w-[140px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition ${
+          className={`flex-1 min-w-[130px] py-2 px-3 rounded text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition ${
             isDaily
-              ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-[rgba(250,204,21,0.1)] border border-[#facc15] text-[#facc15]'
+              : 'text-[rgba(242,239,235,0.6)] hover:text-[#f2efeb] hover:bg-[rgba(242,239,235,0.05)] border border-transparent'
           }`}
         >
-          <Tractor className="w-4 h-4" />
+          <Tractor className="w-3.5 h-3.5" />
           <span>DAILY ARTIC</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            isDaily ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'
+          <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+            isDaily ? 'bg-[#facc15] text-[#111113]' : 'bg-[rgba(242,239,235,0.1)] text-[#f2efeb]'
           }`}>
             {dailyCount}
           </span>
@@ -137,16 +142,16 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
         {/* 3. QA 1 PRE ARTIC */}
         <button
           onClick={() => onChangeQaType && onChangeQaType('QA1_PRE')}
-          className={`flex-1 min-w-[140px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition ${
+          className={`flex-1 min-w-[130px] py-2 px-3 rounded text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition ${
             isPre
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-[rgba(250,204,21,0.1)] border border-[#facc15] text-[#facc15]'
+              : 'text-[rgba(242,239,235,0.6)] hover:text-[#f2efeb] hover:bg-[rgba(242,239,235,0.05)] border border-transparent'
           }`}
         >
-          <Zap className="w-4 h-4" />
+          <Zap className="w-3.5 h-3.5" />
           <span>3. QA 1 PRE</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            isPre ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'
+          <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+            isPre ? 'bg-[#facc15] text-[#111113]' : 'bg-[rgba(242,239,235,0.1)] text-[#f2efeb]'
           }`}>
             {qa1Count}
           </span>
@@ -155,16 +160,16 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
         {/* 4. QA 7 FINAL ARTIC */}
         <button
           onClick={() => onChangeQaType && onChangeQaType('QA7_FINAL')}
-          className={`flex-1 min-w-[140px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition ${
+          className={`flex-1 min-w-[130px] py-2 px-3 rounded text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition ${
             isFinal
-              ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-[#4ade80]/10 border border-[#4ade80] text-[#4ade80]'
+              : 'text-[rgba(242,239,235,0.6)] hover:text-[#f2efeb] hover:bg-[rgba(242,239,235,0.05)] border border-transparent'
           }`}
         >
-          <ShieldCheck className="w-4 h-4" />
+          <ShieldCheck className="w-3.5 h-3.5" />
           <span>4. QA 7 FINAL</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            isFinal ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'
+          <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+            isFinal ? 'bg-[#4ade80] text-[#111113]' : 'bg-[rgba(242,239,235,0.1)] text-[#f2efeb]'
           }`}>
             {qa7Count}
           </span>
@@ -173,58 +178,33 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
         {/* SEMUA */}
         <button
           onClick={() => onChangeQaType && onChangeQaType('ALL')}
-          className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition ${
+          className={`py-2 px-3 rounded text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition ${
             isAll
-              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-[rgba(242,239,235,0.15)] border border-[#f2efeb] text-[#f2efeb]'
+              : 'text-[rgba(242,239,235,0.5)] hover:text-[#f2efeb] hover:bg-[rgba(242,239,235,0.05)] border border-transparent'
           }`}
         >
           <span>SEMUA ({list.length})</span>
         </button>
       </div>
 
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
-        <div className="flex items-center space-x-2.5">
-          <div className={`p-2.5 rounded-xl border ${
-            isDaily
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-              : isFinal
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-          }`}>
-            <Tractor className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-base sm:text-lg font-bold text-white">
-                {viewTitle}
-              </h2>
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase border ${
-                isDaily
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  : isFinal
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-              }`}>
-                {viewBadge}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {viewSubtitle}
-            </p>
-          </div>
+      {/* Variation 2 Industrial Toolbar */}
+      <div className="bg-[#18181b] p-4 rounded border border-[rgba(242,239,235,0.1)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <span className="font-mono text-[10px] text-[rgba(242,239,235,0.5)] uppercase tracking-wider">
+            Category:
+          </span>
+          <span className="font-syne font-extrabold text-base sm:text-lg text-[#f2efeb] tracking-tight ml-2 uppercase">
+            {viewTitle}
+          </span>
+          <p className="text-xs text-[rgba(242,239,235,0.5)] font-mono mt-0.5">
+            {viewSubtitle}
+          </p>
         </div>
 
         <button
           onClick={() => onOpenCreate(isAll ? 'DAILY_INSPECTION' : activeQaType)}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition active:scale-95 shadow-lg ${
-            isDaily
-              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-              : isFinal
-              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-              : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-          }`}
+          className="bg-[#facc15] hover:bg-[#fde047] text-[#111113] border-none px-4 py-2.5 rounded font-mono font-black text-xs uppercase tracking-wider flex items-center justify-center space-x-2 transition active:scale-95 shadow-md shadow-[#facc15]/20 shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>{createButtonLabel}</span>
@@ -233,73 +213,76 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+        <Search className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
         <input
           type="text"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          placeholder="Cari Inspeksi Artic (Code Unit, EGI, PIC, Tanggal, ID)..."
-          className="w-full bg-slate-850 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:border-amber-400 outline-none"
+          placeholder="FILTER INSPEKSI ARTIC: Unit, EGI, PIC, Tanggal, ID..."
+          className="w-full bg-[#18181b] border border-[rgba(242,239,235,0.15)] hover:border-[rgba(242,239,235,0.25)] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.4)] focus:border-[#facc15] outline-none transition"
         />
       </div>
 
       {/* Inspection List Cards */}
-      <div className="space-y-3">
-        {filtered.map(item => {
+      <div className="space-y-4">
+        {filtered.map((item, index) => {
           const defects = item.items.filter(i => i.status === 'DEFECT');
           const monitors = item.items.filter(i => i.status === 'MONITOR');
           const okCount = item.items.filter(i => i.status === 'OK').length;
 
           return (
             <div
-              key={item.id}
-              className="bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-4 space-y-3 transition shadow-sm"
+              key={`${item.id}-${index}`}
+              className={`bg-[#18181b] border border-[rgba(242,239,235,0.1)] hover:border-[rgba(242,239,235,0.25)] rounded p-4 sm:p-5 space-y-3.5 transition shadow-sm ${
+                defects.length > 0 ? 'border-l-[3px] border-[#fb7185]' : ''
+              }`}
             >
-              {/* Header Info */}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-black text-white font-mono">{item.codeUnit}</span>
-                    <span className="text-xs text-slate-400">• {item.egi}</span>
+              {/* Card Header */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="unit-info">
+                  <div className="flex items-center space-x-2.5">
+                    <h2 className="font-syne font-extrabold text-2xl tracking-tight text-[#f2efeb]">
+                      {item.codeUnit}
+                    </h2>
+                    <span className="font-mono text-xs text-[rgba(242,239,235,0.5)]">
+                      {item.egi}
+                    </span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                         item.status === 'RUNNING'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          ? 'border-[#4ade80] text-[#4ade80] bg-[#4ade80]/10'
                           : item.status === 'BREAKDOWN'
-                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          ? 'border-[#fb7185] text-[#fb7185] bg-[#fb7185]/10'
+                          : 'border-[#facc15] text-[#facc15] bg-[#facc15]/10'
                       }`}
                     >
                       {item.status}
                     </span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                      item.qaType === 'DAILY_INSPECTION'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : item.qaType === 'QA7_FINAL'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    }`}>
-                      {item.qaType === 'DAILY_INSPECTION' ? 'DAILY ARTIC' : item.qaType === 'QA7_FINAL' ? 'QA 7 FINAL' : 'QA 1 PRE'}
-                    </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 mt-1">
-                    <span>📅 {item.tanggal}</span>
+                  {/* Metadata */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-[rgba(242,239,235,0.6)] uppercase tracking-wider mt-1.5">
+                    <span>PIC: <strong className="text-[#f2efeb]">{item.picMekanik}</strong></span>
                     <span>•</span>
-                    <span className="flex items-center space-x-1">
-                      <Clock className="w-3 h-3 text-slate-500" />
-                      <span>{item.startTime} - {item.finishTime} ({item.totalJam})</span>
-                    </span>
+                    <span>GL: <strong className="text-[#f2efeb]">{item.divalidasiOleh || '-'}</strong></span>
                     <span>•</span>
-                    <span className="flex items-center space-x-1">
-                      <Gauge className="w-3 h-3 text-amber-400" />
-                      <span className="font-mono text-slate-300">{item.hmUnit.toLocaleString()} HM</span>
-                    </span>
+                    <span>HM: <strong className="text-[#facc15]">{item.hmUnit.toLocaleString()}</strong></span>
+                    <span>•</span>
+                    <span>{item.tanggal}</span>
                   </div>
                 </div>
 
-                {/* Actions: WA, Print, Edit, Delete */}
+                {/* Actions Bar (Variation 2 Square Industrial Buttons) */}
                 <div className="flex items-center space-x-1.5 shrink-0">
+                  {onViewItem && (
+                    <button
+                      onClick={() => onViewItem(item)}
+                      title="Lihat Detail (V)"
+                      className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.15)] border border-[rgba(242,239,235,0.1)] text-[#f2efeb] rounded transition"
+                    >
+                      <Eye className="w-4 h-4 text-[#38bdf8]" />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       const allPhotos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
@@ -308,33 +291,45 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                         title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Artic' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Artic' : 'QA 1 Pre Artic'} - ${item.codeUnit}`,
                       });
                     }}
-                    title="Share ke WhatsApp (Disertai Foto)"
-                    className="p-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 rounded-xl transition"
+                    title="WhatsApp (W)"
+                    className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.15)] border border-[rgba(242,239,235,0.1)] text-[#4ade80] rounded transition"
                   >
                     <MessageSquare className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onPrintPreview(item)}
-                    title="Cetak PDF / Print Form QA Artic"
-                    className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl transition"
+                    title="Cetak PDF (P)"
+                    className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.15)] border border-[rgba(242,239,235,0.1)] text-[#facc15] rounded transition"
                   >
-                    <Printer className="w-4 h-4 text-amber-400" />
+                    <Printer className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onEditItem(item)}
-                    title="Edit inspeksi ini"
-                    className="p-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 rounded-xl transition"
+                    title="Edit Data (E)"
+                    className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.15)] border border-[rgba(242,239,235,0.1)] text-[#facc15] rounded transition"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onDeleteItem(item)}
-                    title="Hapus inspeksi ini"
-                    className="p-2 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 rounded-xl transition"
+                    title="Hapus (X)"
+                    className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[#fb7185]/20 border border-[rgba(242,239,235,0.1)] hover:border-[#fb7185]/40 text-[#fb7185] rounded transition"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+
+              {/* Systematic Parameter Grid (Variation 2) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 py-2 border-t border-[rgba(242,239,235,0.08)] text-xs text-[rgba(242,239,235,0.6)] font-mono">
+                {item.items.slice(0, 6).map((chk) => (
+                  <div key={chk.id} className="truncate">
+                    <span className="text-[rgba(242,239,235,0.5)]">{chk.name.replace(/^\d+\.\s*/, '')}: </span>
+                    <strong className={chk.status === 'OK' ? 'text-[#4ade80]' : chk.status === 'DEFECT' ? 'text-[#fb7185]' : 'text-[#facc15]'}>
+                      {chk.status}
+                    </strong>
+                  </div>
+                ))}
               </div>
 
               {/* 36-Items Status Summary Badges */}
@@ -482,16 +477,29 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                                   <span className="text-slate-400 font-mono ml-1">({b.partNumber})</span>
                                 )}
                               </div>
-                              {onEditBacklog && (
-                                <button
-                                  type="button"
-                                  onClick={() => onEditBacklog(b)}
-                                  className="px-2 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded font-bold transition flex items-center space-x-1 shrink-0"
-                                  title="Edit Backlog Ini"
-                                >
-                                  <span>Edit</span>
-                                </button>
-                              )}
+                              <div className="flex items-center space-x-1 shrink-0">
+                                {onViewBacklog && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onViewBacklog(b)}
+                                    className="px-2 py-0.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded font-bold transition flex items-center space-x-1 shrink-0"
+                                    title="Lihat Detail Backlog Ini"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    <span>Lihat</span>
+                                  </button>
+                                )}
+                                {onEditBacklog && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onEditBacklog(b)}
+                                    className="px-2 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded font-bold transition flex items-center space-x-1 shrink-0"
+                                    title="Edit Backlog Ini"
+                                  >
+                                    <span>Edit</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

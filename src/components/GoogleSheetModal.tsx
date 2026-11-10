@@ -376,28 +376,28 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
   const hasGoogleAccount = isGoogleConnected();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl text-slate-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#18181b] border border-[rgba(242,239,235,0.15)] rounded w-full max-w-xl overflow-hidden shadow-2xl text-[#f2efeb] flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-900/90 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(242,239,235,0.1)] bg-[#18181b] shrink-0">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-emerald-500/15 text-emerald-400 rounded-xl border border-emerald-500/30">
+            <div className="p-2 bg-[rgba(250,204,21,0.1)] text-[#facc15] rounded border border-[#facc15]/30">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold text-white">Google Sheet Plant 2</h2>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center space-x-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>SELALU TERHUBUNG</span>
+                <h2 className="text-base font-syne font-extrabold uppercase text-[#f2efeb]">Google Sheet Plant 2</h2>
+                <span className="text-[10px] font-mono bg-[#4ade80]/15 text-[#4ade80] font-bold px-2 py-0.5 rounded border border-[#4ade80]/30 flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
+                  <span>24/7 AKTIF</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Sinkronisasi 2-Arah Otomatis Real-Time Tanpa Putus</p>
+              <p className="text-xs font-mono text-[rgba(242,239,235,0.5)] mt-0.5">Sinkronisasi 2-Arah Otomatis Real-Time Database Tambang</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+            className="w-8 h-8 rounded flex items-center justify-center text-[rgba(242,239,235,0.6)] hover:text-[#f2efeb] hover:bg-[rgba(242,239,235,0.1)] transition"
           >
             <X className="w-5 h-5" />
           </button>

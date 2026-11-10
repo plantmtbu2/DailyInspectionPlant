@@ -348,3 +348,58 @@ ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Prog
 ---------------------------------------
 _Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
+
+export interface DashboardAchievementSummary {
+  periodType: 'HARIAN' | 'BULANAN' | 'TAHUNAN';
+  periodLabel: string;
+  totalUnits: number;
+  inspectedUnitsCount: number;
+  uninspectedUnitsCount: number;
+  totalInspections: number;
+  achievementRate: number;
+  rigidCount: number;
+  articCount: number;
+  runningCount: number;
+  breakdownCount: number;
+  standbyCount: number;
+  defectItemsCount: number;
+  backlogCount: number;
+  activityCount: number;
+  uninspectedUnitCodes: string[];
+}
+
+export const formatDashboardAchievementWhatsApp = (s: DashboardAchievementSummary): string => {
+  const statusEmoji = s.achievementRate >= 85 ? '🟢' : s.achievementRate >= 60 ? '🟡' : '🔴';
+
+  const uninspectedText = s.uninspectedUnitCodes.length > 0
+    ? `⚠️ *Unit Belum Diinspeksi (${s.uninspectedUnitCodes.length}):*\n${s.uninspectedUnitCodes.join(', ')}`
+    : `✅ *Semua Armada Telah Diinspeksi 100%!*`;
+
+  return `📊 *DASHBOARD PENCAPAIAN DAILY INSPEKSI* 📊
+*PT. PAMAPERSADA NUSANTARA - PLANT 2 MTBU*
+---------------------------------------
+📅 *Periode:* ${s.periodType} (${s.periodLabel})
+${statusEmoji} *Achievement Rate:* *${s.achievementRate.toFixed(1)}%*
+
+🎯 *TARGET & REALISASI ARMADA:*
+• Total Armada Terdaftar: *${s.totalUnits} Unit*
+• Unit Sudah Diinspeksi: *${s.inspectedUnitsCount} Unit*
+• Total Volume Inspeksi: *${s.totalInspections} Kali*
+  - Rigid Dump Truck: *${s.rigidCount}*
+  - Articulated Dump Truck: *${s.articCount}*
+
+🚜 *STATUS KELAYAKAN UNIT:*
+• Ready / Running: *${s.runningCount} Unit* (${s.inspectedUnitsCount > 0 ? Math.round((s.runningCount / s.inspectedUnitsCount) * 100) : 0}%)
+• Breakdown / Perbaikan: *${s.breakdownCount} Unit*
+• Standby / Service: *${s.standbyCount} Unit*
+
+🔍 *TEMUAN & TINDAK LANJUT:*
+• Temuan Defect / Deviasi: *${s.defectItemsCount} Temuan*
+• Backlog Sparepart Terbuat: *${s.backlogCount} Item*
+• Tindakan Servis Selesai: *${s.activityCount} Aktivitas*
+
+---------------------------------------
+${uninspectedText}
+---------------------------------------
+_Dilaporkan via Sistem Aplikasi Plant 2 MTBU - PAMA_`;
+};

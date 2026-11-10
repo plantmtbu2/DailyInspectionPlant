@@ -232,7 +232,8 @@ export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
 
 export const updateBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
   const list = getBAPList();
-  const updated = list.map(b => (b.id === item.id ? item : b));
+  const exists = list.some(b => b.id === item.id);
+  const updated = exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list];
   localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(updated));
 
   // Update master unit if status changed
@@ -307,7 +308,8 @@ export const updateDailyRigid = async (item: DailyCheckRigid): Promise<DailyChec
     ...item,
     qaType: item.qaType || 'DAILY_INSPECTION',
   };
-  const updated = list.map(r => (r.id === item.id ? normalizedItem : r));
+  const exists = list.some(r => r.id === item.id);
+  const updated = exists ? list.map(r => (r.id === item.id ? normalizedItem : r)) : [normalizedItem, ...list];
   localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(updated));
 
   const units = getCodeUnits();
@@ -381,7 +383,8 @@ export const updateDailyArtic = async (item: DailyCheckArtic): Promise<DailyChec
     ...item,
     qaType: item.qaType || 'DAILY_INSPECTION',
   };
-  const updated = list.map(a => (a.id === item.id ? normalizedItem : a));
+  const exists = list.some(a => a.id === item.id);
+  const updated = exists ? list.map(a => (a.id === item.id ? normalizedItem : a)) : [normalizedItem, ...list];
   localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(updated));
 
   const units = getCodeUnits();
@@ -431,7 +434,8 @@ export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
 
 export const updateBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
   const list = getBacklogs();
-  const updated = list.map(b => (b.id === item.id ? item : b));
+  const exists = list.some(b => b.id === item.id);
+  const updated = exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list];
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
   await autoSyncToGoogleSheetIfConnected();
   return updated;
@@ -478,7 +482,8 @@ export const addActivity = async (item: AddActivityItem): Promise<AddActivityIte
 
 export const updateActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
   const list = getActivities();
-  const updated = list.map(a => (a.id === item.id ? item : a));
+  const exists = list.some(a => a.id === item.id);
+  const updated = exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list];
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
   await autoSyncToGoogleSheetIfConnected();
   return updated;

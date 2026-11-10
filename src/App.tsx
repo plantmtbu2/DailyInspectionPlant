@@ -46,6 +46,7 @@ import {
 import { initAuth } from './services/firebaseAuth';
 
 // Components
+import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav, ActiveTab } from './components/BottomNav';
 import { GoogleSheetModal } from './components/GoogleSheetModal';
@@ -57,8 +58,10 @@ import { BacklogModal } from './components/BacklogModal';
 import { ActivityModal } from './components/ActivityModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { DetailViewModal } from './components/DetailViewModal';
 
 // Views
+import { DashboardDailyView } from './views/DashboardDailyView';
 import { BapView } from './views/BapView';
 import { DailyRigidView } from './views/DailyRigidView';
 import { DailyArticView } from './views/DailyArticView';
@@ -67,7 +70,7 @@ import { ActivitiesView } from './views/ActivitiesView';
 import { UnitsView } from './views/UnitsView';
 
 // Icons for Quick Top Nav Bar
-import { Zap, ShieldCheck, Tractor, AlertOctagon, Wrench, FileWarning, Layers, Truck, ClipboardCheck } from 'lucide-react';
+import { Zap, ShieldCheck, Tractor, AlertOctagon, Wrench, FileWarning, Layers, Truck, ClipboardCheck, BarChart3 } from 'lucide-react';
 
 export default function App() {
   // Navigation: default to DAILY INSPECTION RIGID
@@ -136,6 +139,17 @@ export default function App() {
 
   // PDF Printing Report
   const [printableReport, setPrintableReport] = useState<any | null>(null);
+
+  // Detail View Modal State
+  const [detailViewItem, setDetailViewItem] = useState<{
+    isOpen: boolean;
+    type: 'RIGID' | 'ARTIC' | 'BAP' | 'BACKLOG' | 'ACTIVITY' | 'UNIT';
+    title: string;
+    subtitle?: string;
+    data: any;
+    onEdit?: () => void;
+    onPrint?: () => void;
+  } | null>(null);
 
   // Toast Notification state
   const [toastNotification, setToastNotification] = useState<{
@@ -516,6 +530,135 @@ export default function App() {
     });
   };
 
+  // Detail View Handlers for all modules
+  const handleViewDailyRigid = (item: DailyCheckRigid) => {
+    const qaTitle =
+      item.qaType === 'DAILY_INSPECTION'
+        ? 'Daily Inspection Rigid'
+        : item.qaType === 'QA7_FINAL'
+        ? 'QA 7 Final Inspection Rigid'
+        : 'QA 1 Pre Inspection Rigid';
+    setDetailViewItem({
+      isOpen: true,
+      type: 'RIGID',
+      title: `${qaTitle} - ${item.codeUnit}`,
+      subtitle: `ID: ${item.id} | Tanggal: ${item.tanggal} | Waktu: ${item.startTime || '-'} - ${item.finishTime || '-'} | GL: ${item.divalidasiOleh || '-'}`,
+      data: item,
+      onEdit: () => {
+        setDetailViewItem(null);
+        setEditingRigidItem(item);
+        setSelectedUnitForRigid(item.codeUnit);
+        setRigidModalQaType(item.qaType || 'DAILY_INSPECTION');
+        setIsRigidModalOpen(true);
+      },
+      onPrint: () => {
+        setDetailViewItem(null);
+        setPrintableReport({ type: 'DAILY_RIGID', data: item });
+      },
+    });
+  };
+
+  const handleViewDailyArtic = (item: DailyCheckArtic) => {
+    const qaTitle =
+      item.qaType === 'DAILY_INSPECTION'
+        ? 'Daily Inspection Artic'
+        : item.qaType === 'QA7_FINAL'
+        ? 'QA 7 Final Inspection Artic'
+        : 'QA 1 Pre Inspection Artic';
+    setDetailViewItem({
+      isOpen: true,
+      type: 'ARTIC',
+      title: `${qaTitle} - ${item.codeUnit}`,
+      subtitle: `ID: ${item.id} | Tanggal: ${item.tanggal} | Waktu: ${item.startTime || '-'} - ${item.finishTime || '-'} | GL: ${item.divalidasiOleh || '-'}`,
+      data: item,
+      onEdit: () => {
+        setDetailViewItem(null);
+        setEditingArticItem(item);
+        setSelectedUnitForArtic(item.codeUnit);
+        setArticModalQaType(item.qaType || 'DAILY_INSPECTION');
+        setIsArticModalOpen(true);
+      },
+      onPrint: () => {
+        setDetailViewItem(null);
+        setPrintableReport({ type: 'DAILY_ARTIC', data: item });
+      },
+    });
+  };
+
+  const handleViewBacklog = (item: BacklogItem) => {
+    setDetailViewItem({
+      isOpen: true,
+      type: 'BACKLOG',
+      title: `Detail Backlog: ${item.codeUnit}`,
+      subtitle: `MO: ${item.moBacklog || '-'} | Status: ${item.status} | PIC: ${item.pic} | Tanggal: ${item.tanggalTemuan}`,
+      data: item,
+      onEdit: () => {
+        setDetailViewItem(null);
+        setEditingBacklogItem(item);
+        setSelectedUnitForBacklog(item.codeUnit);
+        setIsBacklogModalOpen(true);
+      },
+      onPrint: () => {
+        setDetailViewItem(null);
+        setPrintableReport({ type: 'BACKLOG', data: item });
+      },
+    });
+  };
+
+  const handleViewBAP = (item: BAPRecord) => {
+    setDetailViewItem({
+      isOpen: true,
+      type: 'BAP',
+      title: `Berita Acara Kerusakan: ${item.codeUnit}`,
+      subtitle: `Nomor BAP: ${item.id} | MO: ${item.mo || '-'} | Lokasi: ${item.lokasiPekerjaan || '-'} | Status: ${item.status}`,
+      data: item,
+      onEdit: () => {
+        setDetailViewItem(null);
+        setEditingBapItem(item);
+        setSelectedUnitForBap(item.codeUnit);
+        setIsBapModalOpen(true);
+      },
+      onPrint: () => {
+        setDetailViewItem(null);
+        setPrintableReport({ type: 'BAP', data: item });
+      },
+    });
+  };
+
+  const handleViewActivity = (item: AddActivityItem) => {
+    setDetailViewItem({
+      isOpen: true,
+      type: 'ACTIVITY',
+      title: `Detail Aktivitas Mekanik: ${item.codeUnit}`,
+      subtitle: `ID: ${item.id} | Tanggal: ${item.tanggalTemuan} | Status: ${item.status} | PIC: ${item.pic}`,
+      data: item,
+      onEdit: () => {
+        setDetailViewItem(null);
+        setEditingActivityItem(item);
+        setSelectedUnitForActivity(item.codeUnit);
+        setIsActivityModalOpen(true);
+      },
+      onPrint: () => {
+        setDetailViewItem(null);
+        setPrintableReport({ type: 'ACTIVITY', data: item });
+      },
+    });
+  };
+
+  const handleViewUnit = (unit: CodeUnit) => {
+    setDetailViewItem({
+      isOpen: true,
+      type: 'UNIT',
+      title: `Profil Armada: ${unit.codeUnit}`,
+      subtitle: `${unit.brand} ${unit.egi} | PIT: ${unit.lokasiPit} | Status: ${unit.statusUnit} | ${unit.currentHm.toLocaleString()} HM`,
+      data: unit,
+      onEdit: () => {
+        setDetailViewItem(null);
+        setIsUnitsManagerModalOpen(true);
+      },
+    });
+  };
+
   // Counts for badges
   const openBapCount = bapList.filter(b => b.status === 'OPEN').length;
   const activeBacklogCount = backlogs.filter(b => b.status !== 'CLOSED').length;
@@ -527,42 +670,73 @@ export default function App() {
   const qa7ArticCount = dailyArticList.filter(i => i.qaType === 'QA7_FINAL').length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      {/* Global In-App Toast Notification */}
-      {toastNotification && (
-        <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-60 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl flex items-center space-x-2 border transition max-w-lg text-white ${
-            toastNotification.type === 'error'
-              ? 'bg-rose-600 border-rose-400/30'
-              : toastNotification.type === 'info'
-              ? 'bg-blue-600 border-blue-400/30'
-              : 'bg-emerald-600 border-emerald-400/30'
-          }`}
-        >
-          <span>{toastNotification.message}</span>
-        </div>
-      )}
-
-      {/* Top Header with 2-Way Sync Controls */}
-      <Header
-        sheetsConfig={sheetsConfig}
-        isSyncing={isSyncing}
-        syncMode={syncMode}
-        onOpenSheetsModal={() => setIsSheetsModalOpen(true)}
-        onPullData={handlePullData}
-        onPushData={handlePushData}
-        codeUnits={codeUnits}
-        backlogs={backlogs}
-        bapList={bapList}
-        dailyRigidList={dailyRigidList}
-        dailyArticList={dailyArticList}
-        activities={activities}
-        onNavigateToTab={tab => setActiveTab(tab)}
+    <div className="min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] flex flex-col lg:grid lg:grid-cols-[280px_1fr] font-sans selection:bg-[#facc15] selection:text-[#111113]">
+      {/* Desktop Sidebar Navigation (Variation 2) */}
+      <Sidebar
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        dailyRigidCount={dailyRigidCount}
+        dailyArticCount={dailyArticCount}
+        qa1RigidCount={qa1RigidCount}
+        qa7RigidCount={qa7RigidCount}
+        qa1ArticCount={qa1ArticCount}
+        qa7ArticCount={qa7ArticCount}
+        activeBacklogCount={activeBacklogCount}
+        activitiesCount={activities.length}
+        openBapCount={openBapCount}
+        codeUnitsCount={codeUnits.length}
       />
 
-      {/* Prominent Quick-Switch Menu Bar for All Inspection Menus & Modules */}
-      <div className="no-print bg-slate-900 border-b border-slate-800 sticky top-[57px] z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-1.5 flex items-center space-x-1 sm:space-x-2 overflow-x-auto scrollbar-none">
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+        {/* Global In-App Toast Notification */}
+        {toastNotification && (
+          <div
+            className={`fixed top-4 left-1/2 -translate-x-1/2 z-60 px-4 py-2 rounded text-xs font-mono font-semibold shadow-2xl flex items-center space-x-2 border transition max-w-lg ${
+              toastNotification.type === 'error'
+                ? 'bg-[#18181b] border-[#fb7185] text-[#fb7185]'
+                : toastNotification.type === 'info'
+                ? 'bg-[#18181b] border-[#38bdf8] text-[#38bdf8]'
+                : 'bg-[#18181b] border-[#4ade80] text-[#4ade80]'
+            }`}
+          >
+            <span>{toastNotification.message}</span>
+          </div>
+        )}
+
+        {/* Top Header with 2-Way Sync Controls */}
+        <Header
+          sheetsConfig={sheetsConfig}
+          isSyncing={isSyncing}
+          syncMode={syncMode}
+          onOpenSheetsModal={() => setIsSheetsModalOpen(true)}
+          onPullData={handlePullData}
+          onPushData={handlePushData}
+          codeUnits={codeUnits}
+          backlogs={backlogs}
+          bapList={bapList}
+          dailyRigidList={dailyRigidList}
+          dailyArticList={dailyArticList}
+          activities={activities}
+          onNavigateToTab={tab => setActiveTab(tab)}
+        />
+
+        {/* Mobile Quick-Switch Bar (hidden on desktop because sidebar is active) */}
+        <div className="lg:hidden no-print bg-[#18181b] border-b border-[rgba(242,239,235,0.1)] sticky top-[53px] z-20 shadow-sm">
+          <div className="w-full px-2 py-1.5 flex items-center space-x-1.5 overflow-x-auto scrollbar-none">
+          {/* MENU UTAMA: DASHBOARD PENCAPAIAN */}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
+              activeTab === 'dashboard'
+                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/25 ring-2 ring-amber-400/30'
+                : 'bg-slate-800/80 hover:bg-slate-800 text-amber-400 border-amber-500/30'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>DASHBOARD</span>
+          </button>
+
           {/* MENU UTAMA: DAILY INSPECTION RIGID */}
           <button
             onClick={() => setActiveTab('daily-rigid')}
@@ -743,7 +917,31 @@ export default function App() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-5">
+      <main className={`flex-1 w-full mx-auto p-3 sm:p-5 ${activeTab === 'dashboard' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+        {/* DASHBOARD PENCAPAIAN DAILY (HARIAN, BULANAN, TAHUNAN) */}
+        {activeTab === 'dashboard' && (
+          <DashboardDailyView
+            dailyRigidList={dailyRigidList}
+            dailyArticList={dailyArticList}
+            codeUnits={codeUnits}
+            backlogs={backlogs}
+            activities={activities}
+            onOpenRigidForUnit={(cu, qaType) => {
+              setSelectedUnitForRigid(cu);
+              setEditingRigidItem(null);
+              setRigidModalQaType(qaType || 'DAILY_INSPECTION');
+              setIsRigidModalOpen(true);
+            }}
+            onOpenArticForUnit={(cu, qaType) => {
+              setSelectedUnitForArtic(cu);
+              setEditingArticItem(null);
+              setArticModalQaType(qaType || 'DAILY_INSPECTION');
+              setIsArticModalOpen(true);
+            }}
+            onNavigateToTab={tab => setActiveTab(tab as ActiveTab)}
+          />
+        )}
+
         {/* MENU UTAMA 1: DAILY INSPECTION RIGID (Isinya sama dengan QA 7) */}
         {activeTab === 'daily-rigid' && (
           <DailyRigidView
@@ -762,6 +960,7 @@ export default function App() {
               setRigidModalQaType(type || 'DAILY_INSPECTION');
               setIsRigidModalOpen(true);
             }}
+            onViewItem={handleViewDailyRigid}
             onEditItem={item => {
               setEditingRigidItem(item);
               setSelectedUnitForRigid(item.codeUnit);
@@ -781,6 +980,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewBacklog={handleViewBacklog}
             onEditBacklog={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -807,6 +1007,7 @@ export default function App() {
               setArticModalQaType(type || 'DAILY_INSPECTION');
               setIsArticModalOpen(true);
             }}
+            onViewItem={handleViewDailyArtic}
             onEditItem={item => {
               setEditingArticItem(item);
               setSelectedUnitForArtic(item.codeUnit);
@@ -826,6 +1027,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewBacklog={handleViewBacklog}
             onEditBacklog={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -852,6 +1054,7 @@ export default function App() {
               setRigidModalQaType(type || 'QA1_PRE');
               setIsRigidModalOpen(true);
             }}
+            onViewItem={handleViewDailyRigid}
             onEditItem={item => {
               setEditingRigidItem(item);
               setSelectedUnitForRigid(item.codeUnit);
@@ -871,6 +1074,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewBacklog={handleViewBacklog}
             onEditBacklog={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -897,6 +1101,7 @@ export default function App() {
               setRigidModalQaType(type || 'QA7_FINAL');
               setIsRigidModalOpen(true);
             }}
+            onViewItem={handleViewDailyRigid}
             onEditItem={item => {
               setEditingRigidItem(item);
               setSelectedUnitForRigid(item.codeUnit);
@@ -916,6 +1121,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewBacklog={handleViewBacklog}
             onEditBacklog={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -942,6 +1148,7 @@ export default function App() {
               setArticModalQaType(type || 'QA1_PRE');
               setIsArticModalOpen(true);
             }}
+            onViewItem={handleViewDailyArtic}
             onEditItem={item => {
               setEditingArticItem(item);
               setSelectedUnitForArtic(item.codeUnit);
@@ -961,6 +1168,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewBacklog={handleViewBacklog}
             onEditBacklog={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -987,6 +1195,7 @@ export default function App() {
               setArticModalQaType(type || 'QA7_FINAL');
               setIsArticModalOpen(true);
             }}
+            onViewItem={handleViewDailyArtic}
             onEditItem={item => {
               setEditingArticItem(item);
               setSelectedUnitForArtic(item.codeUnit);
@@ -1006,6 +1215,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewBacklog={handleViewBacklog}
             onEditBacklog={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -1025,6 +1235,7 @@ export default function App() {
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
+            onViewItem={handleViewBacklog}
             onEditItem={item => {
               setEditingBacklogItem(item);
               setSelectedUnitForBacklog(item.codeUnit);
@@ -1046,6 +1257,7 @@ export default function App() {
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+            onViewItem={handleViewActivity}
             onEditItem={item => {
               setEditingActivityItem(item);
               setSelectedUnitForActivity(item.codeUnit);
@@ -1066,6 +1278,7 @@ export default function App() {
               setEditingBapItem(null);
               setIsBapModalOpen(true);
             }}
+            onViewBAP={handleViewBAP}
             onEditBAP={item => {
               setEditingBapItem(item);
               setSelectedUnitForBap(item.codeUnit);
@@ -1081,6 +1294,7 @@ export default function App() {
           <UnitsView
             units={codeUnits}
             onOpenManageUnits={() => setIsUnitsManagerModalOpen(true)}
+            onViewUnit={handleViewUnit}
             onEditUnit={() => setIsUnitsManagerModalOpen(true)}
             onDeleteUnit={handleDeleteUnit}
             onOpenBapForUnit={cu => {
@@ -1114,6 +1328,7 @@ export default function App() {
           />
         )}
       </main>
+      </div>
 
       {/* Android Mobile Bottom Navigation Bar */}
       <BottomNav
@@ -1142,6 +1357,7 @@ export default function App() {
         initialCodeUnit={selectedUnitForRigid}
         itemToEdit={editingRigidItem}
         qaType={rigidModalQaType}
+        backlogs={backlogs}
         onSave={handleSaveDailyRigid}
         onPrintPreview={item => setPrintableReport({ type: 'DAILY_RIGID', data: item })}
         onOpenAddBacklog={cu => {
@@ -1149,6 +1365,14 @@ export default function App() {
           setBacklogSource(rigidModalQaType === 'DAILY_INSPECTION' ? 'DAILY_RIGID' : rigidModalQaType === 'QA7_FINAL' ? 'QA7_RIGID' : 'QA1_RIGID');
           setEditingBacklogItem(null);
           setIsBacklogModalOpen(true);
+        }}
+        onOpenEditBacklog={item => {
+          setEditingBacklogItem(item);
+          setSelectedUnitForBacklog(item.codeUnit);
+          setIsBacklogModalOpen(true);
+        }}
+        onOpenViewBacklog={item => {
+          handleViewBacklog(item);
         }}
         onOpenAddActivity={cu => {
           setSelectedUnitForActivity(cu);
@@ -1168,6 +1392,7 @@ export default function App() {
         initialCodeUnit={selectedUnitForArtic}
         itemToEdit={editingArticItem}
         qaType={articModalQaType}
+        backlogs={backlogs}
         onSave={handleSaveDailyArtic}
         onPrintPreview={item => setPrintableReport({ type: 'DAILY_ARTIC', data: item })}
         onOpenAddBacklog={cu => {
@@ -1175,6 +1400,14 @@ export default function App() {
           setBacklogSource(articModalQaType === 'DAILY_INSPECTION' ? 'DAILY_ARTIC' : articModalQaType === 'QA7_FINAL' ? 'QA7_ARTIC' : 'QA1_ARTIC');
           setEditingBacklogItem(null);
           setIsBacklogModalOpen(true);
+        }}
+        onOpenEditBacklog={item => {
+          setEditingBacklogItem(item);
+          setSelectedUnitForBacklog(item.codeUnit);
+          setIsBacklogModalOpen(true);
+        }}
+        onOpenViewBacklog={item => {
+          handleViewBacklog(item);
         }}
         onOpenAddActivity={cu => {
           setSelectedUnitForActivity(cu);
@@ -1261,6 +1494,26 @@ export default function App() {
         title={deleteDialog.title}
         message={deleteDialog.message}
         itemName={deleteDialog.itemName}
+      />
+
+      {/* 10. Modal Lihat Detail Semua Modul */}
+      <DetailViewModal
+        isOpen={!!detailViewItem?.isOpen}
+        onClose={() => setDetailViewItem(null)}
+        type={detailViewItem?.type || 'RIGID'}
+        title={detailViewItem?.title || ''}
+        subtitle={detailViewItem?.subtitle}
+        data={detailViewItem?.data}
+        allBacklogs={backlogs}
+        allActivities={activities}
+        onEdit={detailViewItem?.onEdit}
+        onPrint={detailViewItem?.onPrint}
+        onViewBacklog={handleViewBacklog}
+        onOpenEditBacklog={(item: BacklogItem) => {
+          setEditingBacklogItem(item);
+          setSelectedUnitForBacklog(item.codeUnit);
+          setIsBacklogModalOpen(true);
+        }}
       />
     </div>
   );

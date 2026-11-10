@@ -3,14 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aplikasi Plant 2 - Heavy Equipment Inspection & Maintenance</title>
+    <title>Aplikasi Plant 2 - Industrial Systematic</title>
     <meta name="description" content="Aplikasi Plant 2 - Inspeksi harian alat berat (Rigid & Artic), BAP, Backlog, dan Aktivitas mekanik tambang terintegrasi Google Sheets, WhatsApp, dan cetak PDF." />
-    <meta property="og:title" content="Aplikasi Plant 2 - Heavy Equipment Inspection & Maintenance" />
+    <meta property="og:title" content="Aplikasi Plant 2 - Industrial Systematic" />
     <meta property="og:description" content="Aplikasi Plant 2 - Inspeksi harian alat berat (Rigid & Artic), BAP, Backlog, dan Aktivitas mekanik tambang terintegrasi Google Sheets, WhatsApp, dan cetak PDF." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('plant2_theme');
+          if (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            t = 'light';
+          }
+          if (t === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.classList.add('light');
+          } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body>
+  <body class="bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] antialiased selection:bg-[#facc15] selection:text-[#111113]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

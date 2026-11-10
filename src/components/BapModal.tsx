@@ -5,6 +5,7 @@ import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
 import { X, FileWarning, Save, CheckCircle, MessageSquare, Printer, Camera } from 'lucide-react';
 import { formatBAPWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
+import { formatDateDDMMYYYY, formatTimeHHMM } from '../utils/dateUtils';
 
 interface BapModalProps {
   isOpen: boolean;
@@ -126,16 +127,18 @@ export const BapModal: React.FC<BapModalProps> = ({
 
     try {
       setIsSubmitting(true);
+      const formattedDate = formatDateDDMMYYYY(tanggal);
+      const formattedJam = formatTimeHHMM(jam);
       const recordToSave: BAPRecord = {
-        id: itemToEdit ? itemToEdit.id : `BAP-${tanggal.replace(/-/g, '').slice(0, 6)}-${Math.floor(100 + Math.random() * 900)}`,
+        id: itemToEdit ? itemToEdit.id : `${codeUnit}-${formattedDate}`,
         codeUnit,
         hm: Number(hm) || 0,
         kerusakan,
         estimasiPekerjaan: estimasiPekerjaan || 'Dalam Analisis',
         lokasiPekerjaan: lokasiPekerjaan || 'Workshop Main',
         mo: mo || `MO-${Date.now().toString().slice(-6)}`,
-        tanggal,
-        jam,
+        tanggal: formattedDate,
+        jam: formattedJam,
         picMekanik: picMekanik || 'Mekanik Maintenance',
         status,
         catatanTambahan,

@@ -61,7 +61,7 @@ export const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-slate-950/92 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[80] flex items-center justify-center p-2 sm:p-5 bg-slate-950/92 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div

@@ -28,8 +28,11 @@ import {
   Link,
   Wrench,
   AlertOctagon,
+  Eye,
+  Edit3,
 } from 'lucide-react';
 import { formatDailyArticWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
+import { formatDateDDMMYYYY, formatTimeHHMM } from '../utils/dateUtils';
 
 interface DailyArticModalProps {
   isOpen: boolean;
@@ -38,6 +41,8 @@ interface DailyArticModalProps {
   onSave: (item: DailyCheckArtic) => Promise<void>;
   onPrintPreview: (item: DailyCheckArtic) => void;
   onOpenAddBacklog: (codeUnit: string) => void;
+  onOpenEditBacklog?: (item: BacklogItem) => void;
+  onOpenViewBacklog?: (item: BacklogItem) => void;
   onOpenAddActivity: (codeUnit: string) => void;
   initialCodeUnit?: string;
   itemToEdit?: DailyCheckArtic | null;
@@ -53,6 +58,8 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
   onSave,
   onPrintPreview,
   onOpenAddBacklog,
+  onOpenEditBacklog,
+  onOpenViewBacklog,
   onOpenAddActivity,
   initialCodeUnit = '',
   itemToEdit = null,
@@ -228,15 +235,18 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       const prefix = isDaily ? 'DAILY-ART' : isFinal ? 'QA7-ART' : 'QA1-ART';
       const randomSuffix = Math.floor(100 + Math.random() * 900);
 
+      const formattedDate = formatDateDDMMYYYY(tanggal);
+      const formattedStartTime = formatTimeHHMM(startTime);
+      const formattedFinishTime = formatTimeHHMM(finishTime);
       const record: DailyCheckArtic = {
-        id: itemToEdit ? itemToEdit.id : `${prefix}-${tanggal.replace(/-/g, '')}-${codeUnit}-${randomSuffix}`,
+        id: itemToEdit ? itemToEdit.id : `${codeUnit}-${formattedDate}`,
         qaType: activeQaType,
         codeUnit,
         egi: egi || 'Articulated / Grader',
-        tanggal,
+        tanggal: formattedDate,
         status,
-        startTime,
-        finishTime,
+        startTime: formattedStartTime,
+        finishTime: formattedFinishTime,
         totalJam,
         hmUnit: Number(hmUnit) || 0,
         picMekanik: picMekanik || 'Mekanik Heavy Equipment',
@@ -707,14 +717,40 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
                     {activeUnitBacklogs.length > 0 ? (
                       <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                         {activeUnitBacklogs.map(b => (
-                          <div key={b.id} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px]">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-slate-200">{b.partNumber || b.moBacklog}</span>
-                              <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 font-mono">
-                                {b.status}
-                              </span>
+                          <div key={b.id} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px] flex items-center justify-between gap-1">
+                            <div className="min-w-0 pr-1 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-slate-200">{b.partNumber || b.moBacklog}</span>
+                                <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 font-mono">
+                                  {b.status}
+                                </span>
+                              </div>
+                              <p className="text-slate-400 truncate mt-0.5">{b.deskripsiBacklog}</p>
                             </div>
-                            <p className="text-slate-400 truncate mt-0.5">{b.deskripsiBacklog}</p>
+                            <div className="flex items-center space-x-1 shrink-0">
+                              {onOpenViewBacklog && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenViewBacklog(b)}
+                                  className="px-2 py-1 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 rounded text-[10px] font-semibold flex items-center space-x-1 transition"
+                                  title="Lihat Detail Backlog"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>Lihat</span>
+                                </button>
+                              )}
+                              {onOpenEditBacklog && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenEditBacklog(b)}
+                                  className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded text-[10px] font-bold flex items-center space-x-1 transition"
+                                  title="Ubah Data Backlog"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Ubah</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

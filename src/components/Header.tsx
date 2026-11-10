@@ -12,9 +12,12 @@ import {
   FileWarning,
   ClipboardCheck,
   Tractor,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { GoogleSheetsConfig, CodeUnit, BacklogItem, BAPRecord, DailyCheckRigid, DailyCheckArtic, AddActivityItem } from '../types';
 import { ActiveTab } from './BottomNav';
+import { useTheme } from '../context/ThemeContext';
 
 interface HeaderProps {
   sheetsConfig: GoogleSheetsConfig | null;
@@ -47,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   activities = [],
   onNavigateToTab,
 }) => {
+  const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -141,32 +145,34 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="no-print bg-slate-900 text-white sticky top-0 z-30 shadow-md border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
-        {/* Brand & App Name */}
-        <div className="flex items-center space-x-2.5 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/20 shrink-0">
-            <Truck className="w-5 h-5" />
+    <header className="no-print bg-[#111113] text-[#f2efeb] sticky top-0 z-30 border-b border-[rgba(242,239,235,0.1)]">
+      <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        {/* Brand - Visible on mobile/tablet when sidebar is hidden */}
+        <div className="flex items-center space-x-2.5 shrink-0 lg:hidden">
+          <div className="w-8 h-8 rounded bg-[#18181b] p-1 border border-[rgba(242,239,235,0.15)] flex items-center justify-center shrink-0">
+            <img
+              src="/assets/aistudio/PAMA_SMALL_4167d1d0.png"
+              alt="PAMA Logo"
+              className="max-h-full max-w-full object-contain"
+              onError={e => {
+                (e.target as HTMLImageElement).src = 'assets/aistudio/PAMA_SMALL_4167d1d0.png';
+              }}
+            />
           </div>
-          <div className="hidden md:block">
-            <div className="flex items-center space-x-1.5">
-              <h1 className="text-sm sm:text-base font-bold tracking-tight text-white leading-tight">
-                Aplikasi <span className="text-amber-400">Plant 2 MTBU</span>
-              </h1>
-              <span className="text-[9px] bg-amber-500/20 text-amber-300 font-semibold px-1.5 py-0.2 rounded-full border border-amber-500/30">
-                2-WAY SYNC
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Daily Check • BAP • Backlog • Aktivitas Mekanik
+          <div>
+            <h1 className="font-syne font-extrabold text-sm tracking-tight text-[#f2efeb] uppercase leading-none">
+              PLANT<span className="text-[#facc15]">2</span>
+            </h1>
+            <p className="text-[9px] font-mono tracking-wider text-[rgba(242,239,235,0.4)] uppercase">
+              Heavy Equipment Systems
             </p>
           </div>
         </div>
 
-        {/* Global Search Bar */}
-        <div className="relative flex-1 max-w-md mx-2" ref={searchRef}>
+        {/* Global Search Bar (Industrial Systematic) */}
+        <div className="relative flex-1 max-w-[420px]" ref={searchRef}>
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
             <input
               type="text"
               value={searchQuery}
@@ -175,8 +181,8 @@ export const Header: React.FC<HeaderProps> = ({
                 setIsSearchOpen(true);
               }}
               onFocus={() => setIsSearchOpen(true)}
-              placeholder="Cari unit, backlog, BAP, inspeksi, aktivitas..."
-              className="w-full bg-slate-850 border border-slate-700/80 hover:border-slate-600 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-400 focus:border-amber-400 outline-none transition shadow-inner"
+              placeholder="QUERY DATABASE: Unit, PIC, ID, Activity..."
+              className="w-full bg-[#18181b] border border-[rgba(242,239,235,0.15)] hover:border-[rgba(242,239,235,0.25)] rounded pl-9 pr-8 py-2 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.4)] focus:border-[#facc15] outline-none transition"
             />
             {searchQuery && (
               <button
@@ -185,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
                   setSearchQuery('');
                   setIsSearchOpen(false);
                 }}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-white p-0.5"
+                className="absolute right-2.5 top-2 text-[rgba(242,239,235,0.5)] hover:text-[#f2efeb] p-0.5"
                 title="Hapus pencarian"
               >
                 <X className="w-3.5 h-3.5" />
@@ -195,15 +201,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Global Search Results Dropdown */}
           {isSearchOpen && q.length > 0 && (
-            <div className="absolute left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-h-96 overflow-y-auto z-50 p-2 space-y-3 text-xs animate-fade-in">
-              <div className="px-2.5 py-1 text-[11px] text-slate-400 font-semibold border-b border-slate-800 flex items-center justify-between">
-                <span>Hasil Pencarian: &ldquo;{searchQuery}&rdquo;</span>
-                <span className="text-amber-400 font-mono font-bold">{totalResults} Ditemukan</span>
+            <div className="absolute left-0 right-0 mt-2 bg-[#18181b] border border-[rgba(242,239,235,0.15)] rounded-md shadow-2xl max-h-96 overflow-y-auto z-50 p-2.5 space-y-3 text-xs animate-fade-in">
+              <div className="px-2.5 py-1 text-[11px] font-mono text-[rgba(242,239,235,0.5)] border-b border-[rgba(242,239,235,0.08)] flex items-center justify-between">
+                <span>QUERY: &ldquo;{searchQuery}&rdquo;</span>
+                <span className="text-[#facc15] font-mono font-bold">{totalResults} MATCHED</span>
               </div>
 
               {totalResults === 0 && (
-                <div className="text-center py-6 text-slate-400 text-xs">
-                  Tidak ditemukan data yang cocok dengan &ldquo;{searchQuery}&rdquo;.
+                <div className="text-center py-6 text-[rgba(242,239,235,0.4)] font-mono text-xs">
+                  NO MATCH FOUND FOR &ldquo;{searchQuery}&rdquo;.
                 </div>
               )}
 
@@ -386,8 +392,8 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Two-Way Google Sheets Controls */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+        {/* Two-Way Google Sheets Controls (Industrial Systematic) */}
+        <div className="flex items-center space-x-2 shrink-0">
           {sheetsConfig ? (
             <>
               {/* Tarik Data (Pull) */}
@@ -395,10 +401,10 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onPullData}
                 disabled={isSyncing}
                 title="Tarik data terbaru dari Google Sheet ke aplikasi"
-                className="px-2 sm:px-2.5 py-1.5 rounded-lg bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center space-x-1 transition active:scale-95 disabled:opacity-50"
+                className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
               >
-                <Download className={`w-3.5 h-3.5 ${syncMode === 'pulling' ? 'animate-bounce text-blue-400' : ''}`} />
-                <span className="hidden xs:inline">Tarik Data</span>
+                <Download className={`w-3.5 h-3.5 ${syncMode === 'pulling' ? 'animate-bounce text-[#facc15]' : 'text-[rgba(242,239,235,0.6)]'}`} />
+                <span className="hidden sm:inline">Tarik Data</span>
               </button>
 
               {/* Kirim Data (Push) */}
@@ -406,44 +412,59 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onPushData}
                 disabled={isSyncing}
                 title="Kirim dan simpan semua data lokal ke Google Sheet"
-                className="px-2 sm:px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center space-x-1 transition active:scale-95 disabled:opacity-50"
+                className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
               >
-                <Upload className={`w-3.5 h-3.5 ${syncMode === 'pushing' ? 'animate-bounce text-emerald-400' : ''}`} />
-                <span className="hidden xs:inline">Kirim Data</span>
+                <Upload className={`w-3.5 h-3.5 ${syncMode === 'pushing' ? 'animate-bounce text-[#4ade80]' : 'text-[rgba(242,239,235,0.6)]'}`} />
+                <span className="hidden sm:inline">Kirim Data</span>
               </button>
 
               {/* Sheet Status Indicator */}
               <button
                 onClick={onOpenSheetsModal}
                 title="Google Sheet selalu terhubung dan aktif otomatis"
-                className="p-1.5 sm:px-2.5 sm:py-1.5 bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 rounded-lg text-xs flex items-center space-x-1.5 transition active:scale-95 shadow-sm"
+                className="px-3 py-1.5 rounded border border-[#4ade80] text-[#4ade80] bg-[#4ade80]/5 hover:bg-[#4ade80]/15 text-xs font-mono uppercase tracking-wider flex items-center space-x-2 transition active:scale-95"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="font-semibold text-[11px] hidden xs:inline">
+                <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0" />
+                <span className="font-semibold text-xs hidden sm:inline">
                   {syncMode === 'pulling'
-                    ? 'Memuat Data...'
+                    ? 'Memuat...'
                     : syncMode === 'pushing'
                     ? 'Menyimpan...'
-                    : sheetsConfig.webAppUrl
-                    ? 'Sheet 24/7 Aktif'
-                    : sheetsConfig.isDefault
-                    ? 'Sheet Plant 2 (Global)'
-                    : 'Sheet Terhubung'}
+                    : 'Sheet 24/7 Aktif'}
                 </span>
-                <span className="font-semibold text-[11px] xs:hidden">
-                  {syncMode === 'pulling' ? 'Memuat...' : syncMode === 'pushing' ? 'Menyimpan...' : 'Sheet'}
+                <span className="font-semibold text-xs sm:hidden">
+                  {syncMode === 'pulling' ? 'Memuat' : syncMode === 'pushing' ? 'Simpan' : 'Live'}
                 </span>
               </button>
             </>
           ) : (
             <button
               onClick={onOpenSheetsModal}
-              className="flex items-center space-x-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-500/15"
+              className="px-3.5 py-1.5 rounded bg-[#facc15] hover:bg-[#fde047] text-[#111113] text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#facc15]/20"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>Hubungkan Sheet</span>
             </button>
           )}
+          {/* Theme Toggle (Light / Dark Mode) */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Beralih ke Tema Terang (Light Mode)' : 'Beralih ke Tema Gelap (Dark Mode)'}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-[#facc15]" />
+                <span className="hidden sm:inline font-bold text-[10px]">Terang</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-[#facc15]" />
+                <span className="hidden sm:inline font-bold text-[10px]">Gelap</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </header>
