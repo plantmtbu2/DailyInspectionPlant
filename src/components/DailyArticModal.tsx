@@ -32,7 +32,7 @@ import {
   Edit3,
 } from 'lucide-react';
 import { formatDailyArticWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
-import { formatDateDDMMYYYY, formatTimeHHMM } from '../utils/dateUtils';
+import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
 
 interface DailyArticModalProps {
   isOpen: boolean;
@@ -133,43 +133,32 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       )
     : [];
 
-  // Handle edit or create ONLY when modal opens
+  // Initialize and populate form whenever modal opens or itemToEdit updates
   useEffect(() => {
-    const wasClosed = !prevIsOpenRef.current;
-    if (isOpen && wasClosed) {
-      if (itemToEdit) {
-        setCodeUnit(itemToEdit.codeUnit);
-        setEgi(itemToEdit.egi);
-        setTanggal(itemToEdit.tanggal);
-        setStatus(itemToEdit.status);
-        setStartTime(itemToEdit.startTime);
-        setFinishTime(itemToEdit.finishTime);
-        setTotalJam(itemToEdit.totalJam);
-        setHmUnit(itemToEdit.hmUnit);
-        setPicMekanik(itemToEdit.picMekanik);
-        setDivalidasiOleh(itemToEdit.divalidasiOleh);
-        setItems(itemToEdit.items);
-        setTemuanDeviasi(itemToEdit.temuanDeviasi);
+    if (!isOpen) {
+      setSavedSuccessRecord(null);
+      setFormError(null);
+      return;
+    }
 
-        const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-          ? itemToEdit.photoUrls
-          : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
-        setPhotoUrls(existingPhotos);
-      } else if (initialCodeUnit) {
-        setCodeUnit(initialCodeUnit);
-        const allUnits = units && units.length > 0 ? units : [];
-        const matched = allUnits.find(
-          u => u.codeUnit.toLowerCase() === initialCodeUnit.toLowerCase()
-        );
-        if (matched) {
-          setEgi(matched.egi);
-          setHmUnit(matched.currentHm);
-        }
-        setPhotoUrls([]);
+    if (itemToEdit) {
+      // Edit Mode: Populate all previously saved / updated fields with 100% fidelity
+      setCodeUnit(itemToEdit.codeUnit || '');
+      setEgi(itemToEdit.egi || '');
+      // Format date for HTML <input type="date"> (YYYY-MM-DD)
+      setTanggal(formatDateForInput(itemToEdit.tanggal));
+      setStatus(itemToEdit.status || 'RUNNING');
+      setStartTime(itemToEdit.startTime || '');
+      setFinishTime(itemToEdit.finishTime || '');
+      setTotalJam(itemToEdit.totalJam || '');
+      setHmUnit(Number(itemToEdit.hmUnit) || 0);
+      setPicMekanik(itemToEdit.picMekanik || '');
+      setDivalidasiOleh(itemToEdit.divalidasiOleh || 'Group Leader');
+
+      // Deep clone checklist items
+      if (itemToEdit.items && itemToEdit.items.length > 0) {
+        setItems(itemToEdit.items.map(it => ({ ...it })));
       } else {
-        setCodeUnit('');
-        setEgi('');
-        setHmUnit(0);
         setItems(
           ARTIC_CHECKLIST_ITEMS.map(def => ({
             id: def.id,
@@ -179,13 +168,68 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
             remark: '',
           }))
         );
-        setTemuanDeviasi('');
-        setPhotoUrls([]);
       }
-      setSavedSuccessRecord(null);
-      setFormError(null);
+
+      setTemuanDeviasi(itemToEdit.temuanDeviasi || '');
+
+      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+        ? itemToEdit.photoUrls
+        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+      setPhotoUrls(existingPhotos);
+    } else if (initialCodeUnit) {
+      // Create Mode with selected unit
+      setCodeUnit(initialCodeUnit);
+      const allUnits = units && units.length > 0 ? units : [];
+      const matched = allUnits.find(
+        u => u.codeUnit.toLowerCase() === initialCodeUnit.toLowerCase()
+      );
+      if (matched) {
+        setEgi(matched.egi || '');
+        setHmUnit(Number(matched.currentHm) || 0);
+      }
+      setTanggal(new Date().toISOString().slice(0, 10));
+      setStatus('RUNNING');
+      setStartTime('');
+      setFinishTime('');
+      setTotalJam('');
+      setPicMekanik('');
+      setDivalidasiOleh('Group Leader');
+      setItems(
+        ARTIC_CHECKLIST_ITEMS.map(def => ({
+          id: def.id,
+          name: def.name,
+          status: 'OK',
+          value: '',
+          remark: '',
+        }))
+      );
+      setTemuanDeviasi('');
+      setPhotoUrls([]);
+    } else {
+      setCodeUnit('');
+      setEgi('');
+      setTanggal(new Date().toISOString().slice(0, 10));
+      setStatus('RUNNING');
+      setStartTime('');
+      setFinishTime('');
+      setTotalJam('');
+      setHmUnit(0);
+      setPicMekanik('');
+      setDivalidasiOleh('Group Leader');
+      setItems(
+        ARTIC_CHECKLIST_ITEMS.map(def => ({
+          id: def.id,
+          name: def.name,
+          status: 'OK',
+          value: '',
+          remark: '',
+        }))
+      );
+      setTemuanDeviasi('');
+      setPhotoUrls([]);
     }
-    prevIsOpenRef.current = isOpen;
+    setSavedSuccessRecord(null);
+    setFormError(null);
   }, [isOpen, itemToEdit, initialCodeUnit, units]);
 
   if (!isOpen) return null;

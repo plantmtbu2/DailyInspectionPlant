@@ -15,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { formatBacklogWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
-import { formatDateDDMMYYYY } from '../utils/dateUtils';
+import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
 
 interface BacklogModalProps {
   isOpen: boolean;
@@ -65,11 +65,16 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
 
   useEffect(() => {
     setFormError(null);
+    if (!isOpen) {
+      setSavedItem(null);
+      return;
+    }
+
     if (itemToEdit) {
-      setCodeUnit(itemToEdit.codeUnit);
-      setMoBacklog(itemToEdit.moBacklog);
-      setNomorReservasi(itemToEdit.nomorReservasi);
-      setDeskripsiBacklog(itemToEdit.deskripsiBacklog);
+      setCodeUnit(itemToEdit.codeUnit || '');
+      setMoBacklog(itemToEdit.moBacklog || '');
+      setNomorReservasi(itemToEdit.nomorReservasi || '');
+      setDeskripsiBacklog(itemToEdit.deskripsiBacklog || '');
 
       // Inisialisasi daftar parts dari item yang diedit
       if (itemToEdit.parts && itemToEdit.parts.length > 0) {
@@ -94,10 +99,10 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
       }
 
-      setSumberTemuan(itemToEdit.sumberTemuan);
-      setStatus(itemToEdit.status);
-      setTanggalTemuan(itemToEdit.tanggalTemuan);
-      setPic(itemToEdit.pic);
+      setSumberTemuan(itemToEdit.sumberTemuan || 'MANUAL');
+      setStatus(itemToEdit.status || 'WAITING_PART');
+      setTanggalTemuan(formatDateForInput(itemToEdit.tanggalTemuan));
+      setPic(itemToEdit.pic || '');
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
         ? itemToEdit.photoUrls
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
@@ -108,7 +113,12 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setCodeUnit(initialCodeUnit);
       setSumberTemuan(source || 'MANUAL');
       setMoBacklog(`MO-BL-${Math.floor(1000 + Math.random() * 9000)}`);
+      setNomorReservasi('');
+      setDeskripsiBacklog('');
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
+      setStatus('WAITING_PART');
+      setTanggalTemuan(new Date().toISOString().slice(0, 10));
+      setPic('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
@@ -118,6 +128,9 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setNomorReservasi('');
       setDeskripsiBacklog('');
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
+      setStatus('WAITING_PART');
+      setTanggalTemuan(new Date().toISOString().slice(0, 10));
+      setPic('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);

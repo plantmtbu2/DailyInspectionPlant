@@ -398,7 +398,17 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
                     {/* EDIT & HAPUS Buttons */}
                     <div className="flex items-center justify-end space-x-1.5 shrink-0">
                       <button
-                        onClick={() => setEditingUnit(unit)}
+                        onClick={() =>
+                          setEditingUnit({
+                            ...unit,
+                            photoUrls:
+                              unit.photoUrls && unit.photoUrls.length > 0
+                                ? [...unit.photoUrls]
+                                : unit.photoUrl
+                                ? [unit.photoUrl]
+                                : [],
+                          })
+                        }
                         className="px-2.5 py-1 text-xs text-slate-300 hover:text-white bg-slate-700/60 hover:bg-slate-700 rounded-lg flex items-center space-x-1 transition"
                       >
                         <Edit3 className="w-3.5 h-3.5 text-amber-400" />

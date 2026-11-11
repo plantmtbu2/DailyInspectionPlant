@@ -5,6 +5,7 @@ import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
 import { X, Wrench, Save, CheckCircle, MessageSquare, Camera } from 'lucide-react';
 import { formatActivityWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
+import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -44,13 +45,18 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
   useEffect(() => {
     setFormError(null);
+    if (!isOpen) {
+      setSavedItem(null);
+      return;
+    }
+
     if (itemToEdit) {
-      setCodeUnit(itemToEdit.codeUnit);
-      setDeskripsiAktivitas(itemToEdit.deskripsiAktivitas);
-      setAction(itemToEdit.action);
-      setStatus(itemToEdit.status);
-      setTanggalTemuan(itemToEdit.tanggalTemuan);
-      setPic(itemToEdit.pic);
+      setCodeUnit(itemToEdit.codeUnit || '');
+      setDeskripsiAktivitas(itemToEdit.deskripsiAktivitas || '');
+      setAction(itemToEdit.action || '');
+      setStatus(itemToEdit.status || 'DONE');
+      setTanggalTemuan(formatDateForInput(itemToEdit.tanggalTemuan));
+      setPic(itemToEdit.pic || '');
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
         ? itemToEdit.photoUrls
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
@@ -59,6 +65,11 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       setSavedItem(null);
     } else if (initialCodeUnit) {
       setCodeUnit(initialCodeUnit);
+      setDeskripsiAktivitas('');
+      setAction('');
+      setStatus('DONE');
+      setTanggalTemuan(new Date().toISOString().slice(0, 10));
+      setPic('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
@@ -66,6 +77,9 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       setCodeUnit('');
       setDeskripsiAktivitas('');
       setAction('');
+      setStatus('DONE');
+      setTanggalTemuan(new Date().toISOString().slice(0, 10));
+      setPic('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
@@ -88,13 +102,14 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
     try {
       setIsSubmitting(true);
+      const formattedDate = formatDateDDMMYYYY(tanggalTemuan);
       const item: AddActivityItem = {
         id: itemToEdit ? itemToEdit.id : `ACT-${Date.now().toString().slice(-5)}`,
         codeUnit,
         deskripsiAktivitas,
         action: action || 'Inspeksi & Penyesuaian Komponen',
         status,
-        tanggalTemuan,
+        tanggalTemuan: formattedDate,
         pic: pic || 'Mekanik Maintenance',
         photoUrls: photoUrls,
         photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,

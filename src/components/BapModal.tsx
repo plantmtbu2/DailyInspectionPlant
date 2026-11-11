@@ -5,7 +5,7 @@ import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
 import { X, FileWarning, Save, CheckCircle, MessageSquare, Printer, Camera } from 'lucide-react';
 import { formatBAPWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
-import { formatDateDDMMYYYY, formatTimeHHMM } from '../utils/dateUtils';
+import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
 
 interface BapModalProps {
   isOpen: boolean;
@@ -49,55 +49,71 @@ export const BapModal: React.FC<BapModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedSuccessRecord, setSavedSuccessRecord] = useState<BAPRecord | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const prevIsOpenRef = useRef(false);
-
   useEffect(() => {
     setFormError(null);
-    const wasClosed = !prevIsOpenRef.current;
-    if (isOpen && wasClosed) {
-      if (itemToEdit) {
-        setCodeUnit(itemToEdit.codeUnit);
-        setHm(itemToEdit.hm);
-        setKerusakan(itemToEdit.kerusakan);
-        setEstimasiPekerjaan(itemToEdit.estimasiPekerjaan);
-        setLokasiPekerjaan(itemToEdit.lokasiPekerjaan);
-        setMo(itemToEdit.mo);
-        setTanggal(itemToEdit.tanggal);
-        setJam(itemToEdit.jam);
-        setPicMekanik(itemToEdit.picMekanik);
-        setStatus(itemToEdit.status);
-        setCatatanTambahan(itemToEdit.catatanTambahan || '');
+    if (!isOpen) {
+      setSavedSuccessRecord(null);
+      return;
+    }
 
-        const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-          ? itemToEdit.photoUrls
-          : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
-        setPhotoUrls(existingPhotos);
-        setPhotoUrl(existingPhotos[0] || undefined);
-      } else if (initialCodeUnit) {
-        setCodeUnit(initialCodeUnit);
-        const matched = units.find(
-          u => u.codeUnit.toLowerCase() === initialCodeUnit.toLowerCase()
-        );
-        if (matched) {
-          setHm(matched.currentHm);
-          setLokasiPekerjaan(matched.lokasiPit);
-        }
-        setPhotoUrls([]);
-        setPhotoUrl(undefined);
+    if (itemToEdit) {
+      setCodeUnit(itemToEdit.codeUnit || '');
+      setHm(Number(itemToEdit.hm) || 0);
+      setKerusakan(itemToEdit.kerusakan || '');
+      setEstimasiPekerjaan(itemToEdit.estimasiPekerjaan || '');
+      setLokasiPekerjaan(itemToEdit.lokasiPekerjaan || '');
+      setMo(itemToEdit.mo || '');
+      setTanggal(formatDateForInput(itemToEdit.tanggal));
+      setJam(itemToEdit.jam || '');
+      setPicMekanik(itemToEdit.picMekanik || '');
+      setStatus(itemToEdit.status || 'OPEN');
+      setCatatanTambahan(itemToEdit.catatanTambahan || '');
+
+      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+        ? itemToEdit.photoUrls
+        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+      setPhotoUrls(existingPhotos);
+      setPhotoUrl(existingPhotos[0] || undefined);
+      setSavedSuccessRecord(null);
+    } else if (initialCodeUnit) {
+      setCodeUnit(initialCodeUnit);
+      const matched = units.find(
+        u => u.codeUnit.toLowerCase() === initialCodeUnit.toLowerCase()
+      );
+      if (matched) {
+        setHm(matched.currentHm || 0);
+        setLokasiPekerjaan(matched.lokasiPit || '');
       } else {
-        setCodeUnit('');
         setHm(0);
-        setKerusakan('');
-        setEstimasiPekerjaan('');
         setLokasiPekerjaan('');
-        setMo('');
-        setCatatanTambahan('');
-        setPhotoUrls([]);
-        setPhotoUrl(undefined);
       }
+      setKerusakan('');
+      setEstimasiPekerjaan('');
+      setMo('');
+      setTanggal(new Date().toISOString().slice(0, 10));
+      setJam(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'));
+      setPicMekanik('');
+      setStatus('OPEN');
+      setCatatanTambahan('');
+      setPhotoUrls([]);
+      setPhotoUrl(undefined);
+      setSavedSuccessRecord(null);
+    } else {
+      setCodeUnit('');
+      setHm(0);
+      setKerusakan('');
+      setEstimasiPekerjaan('');
+      setLokasiPekerjaan('');
+      setMo('');
+      setTanggal(new Date().toISOString().slice(0, 10));
+      setJam(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'));
+      setPicMekanik('');
+      setStatus('OPEN');
+      setCatatanTambahan('');
+      setPhotoUrls([]);
+      setPhotoUrl(undefined);
       setSavedSuccessRecord(null);
     }
-    prevIsOpenRef.current = isOpen;
   }, [isOpen, itemToEdit, initialCodeUnit, units]);
 
   if (!isOpen) return null;
