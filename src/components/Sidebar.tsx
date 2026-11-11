@@ -11,9 +11,12 @@ import {
   Sun,
   Moon,
   BarChart3,
+  User,
+  LogOut,
 } from 'lucide-react';
 import { ActiveTab } from './BottomNav';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -45,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   codeUnitsCount,
 }) => {
   const { theme, setTheme } = useTheme();
+  const { currentUser, isAdmin, logout } = useAuth();
 
   const navItems: Array<{
     id: ActiveTab;
@@ -202,8 +206,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
+      {/* Active User Card & Logout (Profil Admin & User) */}
+      {currentUser && (
+        <div className="pt-2.5 pb-2 border-t border-[rgba(242,239,235,0.08)] mt-auto">
+          <div className="p-2.5 rounded bg-[rgba(242,239,235,0.04)] border border-[rgba(242,239,235,0.08)] flex items-center justify-between">
+            <div className="flex items-center space-x-2.5 min-w-0 pr-1">
+              <div
+                className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
+                  isAdmin ? 'bg-[#facc15]/20 text-[#facc15]' : 'bg-[#38bdf8]/20 text-[#38bdf8]'
+                }`}
+              >
+                {isAdmin ? <ShieldCheck className="w-4 h-4" /> : <User className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold font-syne truncate leading-tight text-[#f2efeb]">
+                  {currentUser.displayName}
+                </div>
+                <div className="flex items-center space-x-1 mt-0.5">
+                  <span
+                    className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
+                      isAdmin ? 'text-[#facc15]' : 'text-[#38bdf8]'
+                    }`}
+                  >
+                    {isAdmin ? 'ADMIN (AKSES PENUH)' : 'USER OPERASIONAL'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={logout}
+              title="Keluar (Log Out)"
+              className="p-1.5 rounded hover:bg-[#fb7185]/20 text-[rgba(242,239,235,0.45)] hover:text-[#fb7185] transition shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Theme Switcher (Light / Dark Mode) */}
-      <div className="pt-3 pb-1 border-t border-[rgba(242,239,235,0.08)] mt-auto">
+      <div className="pt-2 pb-1 border-t border-[rgba(242,239,235,0.08)]">
         <div className="p-2 rounded bg-[rgba(242,239,235,0.04)] border border-[rgba(242,239,235,0.1)] flex items-center justify-between">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[rgba(242,239,235,0.6)] flex items-center space-x-1.5">
             {theme === 'dark' ? <Moon className="w-3 h-3 text-[#facc15]" /> : <Sun className="w-3 h-3 text-[#facc15]" />}

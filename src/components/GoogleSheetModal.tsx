@@ -18,8 +18,10 @@ import {
   Zap,
   Globe,
   Radio,
+  AlertTriangle,
 } from 'lucide-react';
 import { GoogleSheetsConfig } from '../types';
+import { useAuth } from '../context/AuthContext';
 import {
   googleSignIn,
   logout,
@@ -87,7 +89,33 @@ export const GoogleSheetModal: React.FC<GoogleSheetModalProps> = ({
     }
   }, [config]);
 
+  const { isAdmin } = useAuth();
+
   if (!isOpen) return null;
+
+  if (!isAdmin) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+        <div className="w-full max-w-md bg-[#18181b] border border-[#fb7185]/30 rounded-lg p-6 text-[#f2efeb] text-center space-y-4 shadow-2xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#fb7185]/15 text-[#fb7185] mx-auto border border-[#fb7185]/30">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="font-syne font-bold text-lg uppercase tracking-tight text-[#fb7185]">
+            Akses Dibatasi
+          </h3>
+          <p className="text-xs font-mono text-[rgba(242,239,235,0.7)] leading-relaxed">
+            Fungsi sinkronisasi Google Sheet 24/7, Tarik Data, dan Kirim Data hanya dapat dikelola oleh profil Administrator.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 px-4 rounded bg-[rgba(242,239,235,0.1)] hover:bg-[rgba(242,239,235,0.18)] text-xs font-mono font-bold uppercase transition"
+          >
+            Kembali
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // 1. Salin Kode Apps Script ke Clipboard
   const handleCopyScript = () => {

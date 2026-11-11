@@ -14,10 +14,15 @@ import {
   Tractor,
   Sun,
   Moon,
+  ShieldCheck,
+  User,
+  LogOut,
 } from 'lucide-react';
 import { GoogleSheetsConfig, CodeUnit, BacklogItem, BAPRecord, DailyCheckRigid, DailyCheckArtic, AddActivityItem } from '../types';
 import { ActiveTab } from './BottomNav';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { UserProfileModal } from './UserProfileModal';
 
 interface HeaderProps {
   sheetsConfig: GoogleSheetsConfig | null;
@@ -51,6 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToTab,
 }) => {
   const { theme, toggleTheme } = useTheme();
+  const { currentUser, isAdmin } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -392,60 +399,66 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Two-Way Google Sheets Controls (Industrial Systematic) */}
+        {/* Controls Section (Industrial Systematic) */}
         <div className="flex items-center space-x-2 shrink-0">
-          {sheetsConfig ? (
+          {/* Two-Way Google Sheets Controls (KHUSUS PROFIL ADMIN - User Dilarang/Disembunyikan) */}
+          {isAdmin && (
             <>
-              {/* Tarik Data (Pull) */}
-              <button
-                onClick={onPullData}
-                disabled={isSyncing}
-                title="Tarik data terbaru dari Google Sheet ke aplikasi"
-                className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
-              >
-                <Download className={`w-3.5 h-3.5 ${syncMode === 'pulling' ? 'animate-bounce text-[#facc15]' : 'text-[rgba(242,239,235,0.6)]'}`} />
-                <span className="hidden sm:inline">Tarik Data</span>
-              </button>
+              {sheetsConfig ? (
+                <>
+                  {/* Tarik Data (Pull) */}
+                  <button
+                    onClick={onPullData}
+                    disabled={isSyncing}
+                    title="Tarik data terbaru dari Google Sheet ke aplikasi"
+                    className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
+                  >
+                    <Download className={`w-3.5 h-3.5 ${syncMode === 'pulling' ? 'animate-bounce text-[#facc15]' : 'text-[rgba(242,239,235,0.6)]'}`} />
+                    <span className="hidden sm:inline">Tarik Data</span>
+                  </button>
 
-              {/* Kirim Data (Push) */}
-              <button
-                onClick={onPushData}
-                disabled={isSyncing}
-                title="Kirim dan simpan semua data lokal ke Google Sheet"
-                className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
-              >
-                <Upload className={`w-3.5 h-3.5 ${syncMode === 'pushing' ? 'animate-bounce text-[#4ade80]' : 'text-[rgba(242,239,235,0.6)]'}`} />
-                <span className="hidden sm:inline">Kirim Data</span>
-              </button>
+                  {/* Kirim Data (Push) */}
+                  <button
+                    onClick={onPushData}
+                    disabled={isSyncing}
+                    title="Kirim dan simpan semua data lokal ke Google Sheet"
+                    className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
+                  >
+                    <Upload className={`w-3.5 h-3.5 ${syncMode === 'pushing' ? 'animate-bounce text-[#4ade80]' : 'text-[rgba(242,239,235,0.6)]'}`} />
+                    <span className="hidden sm:inline">Kirim Data</span>
+                  </button>
 
-              {/* Sheet Status Indicator */}
-              <button
-                onClick={onOpenSheetsModal}
-                title="Google Sheet selalu terhubung dan aktif otomatis"
-                className="px-3 py-1.5 rounded border border-[#4ade80] text-[#4ade80] bg-[#4ade80]/5 hover:bg-[#4ade80]/15 text-xs font-mono uppercase tracking-wider flex items-center space-x-2 transition active:scale-95"
-              >
-                <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0" />
-                <span className="font-semibold text-xs hidden sm:inline">
-                  {syncMode === 'pulling'
-                    ? 'Memuat...'
-                    : syncMode === 'pushing'
-                    ? 'Menyimpan...'
-                    : 'Sheet 24/7 Aktif'}
-                </span>
-                <span className="font-semibold text-xs sm:hidden">
-                  {syncMode === 'pulling' ? 'Memuat' : syncMode === 'pushing' ? 'Simpan' : 'Live'}
-                </span>
-              </button>
+                  {/* Sheet Status Indicator */}
+                  <button
+                    onClick={onOpenSheetsModal}
+                    title="Google Sheet selalu terhubung dan aktif otomatis"
+                    className="px-3 py-1.5 rounded border border-[#4ade80] text-[#4ade80] bg-[#4ade80]/5 hover:bg-[#4ade80]/15 text-xs font-mono uppercase tracking-wider flex items-center space-x-2 transition active:scale-95"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0" />
+                    <span className="font-semibold text-xs hidden sm:inline">
+                      {syncMode === 'pulling'
+                        ? 'Memuat...'
+                        : syncMode === 'pushing'
+                        ? 'Menyimpan...'
+                        : 'Sheet 24/7 Aktif'}
+                    </span>
+                    <span className="font-semibold text-xs sm:hidden">
+                      {syncMode === 'pulling' ? 'Memuat' : syncMode === 'pushing' ? 'Simpan' : 'Live'}
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={onOpenSheetsModal}
+                  className="px-3.5 py-1.5 rounded bg-[#facc15] hover:bg-[#fde047] text-[#111113] text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#facc15]/20"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Hubungkan Sheet</span>
+                </button>
+              )}
             </>
-          ) : (
-            <button
-              onClick={onOpenSheetsModal}
-              className="px-3.5 py-1.5 rounded bg-[#facc15] hover:bg-[#fde047] text-[#111113] text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#facc15]/20"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Hubungkan Sheet</span>
-            </button>
           )}
+
           {/* Theme Toggle (Light / Dark Mode) */}
           <button
             type="button"
@@ -465,8 +478,31 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </button>
+
+          {/* User Profile Button */}
+          <button
+            type="button"
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Kelola Profil Pengguna & Hak Akses"
+            className={`px-2.5 py-1.5 rounded border text-xs font-mono uppercase font-bold flex items-center space-x-1.5 transition active:scale-95 ${
+              isAdmin
+                ? 'border-[#facc15]/40 bg-[#facc15]/10 hover:bg-[#facc15]/20 text-[#facc15]'
+                : 'border-[#38bdf8]/40 bg-[#38bdf8]/10 hover:bg-[#38bdf8]/20 text-[#38bdf8]'
+            }`}
+          >
+            {isAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline font-mono text-[11px]">
+              {isAdmin ? 'ADMIN' : currentUser?.displayName || 'USER'}
+            </span>
+          </button>
         </div>
       </div>
+
+      {/* User Profile & Session Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </header>
   );
 };

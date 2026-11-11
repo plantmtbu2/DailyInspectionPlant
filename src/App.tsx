@@ -37,6 +37,7 @@ import {
   deleteActivity,
   replaceEntireDataset,
   getUnitStats,
+  autoSyncToGoogleSheetIfConnected,
 } from './services/storageService';
 import {
   getStoredSheetsConfig,
@@ -46,6 +47,7 @@ import {
 import { initAuth } from './services/firebaseAuth';
 
 // Components
+import { LoginScreen } from './components/LoginScreen';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav, ActiveTab } from './components/BottomNav';
@@ -59,6 +61,7 @@ import { ActivityModal } from './components/ActivityModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DetailViewModal } from './components/DetailViewModal';
+import { useAuth } from './context/AuthContext';
 
 // Views
 import { DashboardDailyView } from './views/DashboardDailyView';
@@ -73,6 +76,8 @@ import { UnitsView } from './views/UnitsView';
 import { Zap, ShieldCheck, Tractor, AlertOctagon, Wrench, FileWarning, Layers, Truck, ClipboardCheck, BarChart3 } from 'lucide-react';
 
 export default function App() {
+  const { currentUser, isAdmin, isAuthenticated } = useAuth();
+
   // Navigation: default to DAILY INSPECTION RIGID
   const [activeTab, setActiveTab] = useState<ActiveTab>('daily-rigid');
 
@@ -242,6 +247,10 @@ export default function App() {
   // TWO-WAY SYNC: PULL (TARIK DATA) & PUSH (KIRIM DATA)
   // -------------------------------------------------------------
   const handlePullData = async () => {
+    if (!isAdmin) {
+      showToast('Akses ditolak: Hanya Administrator yang dapat menarik data dari Google Sheet.', 'error');
+      return;
+    }
     if (!sheetsConfig?.spreadsheetId && !sheetsConfig?.webAppUrl) {
       setIsSheetsModalOpen(true);
       return;
@@ -265,6 +274,10 @@ export default function App() {
   };
 
   const handlePushData = async () => {
+    if (!isAdmin) {
+      showToast('Akses ditolak: Hanya Administrator yang dapat mengirim data ke Google Sheet.', 'error');
+      return;
+    }
     if (!sheetsConfig?.spreadsheetId && !sheetsConfig?.webAppUrl) {
       setIsSheetsModalOpen(true);
       return;
@@ -310,24 +323,10 @@ export default function App() {
   }, [sheetsConfig?.spreadsheetId, sheetsConfig?.webAppUrl, isSyncing, reloadLocalState]);
 
   // -------------------------------------------------------------
-  // AUTOMATIC BACKGROUND SYNC TO GOOGLE SHEET
+  // AUTOMATIC BACKGROUND SYNC TO GOOGLE SHEET (DEBOUNCED & NON-BLOCKING)
   // -------------------------------------------------------------
-  const triggerBackgroundPush = useCallback(async () => {
-    const config = getStoredSheetsConfig();
-    if (!config?.spreadsheetId && !config?.webAppUrl) return;
-    try {
-      await pushAllDataToGoogleSheet({
-        codeUnits: getCodeUnits(),
-        bapList: getBAPList(),
-        dailyRigidList: getDailyRigidList(),
-        dailyArticList: getDailyArticList(),
-        backlogs: getBacklogs(),
-        activities: getActivities(),
-      });
-      setSheetsConfig(getStoredSheetsConfig());
-    } catch (err) {
-      console.warn('Background auto-sync notification:', err);
-    }
+  const triggerBackgroundPush = useCallback(() => {
+    autoSyncToGoogleSheetIfConnected();
   }, []);
 
   // -------------------------------------------------------------
@@ -668,6 +667,10 @@ export default function App() {
   const qa7RigidCount = dailyRigidList.filter(i => i.qaType === 'QA7_FINAL').length;
   const qa1ArticCount = dailyArticList.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
   const qa7ArticCount = dailyArticList.filter(i => i.qaType === 'QA7_FINAL').length;
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] flex flex-col lg:grid lg:grid-cols-[280px_1fr] font-sans selection:bg-[#facc15] selection:text-[#111113]">

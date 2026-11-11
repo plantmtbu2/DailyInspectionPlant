@@ -141,3 +141,12 @@ export interface GoogleSheetsConfig {
   webAppUrl?: string; // Optional Google Apps Script webhook
   isDefault?: boolean; // True if using central default configuration
 }
+
+export type UserRole = 'admin' | 'user';
+
+export interface AuthUser {
+  role: UserRole;
+  username: string;
+  displayName: string;
+  loginTime: string;
+}

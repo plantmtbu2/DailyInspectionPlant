@@ -91,20 +91,32 @@ const ensureStorageInitialized = () => {
   localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
 };
 
+let debouncedSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const autoSyncToGoogleSheetIfConnected = async () => {
-  if (!getStoredSheetsConfig()) return;
-  try {
-    await pushAllDataToGoogleSheet({
-      codeUnits: getCodeUnits(),
-      bapList: getBAPList(),
-      dailyRigidList: getDailyRigidList(),
-      dailyArticList: getDailyArticList(),
-      backlogs: getBacklogs(),
-      activities: getActivities(),
-    });
-  } catch (err) {
-    console.warn('Auto-sync to Google Sheet failed:', err);
+  if (typeof window === 'undefined') return;
+  const config = getStoredSheetsConfig();
+  if (!config?.spreadsheetId && !config?.webAppUrl) return;
+
+  if (debouncedSyncTimer) {
+    clearTimeout(debouncedSyncTimer);
   }
+
+  // Non-blocking background sync (350ms debounce) - ensures UI saves are instant < 5ms
+  debouncedSyncTimer = setTimeout(async () => {
+    try {
+      await pushAllDataToGoogleSheet({
+        codeUnits: getCodeUnits(),
+        bapList: getBAPList(),
+        dailyRigidList: getDailyRigidList(),
+        dailyArticList: getDailyArticList(),
+        backlogs: getBacklogs(),
+        activities: getActivities(),
+      });
+    } catch (err) {
+      console.warn('Background auto-sync notification:', err);
+    }
+  }, 350);
 };
 
 // Replace entire dataset (used during pull from Google Sheet)
@@ -193,7 +205,7 @@ export const deleteCodeUnit = async (id: string, cascade = true): Promise<CodeUn
     localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(activities));
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -226,7 +238,7 @@ export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
     saveCodeUnits(units);
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -246,7 +258,7 @@ export const updateBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => 
     saveCodeUnits(units);
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -254,7 +266,7 @@ export const deleteBAPRecord = async (id: string): Promise<BAPRecord[]> => {
   const list = getBAPList();
   const updated = list.filter(b => b.id !== id);
   localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -298,7 +310,7 @@ export const addDailyRigid = async (item: DailyCheckRigid): Promise<DailyCheckRi
     saveCodeUnits(units);
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -322,7 +334,7 @@ export const updateDailyRigid = async (item: DailyCheckRigid): Promise<DailyChec
     saveCodeUnits(units);
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -330,7 +342,7 @@ export const deleteDailyRigid = async (id: string): Promise<DailyCheckRigid[]> =
   const list = getDailyRigidList();
   const updated = list.filter(r => r.id !== id);
   localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -373,7 +385,7 @@ export const addDailyArtic = async (item: DailyCheckArtic): Promise<DailyCheckAr
     saveCodeUnits(units);
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -397,7 +409,7 @@ export const updateDailyArtic = async (item: DailyCheckArtic): Promise<DailyChec
     saveCodeUnits(units);
   }
 
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -405,7 +417,7 @@ export const deleteDailyArtic = async (id: string): Promise<DailyCheckArtic[]> =
   const list = getDailyArticList();
   const updated = list.filter(a => a.id !== id);
   localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -428,7 +440,7 @@ export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
   const list = getBacklogs();
   const updated = [item, ...list];
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -437,7 +449,7 @@ export const updateBacklog = async (item: BacklogItem): Promise<BacklogItem[]> =
   const exists = list.some(b => b.id === item.id);
   const updated = exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list];
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -453,7 +465,7 @@ export const deleteBacklog = async (id: string): Promise<BacklogItem[]> => {
   const list = getBacklogs();
   const updated = list.filter(b => b.id !== id);
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -476,7 +488,7 @@ export const addActivity = async (item: AddActivityItem): Promise<AddActivityIte
   const list = getActivities();
   const updated = [item, ...list];
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -485,7 +497,7 @@ export const updateActivity = async (item: AddActivityItem): Promise<AddActivity
   const exists = list.some(a => a.id === item.id);
   const updated = exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list];
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
@@ -501,7 +513,7 @@ export const deleteActivity = async (id: string): Promise<AddActivityItem[]> => 
   const list = getActivities();
   const updated = list.filter(a => a.id !== id);
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
-  await autoSyncToGoogleSheetIfConnected();
+  autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
