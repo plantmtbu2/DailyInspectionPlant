@@ -215,7 +215,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     return formatGroupLeaderReportWhatsApp(
       report.type,
       report.data,
-      GroupLeaderName || 'Group Leader',
+      GroupLeaderName || '',
       sheetUrl
     );
   };

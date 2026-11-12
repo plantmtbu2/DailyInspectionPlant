@@ -76,7 +76,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
   const [totalJam, setTotalJam] = useState('');
   const [hmUnit, setHmUnit] = useState<number>(0);
   const [picMekanik, setPicMekanik] = useState('');
-  const [divalidasiOleh, setDivalidasiOleh] = useState('Group Leader');
+  const [divalidasiOleh, setDivalidasiOleh] = useState('');
 
   // Checklist Items initialization (36 items)
   const [items, setItems] = useState<ChecklistItemStatus[]>(() =>
@@ -153,7 +153,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setTotalJam(itemToEdit.totalJam || '');
       setHmUnit(Number(itemToEdit.hmUnit) || 0);
       setPicMekanik(itemToEdit.picMekanik || '');
-      setDivalidasiOleh(itemToEdit.divalidasiOleh || 'Group Leader');
+      setDivalidasiOleh(itemToEdit.divalidasiOleh || '');
 
       // Deep clone checklist items
       if (itemToEdit.items && itemToEdit.items.length > 0) {
@@ -283,7 +283,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       const formattedStartTime = formatTimeHHMM(startTime);
       const formattedFinishTime = formatTimeHHMM(finishTime);
       const record: DailyCheckArtic = {
-        id: itemToEdit ? itemToEdit.id : `${codeUnit}-${formattedDate}`,
+        id: itemToEdit ? itemToEdit.id : `${codeUnit}-${formattedDate.replace(/\//g, '')}-${Date.now().toString().slice(-4)}`,
         qaType: activeQaType,
         codeUnit,
         egi: egi || 'Articulated / Grader',
@@ -596,7 +596,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
                     required
                     value={divalidasiOleh}
                     onChange={e => setDivalidasiOleh(e.target.value)}
-                    placeholder="Nama Pengawas / Group Leader"
+                    placeholder="Nama Group Leader"
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-amber-400"
                   />
                 </div>
@@ -760,8 +760,8 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
 
                     {activeUnitBacklogs.length > 0 ? (
                       <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                        {activeUnitBacklogs.map(b => (
-                          <div key={b.id} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px] flex items-center justify-between gap-1">
+                        {activeUnitBacklogs.map((b, bIdx) => (
+                          <div key={`modal-bl-${b.id}-${bIdx}`} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px] flex items-center justify-between gap-1">
                             <div className="min-w-0 pr-1 flex-1">
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-slate-200">{b.partNumber || b.moBacklog}</span>
@@ -830,8 +830,8 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
 
                     {unitActivities.length > 0 ? (
                       <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                        {unitActivities.slice(0, 4).map(a => (
-                          <div key={a.id} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px]">
+                        {unitActivities.slice(0, 4).map((a, aIdx) => (
+                          <div key={`modal-act-${a.id}-${aIdx}`} className="p-1.5 bg-slate-950/70 border border-slate-800 rounded text-[10px]">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-slate-200">{a.tanggalTemuan}</span>
                               <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-300 font-mono">

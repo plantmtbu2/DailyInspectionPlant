@@ -227,9 +227,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <Layers className="w-3 h-3" />
                     <span>Master Code Unit ({matchedUnits.length})</span>
                   </div>
-                  {matchedUnits.slice(0, 4).map(u => (
+                  {matchedUnits.slice(0, 4).map((u, idx) => (
                     <button
-                      key={u.id}
+                      key={`search-unit-${u.id}-${idx}`}
                       onClick={() => handleSelectResult('units')}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 rounded-xl flex items-center justify-between transition group"
                     >
@@ -258,9 +258,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <AlertOctagon className="w-3 h-3" />
                     <span>Backlog Sparepart ({matchedBacklogs.length})</span>
                   </div>
-                  {matchedBacklogs.slice(0, 4).map(b => (
+                  {matchedBacklogs.slice(0, 4).map((b, idx) => (
                     <button
-                      key={b.id}
+                      key={`search-bl-${b.id}-${idx}`}
                       onClick={() => handleSelectResult('backlog')}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 rounded-xl flex items-center justify-between transition group"
                     >
@@ -287,9 +287,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <FileWarning className="w-3 h-3" />
                     <span>BAP Kerusakan ({matchedBap.length})</span>
                   </div>
-                  {matchedBap.slice(0, 4).map(item => (
+                  {matchedBap.slice(0, 4).map((item, idx) => (
                     <button
-                      key={item.id}
+                      key={`search-bap-${item.id}-${idx}`}
                       onClick={() => handleSelectResult('bap')}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 rounded-xl flex items-center justify-between transition group"
                     >
@@ -316,9 +316,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <Truck className="w-3 h-3" />
                     <span>Inspeksi Rigid ({matchedRigid.length})</span>
                   </div>
-                  {matchedRigid.slice(0, 3).map(item => (
+                  {matchedRigid.slice(0, 3).map((item, idx) => (
                     <button
-                      key={item.id}
+                      key={`search-rig-${item.id}-${idx}`}
                       onClick={() => handleSelectResult(item.qaType === 'QA7_FINAL' ? 'qa7-rigid' : item.qaType === 'DAILY_INSPECTION' ? 'daily-rigid' : 'qa1-rigid')}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 rounded-xl flex items-center justify-between transition group"
                     >
@@ -345,9 +345,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <Tractor className="w-3 h-3" />
                     <span>Inspeksi Artic / Grader ({matchedArtic.length})</span>
                   </div>
-                  {matchedArtic.slice(0, 3).map(item => (
+                  {matchedArtic.slice(0, 3).map((item, idx) => (
                     <button
-                      key={item.id}
+                      key={`search-art-${item.id}-${idx}`}
                       onClick={() => handleSelectResult(item.qaType === 'QA7_FINAL' ? 'qa7-artic' : item.qaType === 'DAILY_INSPECTION' ? 'daily-artic' : 'qa1-artic')}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 rounded-xl flex items-center justify-between transition group"
                     >
@@ -374,9 +374,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <Wrench className="w-3 h-3" />
                     <span>Aktivitas Mekanik ({matchedActivities.length})</span>
                   </div>
-                  {matchedActivities.slice(0, 3).map(item => (
+                  {matchedActivities.slice(0, 3).map((item, idx) => (
                     <button
-                      key={item.id}
+                      key={`search-act-${item.id}-${idx}`}
                       onClick={() => handleSelectResult('activities')}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 rounded-xl flex items-center justify-between transition group"
                     >

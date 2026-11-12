@@ -189,13 +189,9 @@ export const formatDailyRigidWhatsApp = (item: DailyCheckRigid): string => {
     : '1. QA 1 PRE INSPECTION RIGID';
   const defects = item.items.filter(i => i.status === 'DEFECT');
   const monitors = item.items.filter(i => i.status === 'MONITOR');
+  const okCount = item.items.filter(i => i.status === 'OK').length;
+  const naCount = item.items.filter(i => i.status === 'NA').length;
   const measurements = item.items.filter(i => i.value && i.value.trim() !== '');
-
-  let measurementText = '';
-  if (measurements.length > 0) {
-    measurementText = `\n📊 *DATA PENGUKURAN TEKANAN & VOLT:*
-${measurements.map(m => `• ${m.name}: *${m.value} ${m.unit || ''}*`).join('\n')}`;
-  }
 
   let deviationText = '';
   if (defects.length > 0) {
@@ -207,6 +203,18 @@ ${defects.map(d => `• ${d.name}${d.remark ? ` (${d.remark})` : ''}`).join('\n'
     deviationText += `\n⚠️ *MONITOR/PERHATIAN (${monitors.length}):*
 ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n')}`;
   }
+
+  // Format all checklist parameter results
+  const allParametersText = item.items && item.items.length > 0
+    ? item.items
+        .map(it => {
+          const icon = it.status === 'DEFECT' ? '❌' : it.status === 'MONITOR' ? '⚠️' : it.status === 'NA' ? '⚪' : '✅';
+          const valText = it.value && it.value.trim() ? ` [${it.value} ${it.unit || ''}]`.trim() : '';
+          const remarkText = it.remark && it.remark.trim() ? ` (Ket: ${it.remark})` : '';
+          return `${icon} ${it.name}: *${it.status}*${valText}${remarkText}`;
+        })
+        .join('\n')
+    : 'Tidak ada data item checklist';
 
   const photoCount = item.photoUrls && item.photoUrls.length > 0
     ? item.photoUrls.length
@@ -222,8 +230,16 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
 ⏰ *Waktu Inspeksi:* ${item.startTime} - ${item.finishTime} (${item.totalJam})
 👷 *PIC Mekanik:* ${item.picMekanik}
 ✅ *Divalidasi Oleh:* ${item.divalidasiOleh}
-${measurementText}
+
+📊 *RINGKASAN STATUS ITEM:*
+• Kondisi OK: *${okCount} Item*
+• Defect/Rusak: *${defects.length} Item*
+• Perlu Monitoring: *${monitors.length} Item*
+• N/A: *${naCount} Item*
 ${deviationText}
+
+📝 *HASIL SEMUA PARAMETER CHECKLIST (${item.items.length} ITEM):*
+${allParametersText}
 
 🔍 *TEMUAN DEVIASI / ADD ACTIVITIES:*
 ${item.temuanDeviasi || 'Nihil / Semua item dalam toleransi'}
@@ -233,7 +249,7 @@ ${item.temuanDeviasi || 'Nihil / Semua item dalam toleransi'}
 • Jumlah Aktivitas Terkait: *${item.jumlahAktivitas}*
 ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Hasil Inspeksi` : ''}
 ---------------------------------------
-_Aplikasi Plant 2 MTBU- PT. Pamapersada Nusantara_`;
+_Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
 
 export const formatDailyArticWhatsApp = (item: DailyCheckArtic): string => {
@@ -246,6 +262,8 @@ export const formatDailyArticWhatsApp = (item: DailyCheckArtic): string => {
     : '3. QA 1 PRE INSPECTION ARTIC';
   const defects = item.items.filter(i => i.status === 'DEFECT');
   const monitors = item.items.filter(i => i.status === 'MONITOR');
+  const okCount = item.items.filter(i => i.status === 'OK').length;
+  const naCount = item.items.filter(i => i.status === 'NA').length;
 
   let deviationText = '';
   if (defects.length > 0) {
@@ -256,6 +274,18 @@ ${defects.map(d => `• ${d.name}${d.remark ? ` (${d.remark})` : ''}`).join('\n'
     deviationText += `\n⚠️ *MONITOR/PERHATIAN (${monitors.length}):*
 ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n')}`;
   }
+
+  // Format all checklist parameter results
+  const allParametersText = item.items && item.items.length > 0
+    ? item.items
+        .map(it => {
+          const icon = it.status === 'DEFECT' ? '❌' : it.status === 'MONITOR' ? '⚠️' : it.status === 'NA' ? '⚪' : '✅';
+          const valText = it.value && it.value.trim() ? ` [${it.value} ${it.unit || ''}]`.trim() : '';
+          const remarkText = it.remark && it.remark.trim() ? ` (Ket: ${it.remark})` : '';
+          return `${icon} ${it.name}: *${it.status}*${valText}${remarkText}`;
+        })
+        .join('\n')
+    : 'Tidak ada data item checklist';
 
   const photoCount = item.photoUrls && item.photoUrls.length > 0
     ? item.photoUrls.length
@@ -271,7 +301,16 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
 ⏰ *Waktu Inspeksi:* ${item.startTime} - ${item.finishTime} (${item.totalJam})
 👷 *PIC Mekanik:* ${item.picMekanik}
 ✅ *Divalidasi Oleh:* ${item.divalidasiOleh}
+
+📊 *RINGKASAN STATUS ITEM:*
+• Kondisi OK: *${okCount} Item*
+• Defect/Rusak: *${defects.length} Item*
+• Perlu Monitoring: *${monitors.length} Item*
+• N/A: *${naCount} Item*
 ${deviationText}
+
+📝 *HASIL SEMUA PARAMETER CHECKLIST (${item.items.length} ITEM):*
+${allParametersText}
 
 🔍 *TEMUAN DEVIASI / ADD ACTIVITIES:*
 ${item.temuanDeviasi || 'Nihil / Semua item dalam kondisi baik'}

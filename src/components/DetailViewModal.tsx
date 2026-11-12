@@ -419,9 +419,9 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
 
               {linkedBacklogs.length > 0 ? (
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {linkedBacklogs.map(b => (
+                  {linkedBacklogs.map((b, bIdx) => (
                     <div
-                      key={b.id}
+                      key={`detail-bl-${b.id}-${bIdx}`}
                       className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-2"
                     >
                       <div className="min-w-0 flex-1">

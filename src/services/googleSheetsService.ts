@@ -8,6 +8,7 @@ import {
   BacklogPart,
   AddActivityItem,
   GoogleSheetsConfig,
+  QAType,
 } from '../types';
 import { RIGID_CHECKLIST_ITEMS, ARTIC_CHECKLIST_ITEMS } from '../constants/checklists';
 
@@ -813,8 +814,20 @@ export const overwriteSheetRows = async (sheetName: string, rows: (string | numb
 /**
  * Row Parsers shared between Web App and Google Sheets API / GViz
  */
+const dedupeSheetRows = <T extends { id: string }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  const res: T[] = [];
+  for (const it of items) {
+    if (it && it.id && !seen.has(it.id)) {
+      seen.add(it.id);
+      res.push(it);
+    }
+  }
+  return res;
+};
+
 const parseCodeUnitRows = (rows: any[][]): CodeUnit[] => {
-  return rows
+  const parsed = rows
     .filter(r => r[0] && r[1])
     .map(r => {
       const photos = parsePhotos(r[8]);
@@ -831,10 +844,11 @@ const parseCodeUnitRows = (rows: any[][]): CodeUnit[] => {
         photoUrls: photos.photoUrls,
       };
     });
+  return dedupeSheetRows(parsed);
 };
 
 const parseBapRows = (rows: any[][]): BAPRecord[] => {
-  return rows
+  const parsed = rows
     .filter(r => r[0] && r[1])
     .map(r => {
       const photos = parsePhotos(r[13]);
@@ -857,10 +871,11 @@ const parseBapRows = (rows: any[][]): BAPRecord[] => {
         photoUrls: photos.photoUrls,
       };
     });
+  return dedupeSheetRows(parsed);
 };
 
 const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
-  return rows
+  const parsed = rows
     .filter(r => r && r[0] && (r[1] || r[2]))
     .map(r => {
       // Check if this row is using the new unsummarized layout (>= 30 columns)
@@ -869,11 +884,11 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
       if (isUnsummarized) {
         const id = String(r[0] || '');
         const qaTypeRaw = String(r[1] || '');
-        const qaType = qaTypeRaw.includes('QA 7') || id.startsWith('QA7')
+        const qaType: QAType = (qaTypeRaw.includes('QA 7') || id.startsWith('QA7')
           ? 'QA7_FINAL'
           : qaTypeRaw.includes('DAILY') || id.startsWith('DAILY')
           ? 'DAILY_INSPECTION'
-          : 'QA1_PRE';
+          : 'QA1_PRE') as QAType;
 
         const codeUnit = String(r[2] || '');
         const egi = String(r[3] || '');
@@ -981,10 +996,11 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
         photoUrls: legacyPhotos.photoUrls,
       };
     });
+  return dedupeSheetRows(parsed);
 };
 
 const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
-  return rows
+  const parsed = rows
     .filter(r => r && r[0] && (r[1] || r[2]))
     .map(r => {
       // Check if this row is using the new unsummarized layout (>= 45 columns)
@@ -993,11 +1009,11 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
       if (isUnsummarized) {
         const id = String(r[0] || '');
         const qaTypeRaw = String(r[1] || '');
-        const qaType = qaTypeRaw.includes('QA 7') || id.startsWith('QA7')
+        const qaType: QAType = (qaTypeRaw.includes('QA 7') || id.startsWith('QA7')
           ? 'QA7_FINAL'
           : qaTypeRaw.includes('DAILY') || id.startsWith('DAILY')
           ? 'DAILY_INSPECTION'
-          : 'QA1_PRE';
+          : 'QA1_PRE') as QAType;
 
         const codeUnit = String(r[2] || '');
         const egi = String(r[3] || '');
@@ -1095,10 +1111,11 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
         photoUrls: legacyPhotos.photoUrls,
       };
     });
+  return dedupeSheetRows(parsed);
 };
 
 const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
-  return rows
+  const parsed = rows
     .filter(r => r && r[0] && r[1])
     .map(r => {
       const isUnsummarized = r.length >= 14;
@@ -1182,10 +1199,11 @@ const parseBacklogRows = (rows: any[][]): BacklogItem[] => {
         photoUrls: legacyPhotos.photoUrls,
       };
     });
+  return dedupeSheetRows(parsed);
 };
 
 const parseActivityRows = (rows: any[][]): AddActivityItem[] => {
-  return rows
+  const parsed = rows
     .filter(r => r[0] && r[1])
     .map(r => {
       const photos = parsePhotos(r[8]);
@@ -1203,6 +1221,7 @@ const parseActivityRows = (rows: any[][]): AddActivityItem[] => {
         photoUrls: photos.photoUrls,
       };
     });
+  return dedupeSheetRows(parsed);
 };
 
 /**

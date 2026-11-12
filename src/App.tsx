@@ -212,14 +212,9 @@ export default function App() {
         );
 
         if (hasRemoteData) {
-          // Replace local database with Google Sheets data (Requirement 2: Database default adalah data dari Google sheets yang terhubung)
+          // Replace local database with Google Sheets data
           replaceEntireDataset(pulled);
-          setCodeUnits(pulled.codeUnits);
-          setBapList(pulled.bapList);
-          setDailyRigidList(pulled.dailyRigidList);
-          setDailyArticList(pulled.dailyArticList);
-          setBacklogs(pulled.backlogs);
-          setActivities(pulled.activities);
+          reloadLocalState();
           showToast(`Database Google Sheet terhubung (${pulled.codeUnits.length} Unit terdaftar)`, 'success');
         }
       } catch (err: any) {

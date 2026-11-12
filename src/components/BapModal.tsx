@@ -146,7 +146,7 @@ export const BapModal: React.FC<BapModalProps> = ({
       const formattedDate = formatDateDDMMYYYY(tanggal);
       const formattedJam = formatTimeHHMM(jam);
       const recordToSave: BAPRecord = {
-        id: itemToEdit ? itemToEdit.id : `${codeUnit}-${formattedDate}`,
+        id: itemToEdit ? itemToEdit.id : `BAP-${codeUnit}-${formattedDate.replace(/\//g, '')}-${Date.now().toString().slice(-4)}`,
         codeUnit,
         hm: Number(hm) || 0,
         kerusakan,

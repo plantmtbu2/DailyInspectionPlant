@@ -961,10 +961,10 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgba(242,239,235,0.06)]">
-              {fleetTableRows.map(row => {
+              {fleetTableRows.map((row, rIdx) => {
                 return (
                   <tr
-                    key={row.unit.id}
+                    key={`${row.unit.id}-${row.unit.codeUnit}-${rIdx}`}
                     className="hover:bg-[rgba(242,239,235,0.02)] transition"
                   >
                     <td className="py-2.5 px-3 font-bold text-[#f2efeb]">

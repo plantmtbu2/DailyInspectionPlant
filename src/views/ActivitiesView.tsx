@@ -165,9 +165,9 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
 
       {/* Activities List Cards */}
       <div className="space-y-3.5">
-        {filtered.map(item => (
+        {filtered.map((item, index) => (
           <div
-            key={item.id}
+            key={`${item.id}-${index}`}
             className="bg-[#18181b] border border-[rgba(242,239,235,0.1)] hover:border-[rgba(242,239,235,0.25)] rounded p-4 sm:p-5 space-y-3.5 transition shadow-sm"
           >
             {/* Top row */}

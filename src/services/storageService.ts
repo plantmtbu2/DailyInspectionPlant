@@ -129,23 +129,37 @@ export const replaceEntireDataset = (data: {
   activities?: AddActivityItem[];
 }) => {
   if (data.codeUnits !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(data.codeUnits));
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(data.codeUnits)));
   }
   if (data.bapList !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(data.bapList));
+    localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(deduplicateById(data.bapList)));
   }
   if (data.dailyRigidList !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(data.dailyRigidList));
+    localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(deduplicateById(data.dailyRigidList)));
   }
   if (data.dailyArticList !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(data.dailyArticList));
+    localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(deduplicateById(data.dailyArticList)));
   }
   if (data.backlogs !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(data.backlogs));
+    localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(deduplicateById(data.backlogs)));
   }
   if (data.activities !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(data.activities));
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(deduplicateById(data.activities)));
   }
+};
+
+export const deduplicateById = <T extends { id: string }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  const unique: T[] = [];
+  for (const item of items) {
+    if (item && item.id) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        unique.push(item);
+      }
+    }
+  }
+  return unique;
 };
 
 // -------------------------------------------------------------
@@ -157,7 +171,7 @@ export const getCodeUnits = (): CodeUnit[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.CODE_UNITS);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? deduplicateById(parsed) : [];
   } catch {
     return [];
   }
@@ -218,7 +232,7 @@ export const getBAPList = (): BAPRecord[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.BAP);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? deduplicateById(parsed) : [];
   } catch {
     return [];
   }
@@ -226,7 +240,8 @@ export const getBAPList = (): BAPRecord[] => {
 
 export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
   const list = getBAPList();
-  const updated = [item, ...list];
+  const exists = list.some(b => b.id === item.id);
+  const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
   localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(updated));
 
   // Update HM on Master Unit if newer
@@ -245,7 +260,7 @@ export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
 export const updateBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
   const list = getBAPList();
   const exists = list.some(b => b.id === item.id);
-  const updated = exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list];
+  const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
   localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(updated));
 
   // Update master unit if status changed
@@ -280,10 +295,10 @@ export const getDailyRigidList = (): DailyCheckRigid[] => {
     if (!raw) return [];
     const parsed: DailyCheckRigid[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(item => ({
+    return deduplicateById(parsed.map(item => ({
       ...item,
       qaType: item.qaType || (item.id.startsWith('DAILY') ? 'DAILY_INSPECTION' : item.id.startsWith('QA7') ? 'QA7_FINAL' : 'QA1_PRE'),
-    }));
+    })));
   } catch {
     return [];
   }
@@ -295,7 +310,8 @@ export const addDailyRigid = async (item: DailyCheckRigid): Promise<DailyCheckRi
     ...item,
     qaType: item.qaType || 'DAILY_INSPECTION',
   };
-  const updated = [normalizedItem, ...list];
+  const exists = list.some(r => r.id === item.id);
+  const updated = deduplicateById(exists ? list.map(r => (r.id === item.id ? normalizedItem : r)) : [normalizedItem, ...list]);
   localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(updated));
 
   // Update Master Unit HM & Status
@@ -356,10 +372,10 @@ export const getDailyArticList = (): DailyCheckArtic[] => {
     if (!raw) return [];
     const parsed: DailyCheckArtic[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(item => ({
+    return deduplicateById(parsed.map(item => ({
       ...item,
       qaType: item.qaType || (item.id.startsWith('DAILY') ? 'DAILY_INSPECTION' : item.id.startsWith('QA7') ? 'QA7_FINAL' : 'QA1_PRE'),
-    }));
+    })));
   } catch {
     return [];
   }
@@ -371,7 +387,8 @@ export const addDailyArtic = async (item: DailyCheckArtic): Promise<DailyCheckAr
     ...item,
     qaType: item.qaType || 'DAILY_INSPECTION',
   };
-  const updated = [normalizedItem, ...list];
+  const exists = list.some(a => a.id === item.id);
+  const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? normalizedItem : a)) : [normalizedItem, ...list]);
   localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(updated));
 
   const units = getCodeUnits();
@@ -396,7 +413,7 @@ export const updateDailyArtic = async (item: DailyCheckArtic): Promise<DailyChec
     qaType: item.qaType || 'DAILY_INSPECTION',
   };
   const exists = list.some(a => a.id === item.id);
-  const updated = exists ? list.map(a => (a.id === item.id ? normalizedItem : a)) : [normalizedItem, ...list];
+  const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? normalizedItem : a)) : [normalizedItem, ...list]);
   localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(updated));
 
   const units = getCodeUnits();
@@ -430,7 +447,7 @@ export const getBacklogs = (): BacklogItem[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.BACKLOG);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? deduplicateById(parsed) : [];
   } catch {
     return [];
   }
@@ -438,7 +455,8 @@ export const getBacklogs = (): BacklogItem[] => {
 
 export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
   const list = getBacklogs();
-  const updated = [item, ...list];
+  const exists = list.some(b => b.id === item.id);
+  const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
   autoSyncToGoogleSheetIfConnected();
   return updated;
@@ -447,7 +465,7 @@ export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
 export const updateBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
   const list = getBacklogs();
   const exists = list.some(b => b.id === item.id);
-  const updated = exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list];
+  const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
   autoSyncToGoogleSheetIfConnected();
   return updated;
@@ -478,7 +496,7 @@ export const getActivities = (): AddActivityItem[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.ACTIVITIES);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? deduplicateById(parsed) : [];
   } catch {
     return [];
   }
@@ -486,7 +504,8 @@ export const getActivities = (): AddActivityItem[] => {
 
 export const addActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
   const list = getActivities();
-  const updated = [item, ...list];
+  const exists = list.some(a => a.id === item.id);
+  const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list]);
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
   autoSyncToGoogleSheetIfConnected();
   return updated;
@@ -495,7 +514,7 @@ export const addActivity = async (item: AddActivityItem): Promise<AddActivityIte
 export const updateActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
   const list = getActivities();
   const exists = list.some(a => a.id === item.id);
-  const updated = exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list];
+  const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list]);
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
   autoSyncToGoogleSheetIfConnected();
   return updated;

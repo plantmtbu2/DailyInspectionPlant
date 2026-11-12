@@ -217,8 +217,8 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       const formattedDate = formatDateDDMMYYYY(tanggalTemuan);
       const generatedId = itemToEdit
         ? itemToEdit.id
-        : moBacklog.trim()
-        ? `${codeUnit}-${moBacklog.trim()}`
+        : moBacklog.trim() && moBacklog.trim() !== '-'
+        ? `${codeUnit}-${moBacklog.trim().replace(/\s+/g, '_')}-${Date.now().toString().slice(-4)}`
         : `${codeUnit}-AUTO-${Date.now().toString().slice(-4)}`;
 
       const item: BacklogItem = {
