@@ -130,7 +130,7 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
     }
   };
 
-  const activeCode = currentUnit ? currentUnit.codeUnit : selectedCodeUnit;
+  const activeCode = currentUnit ? currentUnit.codeUnit : activeSelectedCode;
 
   return (
     <div className="space-y-3 bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3.5 shadow-sm">

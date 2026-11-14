@@ -102,7 +102,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
   const [savedSuccessRecord, setSavedSuccessRecord] = useState<DailyCheckRigid | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const prevIsOpenRef = useRef(false);
+  const initializedSessionKeyRef = useRef<string | null>(null);
 
   // Auto calculate total jam
   useEffect(() => {
@@ -132,13 +132,23 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       )
     : [];
 
-  // Initialize and populate form whenever modal opens or itemToEdit updates
+  // Initialize and populate form ONLY when modal opens or switches to a different record
   useEffect(() => {
     if (!isOpen) {
+      initializedSessionKeyRef.current = null;
       setSavedSuccessRecord(null);
       setFormError(null);
       return;
     }
+
+    const sessionKey = itemToEdit
+      ? `EDIT:${itemToEdit.id}`
+      : `NEW:${initialCodeUnit || ''}:${qaType || ''}`;
+
+    if (initializedSessionKeyRef.current === sessionKey) {
+      return;
+    }
+    initializedSessionKeyRef.current = sessionKey;
 
     if (itemToEdit) {
       // Edit Mode: Populate all previously saved / updated fields with 100% fidelity
@@ -153,26 +163,35 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setHmUnit(Number(itemToEdit.hmUnit) || 0);
       setPicMekanik(itemToEdit.picMekanik || '');
       setDivalidasiOleh(itemToEdit.divalidasiOleh || '');
-      
-      // Deep clone checklist items to prevent stale reference mutations
-      if (itemToEdit.items && itemToEdit.items.length > 0) {
-        setItems(itemToEdit.items.map(it => ({ ...it })));
-      } else {
-        setItems(
-          RIGID_CHECKLIST_ITEMS.map(def => ({
-            id: def.id,
-            name: def.name,
-            status: 'OK',
-            value: def.defaultVal || '',
-            remark: '',
-          }))
-        );
-      }
+
+      // Merge & deep clone checklist items to ensure all 19 parameters exist and prevent stale reference mutations
+      const existingItems = itemToEdit.items || [];
+      const mergedItems: ChecklistItemStatus[] = RIGID_CHECKLIST_ITEMS.map(def => {
+        const found = existingItems.find(it => it.id === def.id || it.name === def.name);
+        return found
+          ? {
+              ...found,
+              id: def.id,
+              name: def.name,
+              unit: found.unit || def.unit,
+              value: found.value ?? def.defaultVal ?? '',
+              remark: found.remark || '',
+            }
+          : {
+              id: def.id,
+              name: def.name,
+              status: 'OK',
+              value: def.defaultVal || '',
+              unit: def.unit,
+              remark: '',
+            };
+      });
+      setItems(mergedItems);
 
       setTemuanDeviasi(itemToEdit.temuanDeviasi || '');
 
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? itemToEdit.photoUrls
+        ? [...itemToEdit.photoUrls]
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
       setPhotoUrls(existingPhotos);
     } else if (initialCodeUnit) {
@@ -192,13 +211,14 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setFinishTime('');
       setTotalJam('');
       setPicMekanik('');
-      setDivalidasiOleh('Group Leader');
+      setDivalidasiOleh('');
       setItems(
         RIGID_CHECKLIST_ITEMS.map(def => ({
           id: def.id,
           name: def.name,
           status: 'OK',
           value: def.defaultVal || '',
+          unit: def.unit,
           remark: '',
         }))
       );
@@ -215,13 +235,14 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setFinishTime('');
       setTotalJam('');
       setPicMekanik('');
-      setDivalidasiOleh('Group Leader');
+      setDivalidasiOleh('');
       setItems(
         RIGID_CHECKLIST_ITEMS.map(def => ({
           id: def.id,
           name: def.name,
           status: 'OK',
           value: def.defaultVal || '',
+          unit: def.unit,
           remark: '',
         }))
       );
@@ -230,7 +251,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     }
     setSavedSuccessRecord(null);
     setFormError(null);
-  }, [isOpen, itemToEdit, initialCodeUnit, units]);
+  }, [isOpen, itemToEdit, initialCodeUnit, qaType, units]);
 
   if (!isOpen) return null;
 
@@ -300,7 +321,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
         totalJam,
         hmUnit: Number(hmUnit) || 0,
         picMekanik: picMekanik || 'Mekanik Heavy Equipment',
-        divalidasiOleh: divalidasiOleh || 'Group Leader',
+        divalidasiOleh: divalidasiOleh.trim(),
         items,
         temuanDeviasi: temuanDeviasi || 'Nihil / Parameter Sesuai Standar',
         jumlahBacklog: activeUnitBacklogs.length,

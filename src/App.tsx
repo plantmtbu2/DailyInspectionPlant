@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CodeUnit,
   BAPRecord,
@@ -38,6 +38,8 @@ import {
   replaceEntireDataset,
   getUnitStats,
   autoSyncToGoogleSheetIfConnected,
+  getLastLocalMutationAt,
+  isBackgroundSyncInFlight,
 } from './services/storageService';
 import {
   getStoredSheetsConfig,
@@ -180,6 +182,20 @@ export default function App() {
     setSheetsConfig(getStoredSheetsConfig());
   }, []);
 
+  // Track whether any form/edit modal is open or sync is active to prevent background polling from wiping active edits
+  const isAnyModalOpen =
+    isBapModalOpen ||
+    isRigidModalOpen ||
+    isArticModalOpen ||
+    isBacklogModalOpen ||
+    isActivityModalOpen ||
+    isUnitsManagerModalOpen ||
+    isSheetsModalOpen;
+  const isAnyModalOpenRef = useRef(isAnyModalOpen);
+  isAnyModalOpenRef.current = isAnyModalOpen;
+  const isSyncingRef = useRef(isSyncing);
+  isSyncingRef.current = isSyncing;
+
   // -------------------------------------------------------------
   // INITIAL STARTUP: SYNC DATABASE DEFAULT FROM CONNECTED GOOGLE SHEET
   // -------------------------------------------------------------
@@ -196,11 +212,20 @@ export default function App() {
         return;
       }
 
+      const syncStartedAt = Date.now();
       try {
         setIsSyncing(true);
         setSyncMode('pulling');
         const pulled = await pullAllDataFromGoogleSheet();
         if (!isMounted) return;
+        // Abort overwriting local state if user already opened a modal or made local edits while fetching
+        if (
+          isAnyModalOpenRef.current ||
+          isBackgroundSyncInFlight() ||
+          getLastLocalMutationAt() > syncStartedAt
+        ) {
+          return;
+        }
 
         const hasRemoteData = (
           pulled.codeUnits.length > 0 ||
@@ -298,24 +323,42 @@ export default function App() {
     }
   };
 
-  // Periodic 2-way sync polling
+  // Periodic 2-way sync polling (safely paused while any edit modal is open or recent local edits are syncing)
   useEffect(() => {
     if (!sheetsConfig?.spreadsheetId && !sheetsConfig?.webAppUrl) return;
 
     const interval = setInterval(async () => {
-      if (document.visibilityState === 'visible' && !isSyncing) {
-        try {
-          const pulled = await pullAllDataFromGoogleSheet();
-          replaceEntireDataset(pulled);
-          reloadLocalState();
-        } catch {
-          // Silent background sync
+      if (
+        document.visibilityState !== 'visible' ||
+        isSyncingRef.current ||
+        isAnyModalOpenRef.current ||
+        isBackgroundSyncInFlight() ||
+        Date.now() - getLastLocalMutationAt() < 60000
+      ) {
+        return;
+      }
+
+      const pullStartedAt = Date.now();
+      try {
+        const pulled = await pullAllDataFromGoogleSheet();
+        // Double-check after async pull so in-progress modal edits or recent saves are never overwritten
+        if (
+          isAnyModalOpenRef.current ||
+          isBackgroundSyncInFlight() ||
+          getLastLocalMutationAt() > pullStartedAt ||
+          Date.now() - getLastLocalMutationAt() < 60000
+        ) {
+          return;
         }
+        replaceEntireDataset(pulled);
+        reloadLocalState();
+      } catch {
+        // Silent background sync
       }
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [sheetsConfig?.spreadsheetId, sheetsConfig?.webAppUrl, isSyncing, reloadLocalState]);
+  }, [sheetsConfig?.spreadsheetId, sheetsConfig?.webAppUrl, reloadLocalState]);
 
   // -------------------------------------------------------------
   // AUTOMATIC BACKGROUND SYNC TO GOOGLE SHEET (DEBOUNCED & NON-BLOCKING)
@@ -372,7 +415,7 @@ export default function App() {
       setBapList([...updated]);
     }
     setCodeUnits(getCodeUnits());
-    setEditingBapItem(null);
+    setEditingBapItem(item);
     triggerBackgroundPush();
   };
 
@@ -402,7 +445,7 @@ export default function App() {
       setDailyRigidList([...updated]);
     }
     setCodeUnits(getCodeUnits());
-    setEditingRigidItem(null);
+    setEditingRigidItem(item);
     triggerBackgroundPush();
   };
 
@@ -433,7 +476,7 @@ export default function App() {
       setDailyArticList([...updated]);
     }
     setCodeUnits(getCodeUnits());
-    setEditingArticItem(null);
+    setEditingArticItem(item);
     triggerBackgroundPush();
   };
 
@@ -463,7 +506,7 @@ export default function App() {
       const updated = await addBacklog(item);
       setBacklogs([...updated]);
     }
-    setEditingBacklogItem(null);
+    setEditingBacklogItem(item);
     triggerBackgroundPush();
   };
 
@@ -498,7 +541,7 @@ export default function App() {
       const updated = await addActivity(item);
       setActivities([...updated]);
     }
-    setEditingActivityItem(null);
+    setEditingActivityItem(item);
     triggerBackgroundPush();
   };
 

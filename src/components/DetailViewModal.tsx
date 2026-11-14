@@ -22,9 +22,18 @@ import {
   Truck,
   Tractor,
   FileWarning,
+  MessageSquare,
 } from 'lucide-react';
 import { BacklogItem, AddActivityItem } from '../types';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
+import {
+  formatDailyRigidWhatsApp,
+  formatDailyArticWhatsApp,
+  formatBAPWhatsApp,
+  formatBacklogWhatsApp,
+  formatActivityWhatsApp,
+  shareToWhatsApp,
+} from '../utils/whatsappFormatter';
 
 interface DetailViewModalProps {
   isOpen: boolean;
@@ -524,6 +533,31 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
           </button>
 
           <div className="flex items-center space-x-2">
+            {type !== 'UNIT' && (
+              <button
+                type="button"
+                onClick={() => {
+                  const message =
+                    type === 'RIGID'
+                      ? formatDailyRigidWhatsApp(data)
+                      : type === 'ARTIC'
+                      ? formatDailyArticWhatsApp(data)
+                      : type === 'BAP'
+                      ? formatBAPWhatsApp(data)
+                      : type === 'BACKLOG'
+                      ? formatBacklogWhatsApp(data)
+                      : formatActivityWhatsApp(data);
+                  shareToWhatsApp(message, {
+                    photoUrls: photos,
+                    title,
+                  });
+                }}
+                className="py-2 px-4 bg-[#4ade80] hover:bg-[#22c55e] text-[#111113] font-black rounded uppercase tracking-wider flex items-center space-x-1.5 transition shadow-md shadow-[#4ade80]/20 active:scale-95"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Share WA</span>
+              </button>
+            )}
             {onEdit && (
               <button
                 type="button"

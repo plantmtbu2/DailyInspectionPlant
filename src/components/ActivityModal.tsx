@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AddActivityItem, CodeUnit } from '../types';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoUploader } from './PhotoUploader';
@@ -43,12 +43,21 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [savedItem, setSavedItem] = useState<AddActivityItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const initializedSessionKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     setFormError(null);
     if (!isOpen) {
+      initializedSessionKeyRef.current = null;
       setSavedItem(null);
       return;
     }
+
+    const sessionKey = itemToEdit ? `EDIT:${itemToEdit.id}` : `NEW:${initialCodeUnit || ''}`;
+    if (initializedSessionKeyRef.current === sessionKey) {
+      return;
+    }
+    initializedSessionKeyRef.current = sessionKey;
 
     if (itemToEdit) {
       setCodeUnit(itemToEdit.codeUnit || '');
@@ -58,7 +67,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       setTanggalTemuan(formatDateForInput(itemToEdit.tanggalTemuan));
       setPic(itemToEdit.pic || '');
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? itemToEdit.photoUrls
+        ? [...itemToEdit.photoUrls]
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
       setPhotoUrls(existingPhotos);
       setPhotoUrl(existingPhotos[0] || undefined);

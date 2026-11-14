@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BacklogItem, BacklogPart, CodeUnit } from '../types';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoUploader } from './PhotoUploader';
@@ -63,12 +63,21 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
   const [savedItem, setSavedItem] = useState<BacklogItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const initializedSessionKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     setFormError(null);
     if (!isOpen) {
+      initializedSessionKeyRef.current = null;
       setSavedItem(null);
       return;
     }
+
+    const sessionKey = itemToEdit ? `EDIT:${itemToEdit.id}` : `NEW:${initialCodeUnit || ''}:${source || ''}`;
+    if (initializedSessionKeyRef.current === sessionKey) {
+      return;
+    }
+    initializedSessionKeyRef.current = sessionKey;
 
     if (itemToEdit) {
       setCodeUnit(itemToEdit.codeUnit || '');
@@ -104,7 +113,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setTanggalTemuan(formatDateForInput(itemToEdit.tanggalTemuan));
       setPic(itemToEdit.pic || '');
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? itemToEdit.photoUrls
+        ? [...itemToEdit.photoUrls]
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
       setPhotoUrls(existingPhotos);
       setPhotoUrl(existingPhotos[0] || undefined);

@@ -49,12 +49,21 @@ export const BapModal: React.FC<BapModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedSuccessRecord, setSavedSuccessRecord] = useState<BAPRecord | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const initializedSessionKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     setFormError(null);
     if (!isOpen) {
+      initializedSessionKeyRef.current = null;
       setSavedSuccessRecord(null);
       return;
     }
+
+    const sessionKey = itemToEdit ? `EDIT:${itemToEdit.id}` : `NEW:${initialCodeUnit || ''}`;
+    if (initializedSessionKeyRef.current === sessionKey) {
+      return;
+    }
+    initializedSessionKeyRef.current = sessionKey;
 
     if (itemToEdit) {
       setCodeUnit(itemToEdit.codeUnit || '');
@@ -70,7 +79,7 @@ export const BapModal: React.FC<BapModalProps> = ({
       setCatatanTambahan(itemToEdit.catatanTambahan || '');
 
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? itemToEdit.photoUrls
+        ? [...itemToEdit.photoUrls]
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
       setPhotoUrls(existingPhotos);
       setPhotoUrl(existingPhotos[0] || undefined);

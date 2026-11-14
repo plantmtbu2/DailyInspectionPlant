@@ -92,6 +92,17 @@ const ensureStorageInitialized = () => {
 };
 
 let debouncedSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let isBackgroundPushActive = false;
+let lastLocalMutationAt = 0;
+
+export const markLocalMutation = () => {
+  lastLocalMutationAt = Date.now();
+};
+
+export const getLastLocalMutationAt = (): number => lastLocalMutationAt;
+
+export const isBackgroundSyncInFlight = (): boolean =>
+  isBackgroundPushActive || debouncedSyncTimer !== null;
 
 export const autoSyncToGoogleSheetIfConnected = async () => {
   if (typeof window === 'undefined') return;
@@ -104,6 +115,8 @@ export const autoSyncToGoogleSheetIfConnected = async () => {
 
   // Non-blocking background sync (350ms debounce) - ensures UI saves are instant < 5ms
   debouncedSyncTimer = setTimeout(async () => {
+    debouncedSyncTimer = null;
+    isBackgroundPushActive = true;
     try {
       await pushAllDataToGoogleSheet({
         codeUnits: getCodeUnits(),
@@ -115,6 +128,8 @@ export const autoSyncToGoogleSheetIfConnected = async () => {
       });
     } catch (err) {
       console.warn('Background auto-sync notification:', err);
+    } finally {
+      isBackgroundPushActive = false;
     }
   }, 350);
 };
@@ -178,13 +193,16 @@ export const getCodeUnits = (): CodeUnit[] => {
 };
 
 export const saveCodeUnits = (units: CodeUnit[]) => {
-  localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(units));
+  markLocalMutation();
+  localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   if (getStoredSheetsConfig()) {
     syncCodeUnitsToSheet(units);
+    autoSyncToGoogleSheetIfConnected();
   }
 };
 
 export const addOrUpdateCodeUnit = (unit: CodeUnit) => {
+  markLocalMutation();
   const current = getCodeUnits();
   const existingIndex = current.findIndex(u => u.codeUnit === unit.codeUnit || u.id === unit.id);
   let updated: CodeUnit[];
@@ -199,6 +217,7 @@ export const addOrUpdateCodeUnit = (unit: CodeUnit) => {
 };
 
 export const deleteCodeUnit = async (id: string, cascade = true): Promise<CodeUnit[]> => {
+  markLocalMutation();
   const current = getCodeUnits();
   const unitToDelete = current.find(u => u.id === id);
   const updated = current.filter(u => u.id !== id);
@@ -239,6 +258,7 @@ export const getBAPList = (): BAPRecord[] => {
 };
 
 export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
+  markLocalMutation();
   const list = getBAPList();
   const exists = list.some(b => b.id === item.id);
   const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
@@ -250,7 +270,7 @@ export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
   if (unitMatch && item.hm > unitMatch.currentHm) {
     unitMatch.currentHm = item.hm;
     unitMatch.statusUnit = item.status === 'COMPLETED' ? 'READY' : 'BREAKDOWN';
-    saveCodeUnits(units);
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -258,6 +278,7 @@ export const addBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
 };
 
 export const updateBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => {
+  markLocalMutation();
   const list = getBAPList();
   const exists = list.some(b => b.id === item.id);
   const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
@@ -270,7 +291,7 @@ export const updateBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => 
     if (item.hm > unitMatch.currentHm) unitMatch.currentHm = item.hm;
     if (item.status === 'COMPLETED') unitMatch.statusUnit = 'READY';
     else if (item.status === 'OPEN') unitMatch.statusUnit = 'BREAKDOWN';
-    saveCodeUnits(units);
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -278,6 +299,7 @@ export const updateBAPRecord = async (item: BAPRecord): Promise<BAPRecord[]> => 
 };
 
 export const deleteBAPRecord = async (id: string): Promise<BAPRecord[]> => {
+  markLocalMutation();
   const list = getBAPList();
   const updated = list.filter(b => b.id !== id);
   localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(updated));
@@ -305,6 +327,7 @@ export const getDailyRigidList = (): DailyCheckRigid[] => {
 };
 
 export const addDailyRigid = async (item: DailyCheckRigid): Promise<DailyCheckRigid[]> => {
+  markLocalMutation();
   const list = getDailyRigidList();
   const normalizedItem: DailyCheckRigid = {
     ...item,
@@ -323,7 +346,7 @@ export const addDailyRigid = async (item: DailyCheckRigid): Promise<DailyCheckRi
     if (item.status === 'BREAKDOWN') unitMatch.statusUnit = 'BREAKDOWN';
     else if (item.status === 'SCHEDULED_SERVICE') unitMatch.statusUnit = 'MAINTENANCE';
     else unitMatch.statusUnit = 'READY';
-    saveCodeUnits(units);
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -331,13 +354,14 @@ export const addDailyRigid = async (item: DailyCheckRigid): Promise<DailyCheckRi
 };
 
 export const updateDailyRigid = async (item: DailyCheckRigid): Promise<DailyCheckRigid[]> => {
+  markLocalMutation();
   const list = getDailyRigidList();
   const normalizedItem: DailyCheckRigid = {
     ...item,
     qaType: item.qaType || 'DAILY_INSPECTION',
   };
   const exists = list.some(r => r.id === item.id);
-  const updated = exists ? list.map(r => (r.id === item.id ? normalizedItem : r)) : [normalizedItem, ...list];
+  const updated = deduplicateById(exists ? list.map(r => (r.id === item.id ? normalizedItem : r)) : [normalizedItem, ...list]);
   localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(updated));
 
   const units = getCodeUnits();
@@ -347,7 +371,7 @@ export const updateDailyRigid = async (item: DailyCheckRigid): Promise<DailyChec
     if (item.status === 'BREAKDOWN') unitMatch.statusUnit = 'BREAKDOWN';
     else if (item.status === 'SCHEDULED_SERVICE') unitMatch.statusUnit = 'MAINTENANCE';
     else unitMatch.statusUnit = 'READY';
-    saveCodeUnits(units);
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -355,6 +379,7 @@ export const updateDailyRigid = async (item: DailyCheckRigid): Promise<DailyChec
 };
 
 export const deleteDailyRigid = async (id: string): Promise<DailyCheckRigid[]> => {
+  markLocalMutation();
   const list = getDailyRigidList();
   const updated = list.filter(r => r.id !== id);
   localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(updated));
@@ -382,6 +407,7 @@ export const getDailyArticList = (): DailyCheckArtic[] => {
 };
 
 export const addDailyArtic = async (item: DailyCheckArtic): Promise<DailyCheckArtic[]> => {
+  markLocalMutation();
   const list = getDailyArticList();
   const normalizedItem: DailyCheckArtic = {
     ...item,
@@ -399,7 +425,7 @@ export const addDailyArtic = async (item: DailyCheckArtic): Promise<DailyCheckAr
     if (item.status === 'BREAKDOWN') unitMatch.statusUnit = 'BREAKDOWN';
     else if (item.status === 'SCHEDULED_SERVICE') unitMatch.statusUnit = 'MAINTENANCE';
     else unitMatch.statusUnit = 'READY';
-    saveCodeUnits(units);
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -407,6 +433,7 @@ export const addDailyArtic = async (item: DailyCheckArtic): Promise<DailyCheckAr
 };
 
 export const updateDailyArtic = async (item: DailyCheckArtic): Promise<DailyCheckArtic[]> => {
+  markLocalMutation();
   const list = getDailyArticList();
   const normalizedItem: DailyCheckArtic = {
     ...item,
@@ -423,7 +450,7 @@ export const updateDailyArtic = async (item: DailyCheckArtic): Promise<DailyChec
     if (item.status === 'BREAKDOWN') unitMatch.statusUnit = 'BREAKDOWN';
     else if (item.status === 'SCHEDULED_SERVICE') unitMatch.statusUnit = 'MAINTENANCE';
     else unitMatch.statusUnit = 'READY';
-    saveCodeUnits(units);
+    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(units)));
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -431,6 +458,7 @@ export const updateDailyArtic = async (item: DailyCheckArtic): Promise<DailyChec
 };
 
 export const deleteDailyArtic = async (id: string): Promise<DailyCheckArtic[]> => {
+  markLocalMutation();
   const list = getDailyArticList();
   const updated = list.filter(a => a.id !== id);
   localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(updated));
@@ -454,6 +482,7 @@ export const getBacklogs = (): BacklogItem[] => {
 };
 
 export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
+  markLocalMutation();
   const list = getBacklogs();
   const exists = list.some(b => b.id === item.id);
   const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
@@ -463,6 +492,7 @@ export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
 };
 
 export const updateBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
+  markLocalMutation();
   const list = getBacklogs();
   const exists = list.some(b => b.id === item.id);
   const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
@@ -472,6 +502,7 @@ export const updateBacklog = async (item: BacklogItem): Promise<BacklogItem[]> =
 };
 
 export const updateBacklogStatus = (id: string, status: BacklogItem['status']): BacklogItem[] => {
+  markLocalMutation();
   const list = getBacklogs();
   const updated = list.map(b => (b.id === id ? { ...b, status } : b));
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
@@ -480,6 +511,7 @@ export const updateBacklogStatus = (id: string, status: BacklogItem['status']): 
 };
 
 export const deleteBacklog = async (id: string): Promise<BacklogItem[]> => {
+  markLocalMutation();
   const list = getBacklogs();
   const updated = list.filter(b => b.id !== id);
   localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
@@ -503,6 +535,7 @@ export const getActivities = (): AddActivityItem[] => {
 };
 
 export const addActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
+  markLocalMutation();
   const list = getActivities();
   const exists = list.some(a => a.id === item.id);
   const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list]);
@@ -512,6 +545,7 @@ export const addActivity = async (item: AddActivityItem): Promise<AddActivityIte
 };
 
 export const updateActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
+  markLocalMutation();
   const list = getActivities();
   const exists = list.some(a => a.id === item.id);
   const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list]);
@@ -521,6 +555,7 @@ export const updateActivity = async (item: AddActivityItem): Promise<AddActivity
 };
 
 export const updateActivityStatus = (id: string, status: AddActivityItem['status']): AddActivityItem[] => {
+  markLocalMutation();
   const list = getActivities();
   const updated = list.map(a => (a.id === id ? { ...a, status } : a));
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
@@ -529,6 +564,7 @@ export const updateActivityStatus = (id: string, status: AddActivityItem['status
 };
 
 export const deleteActivity = async (id: string): Promise<AddActivityItem[]> => {
+  markLocalMutation();
   const list = getActivities();
   const updated = list.filter(a => a.id !== id);
   localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));

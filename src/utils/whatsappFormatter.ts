@@ -4,7 +4,9 @@ import {
   DailyCheckArtic,
   BacklogItem,
   AddActivityItem,
+  ChecklistItemStatus,
 } from '../types';
+import { RIGID_CHECKLIST_ITEMS, ARTIC_CHECKLIST_ITEMS } from '../constants/checklists';
 import { dataUrlToFile, downloadDataUrl } from './imageUtils';
 
 /**
@@ -107,10 +109,20 @@ export const shareToWhatsApp = async (
     }
   }
 
-  // Copy text to clipboard as handy fallback
+  // Copy text to clipboard reliably as handy fallback (handles long 36-item Artic reports)
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
+    } else if (typeof document !== 'undefined') {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
     }
   } catch {
     // ignore
@@ -179,6 +191,83 @@ ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Doku
 _Aplikasi Plant 2 - PT. Pamapersada Nusantara_`;
 };
 
+const normalizeRigidChecklistItems = (items: ChecklistItemStatus[] = []): ChecklistItemStatus[] => {
+  const mapped: ChecklistItemStatus[] = RIGID_CHECKLIST_ITEMS.map(def => {
+    const found = items.find(i => i.id === def.id || i.name === def.name);
+    if (found) {
+      return {
+        ...found,
+        id: def.id,
+        name: def.name,
+        unit: found.unit || def.unit,
+      };
+    }
+    return {
+      id: def.id,
+      name: def.name,
+      status: 'OK',
+      value: def.defaultVal || '',
+      unit: def.unit,
+      remark: '',
+    };
+  });
+
+  // Preserve any extra custom items not in standard 19 definitions
+  const extras = items.filter(
+    i => !RIGID_CHECKLIST_ITEMS.some(def => def.id === i.id || def.name === i.name)
+  );
+  return [...mapped, ...extras];
+};
+
+const normalizeArticChecklistItems = (items: ChecklistItemStatus[] = []): ChecklistItemStatus[] => {
+  const mapped: ChecklistItemStatus[] = ARTIC_CHECKLIST_ITEMS.map(def => {
+    const found = items.find(i => i.id === def.id || i.name === def.name);
+    if (found) {
+      return {
+        ...found,
+        id: def.id,
+        name: def.name,
+        unit: found.unit || def.unit,
+      };
+    }
+    return {
+      id: def.id,
+      name: def.name,
+      status: 'OK',
+      value: def.defaultVal || '',
+      unit: def.unit,
+      remark: '',
+    };
+  });
+
+  const extras = items.filter(
+    i => !ARTIC_CHECKLIST_ITEMS.some(def => def.id === i.id || def.name === i.name)
+  );
+  return [...mapped, ...extras];
+};
+
+const formatChecklistLines = (items: ChecklistItemStatus[]): string => {
+  if (!items || items.length === 0) return 'Tidak ada data item checklist';
+  return items
+    .map(it => {
+      const icon =
+        it.status === 'DEFECT'
+          ? '❌'
+          : it.status === 'MONITOR'
+          ? '⚠️'
+          : it.status === 'NA'
+          ? '⚪'
+          : '✅';
+      const valClean = it.value ? it.value.trim() : '';
+      const unitClean = it.unit ? it.unit.trim() : '';
+      const valText = valClean ? ` [${valClean}${unitClean ? ` ${unitClean}` : ''}]` : '';
+      const remarkClean = it.remark ? it.remark.trim() : '';
+      const remarkText = remarkClean ? ` (Ket: ${remarkClean})` : '';
+      return `${icon} ${it.name}: *${it.status}*${valText}${remarkText}`;
+    })
+    .join('\n');
+};
+
 export const formatDailyRigidWhatsApp = (item: DailyCheckRigid): string => {
   const isDaily = item.qaType === 'DAILY_INSPECTION';
   const isFinal = item.qaType === 'QA7_FINAL';
@@ -187,11 +276,11 @@ export const formatDailyRigidWhatsApp = (item: DailyCheckRigid): string => {
     : isFinal
     ? '2. QA 7 FINAL INSPECTION RIGID'
     : '1. QA 1 PRE INSPECTION RIGID';
-  const defects = item.items.filter(i => i.status === 'DEFECT');
-  const monitors = item.items.filter(i => i.status === 'MONITOR');
-  const okCount = item.items.filter(i => i.status === 'OK').length;
-  const naCount = item.items.filter(i => i.status === 'NA').length;
-  const measurements = item.items.filter(i => i.value && i.value.trim() !== '');
+  const allItems = normalizeRigidChecklistItems(item.items);
+  const defects = allItems.filter(i => i.status === 'DEFECT');
+  const monitors = allItems.filter(i => i.status === 'MONITOR');
+  const okCount = allItems.filter(i => i.status === 'OK').length;
+  const naCount = allItems.filter(i => i.status === 'NA').length;
 
   let deviationText = '';
   if (defects.length > 0) {
@@ -204,17 +293,8 @@ ${defects.map(d => `• ${d.name}${d.remark ? ` (${d.remark})` : ''}`).join('\n'
 ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n')}`;
   }
 
-  // Format all checklist parameter results
-  const allParametersText = item.items && item.items.length > 0
-    ? item.items
-        .map(it => {
-          const icon = it.status === 'DEFECT' ? '❌' : it.status === 'MONITOR' ? '⚠️' : it.status === 'NA' ? '⚪' : '✅';
-          const valText = it.value && it.value.trim() ? ` [${it.value} ${it.unit || ''}]`.trim() : '';
-          const remarkText = it.remark && it.remark.trim() ? ` (Ket: ${it.remark})` : '';
-          return `${icon} ${it.name}: *${it.status}*${valText}${remarkText}`;
-        })
-        .join('\n')
-    : 'Tidak ada data item checklist';
+  // Format all checklist parameter results (all 19 items)
+  const allParametersText = formatChecklistLines(allItems);
 
   const photoCount = item.photoUrls && item.photoUrls.length > 0
     ? item.photoUrls.length
@@ -229,7 +309,7 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
 ⏱️ *HM Unit:* ${item.hmUnit.toLocaleString()} Jam
 ⏰ *Waktu Inspeksi:* ${item.startTime} - ${item.finishTime} (${item.totalJam})
 👷 *PIC Mekanik:* ${item.picMekanik}
-✅ *Divalidasi Oleh:* ${item.divalidasiOleh}
+✅ *Divalidasi Oleh:* ${item.divalidasiOleh || '-'}
 
 📊 *RINGKASAN STATUS ITEM:*
 • Kondisi OK: *${okCount} Item*
@@ -238,7 +318,7 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
 • N/A: *${naCount} Item*
 ${deviationText}
 
-📝 *HASIL SEMUA PARAMETER CHECKLIST (${item.items.length} ITEM):*
+📝 *HASIL SEMUA PARAMETER CHECKLIST (${allItems.length} ITEM):*
 ${allParametersText}
 
 🔍 *TEMUAN DEVIASI / ADD ACTIVITIES:*
@@ -260,10 +340,11 @@ export const formatDailyArticWhatsApp = (item: DailyCheckArtic): string => {
     : isFinal
     ? '4. QA 7 FINAL INSPECTION ARTIC'
     : '3. QA 1 PRE INSPECTION ARTIC';
-  const defects = item.items.filter(i => i.status === 'DEFECT');
-  const monitors = item.items.filter(i => i.status === 'MONITOR');
-  const okCount = item.items.filter(i => i.status === 'OK').length;
-  const naCount = item.items.filter(i => i.status === 'NA').length;
+  const allItems = normalizeArticChecklistItems(item.items);
+  const defects = allItems.filter(i => i.status === 'DEFECT');
+  const monitors = allItems.filter(i => i.status === 'MONITOR');
+  const okCount = allItems.filter(i => i.status === 'OK').length;
+  const naCount = allItems.filter(i => i.status === 'NA').length;
 
   let deviationText = '';
   if (defects.length > 0) {
@@ -275,17 +356,8 @@ ${defects.map(d => `• ${d.name}${d.remark ? ` (${d.remark})` : ''}`).join('\n'
 ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n')}`;
   }
 
-  // Format all checklist parameter results
-  const allParametersText = item.items && item.items.length > 0
-    ? item.items
-        .map(it => {
-          const icon = it.status === 'DEFECT' ? '❌' : it.status === 'MONITOR' ? '⚠️' : it.status === 'NA' ? '⚪' : '✅';
-          const valText = it.value && it.value.trim() ? ` [${it.value} ${it.unit || ''}]`.trim() : '';
-          const remarkText = it.remark && it.remark.trim() ? ` (Ket: ${it.remark})` : '';
-          return `${icon} ${it.name}: *${it.status}*${valText}${remarkText}`;
-        })
-        .join('\n')
-    : 'Tidak ada data item checklist';
+  // Format all checklist parameter results (all 36 items)
+  const allParametersText = formatChecklistLines(allItems);
 
   const photoCount = item.photoUrls && item.photoUrls.length > 0
     ? item.photoUrls.length
@@ -300,7 +372,7 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
 ⏱️ *HM Unit:* ${item.hmUnit.toLocaleString()} Jam
 ⏰ *Waktu Inspeksi:* ${item.startTime} - ${item.finishTime} (${item.totalJam})
 👷 *PIC Mekanik:* ${item.picMekanik}
-✅ *Divalidasi Oleh:* ${item.divalidasiOleh}
+✅ *Divalidasi Oleh:* ${item.divalidasiOleh || '-'}
 
 📊 *RINGKASAN STATUS ITEM:*
 • Kondisi OK: *${okCount} Item*
@@ -309,7 +381,7 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
 • N/A: *${naCount} Item*
 ${deviationText}
 
-📝 *HASIL SEMUA PARAMETER CHECKLIST (${item.items.length} ITEM):*
+📝 *HASIL SEMUA PARAMETER CHECKLIST (${allItems.length} ITEM):*
 ${allParametersText}
 
 🔍 *TEMUAN DEVIASI / ADD ACTIVITIES:*

@@ -902,21 +902,26 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
 
         // Items are in columns 11 to 29 (19 items)
         const items = RIGID_CHECKLIST_ITEMS.map((def, idx) => {
-          const rawVal = String(r[11 + idx] ?? 'OK');
+          const rawVal = String(r[11 + idx] ?? 'OK').trim();
+          const upperRaw = rawVal.toUpperCase();
+          const isDefect = upperRaw.startsWith('DEFECT');
+          const isMonitor = upperRaw.startsWith('MONITOR');
+          const isNA = upperRaw.startsWith('NA');
+          const statusVal = isDefect ? ('DEFECT' as const) : isMonitor ? ('MONITOR' as const) : isNA ? ('NA' as const) : ('OK' as const);
+
           if (def.type === 'measurement') {
-            const cleanVal = rawVal.replace(new RegExp(`\\s*${def.unit || ''}$`, 'i'), '').trim();
+            const isStatusOnly = ['OK', 'DEFECT', 'MONITOR', 'NA', '-', ''].includes(upperRaw);
+            const cleanVal = isStatusOnly
+              ? ''
+              : rawVal.replace(new RegExp(`\\s*${def.unit || ''}$`, 'i'), '').trim();
             return {
               id: def.id,
               name: def.name,
-              status: 'OK' as const,
-              value: cleanVal || rawVal,
+              status: statusVal,
+              value: cleanVal,
               unit: def.unit,
             };
           }
-          const isDefect = rawVal.toUpperCase().startsWith('DEFECT');
-          const isMonitor = rawVal.toUpperCase().startsWith('MONITOR');
-          const isNA = rawVal.toUpperCase().startsWith('NA');
-          const statusVal = isDefect ? ('DEFECT' as const) : isMonitor ? ('MONITOR' as const) : isNA ? ('NA' as const) : ('OK' as const);
           const remarkMatch = rawVal.match(/\((.*?)\)/);
           return {
             id: def.id,

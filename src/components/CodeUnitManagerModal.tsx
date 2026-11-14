@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CodeUnit } from '../types';
 import { X, Plus, Search, Truck, MapPin, Gauge, Edit3, Trash2, Check, CloudUpload, Camera } from 'lucide-react';
 import { PhotoUploader } from './PhotoUploader';
@@ -22,13 +22,20 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
   onSyncToSheet,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingUnit, setEditingUnit] = useState<Partial<CodeUnit> | null>(null);
+  const [editingUnit, setEditingUnit] = useState<(Partial<CodeUnit> & { isNewUnit?: boolean }) | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<{
     urls: string[];
     index?: number;
     title: string;
     subtitle?: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setEditingUnit(null);
+      setPreviewPhoto(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -42,7 +49,8 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
 
   const handleStartNew = () => {
     setEditingUnit({
-      id: `CU-${String(units.length + 1).padStart(2, '0')}`,
+      id: `CU-${Date.now().toString().slice(-4)}`,
+      isNewUnit: true,
       codeUnit: '',
       egi: '',
       tipeAlat: 'Rigid Dump Truck',
@@ -120,7 +128,7 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
             <form onSubmit={handleSaveForm} className="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 space-y-3.5">
               <div className="flex items-center justify-between border-b border-slate-700 pb-2">
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                  {editingUnit.id ? 'Edit Unit Alat Berat' : 'Tambah Unit Baru'}
+                  {editingUnit.isNewUnit ? 'Tambah Unit Baru' : 'Edit Unit Alat Berat'}
                 </span>
                 <button
                   type="button"

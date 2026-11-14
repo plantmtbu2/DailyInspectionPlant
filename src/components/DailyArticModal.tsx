@@ -103,7 +103,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
   const [savedSuccessRecord, setSavedSuccessRecord] = useState<DailyCheckArtic | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const prevIsOpenRef = useRef(false);
+  const initializedSessionKeyRef = useRef<string | null>(null);
 
   // Auto calculate total jam
   useEffect(() => {
@@ -133,13 +133,23 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       )
     : [];
 
-  // Initialize and populate form whenever modal opens or itemToEdit updates
+  // Initialize and populate form ONLY when modal opens or switches to a different record
   useEffect(() => {
     if (!isOpen) {
+      initializedSessionKeyRef.current = null;
       setSavedSuccessRecord(null);
       setFormError(null);
       return;
     }
+
+    const sessionKey = itemToEdit
+      ? `EDIT:${itemToEdit.id}`
+      : `NEW:${initialCodeUnit || ''}:${qaType || ''}`;
+
+    if (initializedSessionKeyRef.current === sessionKey) {
+      return;
+    }
+    initializedSessionKeyRef.current = sessionKey;
 
     if (itemToEdit) {
       // Edit Mode: Populate all previously saved / updated fields with 100% fidelity
@@ -155,25 +165,32 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setPicMekanik(itemToEdit.picMekanik || '');
       setDivalidasiOleh(itemToEdit.divalidasiOleh || '');
 
-      // Deep clone checklist items
-      if (itemToEdit.items && itemToEdit.items.length > 0) {
-        setItems(itemToEdit.items.map(it => ({ ...it })));
-      } else {
-        setItems(
-          ARTIC_CHECKLIST_ITEMS.map(def => ({
-            id: def.id,
-            name: def.name,
-            status: 'OK',
-            value: '',
-            remark: '',
-          }))
-        );
-      }
+      // Merge & deep clone checklist items to ensure all 36 items exist
+      const existingItems = itemToEdit.items || [];
+      const mergedItems: ChecklistItemStatus[] = ARTIC_CHECKLIST_ITEMS.map(def => {
+        const found = existingItems.find(it => it.id === def.id || it.name === def.name);
+        return found
+          ? {
+              ...found,
+              id: def.id,
+              name: def.name,
+              value: found.value || '',
+              remark: found.remark || '',
+            }
+          : {
+              id: def.id,
+              name: def.name,
+              status: 'OK',
+              value: '',
+              remark: '',
+            };
+      });
+      setItems(mergedItems);
 
       setTemuanDeviasi(itemToEdit.temuanDeviasi || '');
 
       const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? itemToEdit.photoUrls
+        ? [...itemToEdit.photoUrls]
         : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
       setPhotoUrls(existingPhotos);
     } else if (initialCodeUnit) {
@@ -193,7 +210,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setFinishTime('');
       setTotalJam('');
       setPicMekanik('');
-      setDivalidasiOleh('Group Leader');
+      setDivalidasiOleh('');
       setItems(
         ARTIC_CHECKLIST_ITEMS.map(def => ({
           id: def.id,
@@ -215,7 +232,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setTotalJam('');
       setHmUnit(0);
       setPicMekanik('');
-      setDivalidasiOleh('Group Leader');
+      setDivalidasiOleh('');
       setItems(
         ARTIC_CHECKLIST_ITEMS.map(def => ({
           id: def.id,
@@ -230,7 +247,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
     }
     setSavedSuccessRecord(null);
     setFormError(null);
-  }, [isOpen, itemToEdit, initialCodeUnit, units]);
+  }, [isOpen, itemToEdit, initialCodeUnit, qaType, units]);
 
   if (!isOpen) return null;
 
@@ -294,7 +311,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
         totalJam,
         hmUnit: Number(hmUnit) || 0,
         picMekanik: picMekanik || 'Mekanik Heavy Equipment',
-        divalidasiOleh: divalidasiOleh || 'Group Leader',
+        divalidasiOleh: divalidasiOleh.trim(),
         items,
         temuanDeviasi: temuanDeviasi || 'Nihil / Seluruh 36 parameter memenuhi standar kelayakan operasi',
         jumlahBacklog: activeUnitBacklogs.length,
