@@ -57,7 +57,7 @@ export interface DailyCheckRigid {
   divalidasiOleh: string; // Group Leader / Pengawas
   // 19 Items
   items: ChecklistItemStatus[];
-  temuanDeviasi: string; // Temuan Deviasi / ADD ACTIVITIES
+  temuanDeviasi?: string;
   jumlahBacklog: number;
   jumlahAktivitas: number;
   photoUrl?: string; // Foto temuan deviasi / inspeksi unit rigid (primary / single)
@@ -81,7 +81,7 @@ export interface DailyCheckArtic {
   divalidasiOleh: string;
   // 36 Items
   items: ChecklistItemStatus[];
-  temuanDeviasi: string;
+  temuanDeviasi?: string;
   jumlahBacklog: number;
   jumlahAktivitas: number;
   photoUrl?: string; // Foto temuan deviasi / inspeksi unit artic (primary / single)
@@ -123,7 +123,7 @@ export interface AddActivityItem {
   codeUnit: string;
   deskripsiAktivitas: string;
   action: string; // Tindakan perbaikan yang dilakukan
-  status: 'PENDING' | 'DONE' | 'MONITORING';
+  status: 'PENDING' | 'DONE' | 'MONITORING' | 'CLOSED';
   tanggalTemuan: string;
   pic: string;
   relatedInspectionId?: string;

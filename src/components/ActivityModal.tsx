@@ -296,6 +296,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:border-amber-400 outline-none"
                   >
                     <option value="DONE">DONE (Selesai Tuntas)</option>
+                    <option value="CLOSED">CLOSED (Ditutup / Selesai Final)</option>
                     <option value="MONITORING">MONITORING (Perlu Pantauan)</option>
                     <option value="PENDING">PENDING (Menunggu Tindak Lanjut)</option>
                   </select>

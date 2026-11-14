@@ -143,8 +143,8 @@ function handleRequest(e) {
 
       if (data.codeUnits) writeTab(ss, 'CODE_UNIT', data.codeUnits, 9);
       if (data.bapList) writeTab(ss, 'BAP', data.bapList, 14);
-      if (data.dailyRigidList) writeTab(ss, 'DAILY_CHECK_RIGID', data.dailyRigidList, 36);
-      if (data.dailyArticList) writeTab(ss, 'DAILY_CHECK_ARTIC', data.dailyArticList, 53);
+      if (data.dailyRigidList) writeTab(ss, 'DAILY_CHECK_RIGID', data.dailyRigidList, 34);
+      if (data.dailyArticList) writeTab(ss, 'DAILY_CHECK_ARTIC', data.dailyArticList, 51);
       if (data.backlogs) writeTab(ss, 'BACKLOG', data.backlogs, 15);
       if (data.activities) writeTab(ss, 'ADD_ACTIVITIES', data.activities, 9);
 
@@ -192,13 +192,13 @@ function ensureAllTabs(ss) {
   var rigidHeaders = [
     'ID', 'Tipe Menu / QA', 'Code Unit', 'EGI', 'Tanggal', 'Status Unit', 'Start Time', 'Finish Time', 'Total Jam', 'HM Unit', 'PIC Mekanik',
     '1. Engine Oil Level', '2. T/M Oil Level', '3. Hyd Oil Level', '4. V-Belts', '5. E/G Oil Leakage', '6. Common Rail Connector', '7. Injector Tube', '8. FM Radio', '9. Fatigue Warning', '10. Power Window', '11. Operator Seat', '12. Hand Rail', '13. Common Rail Press ON (kg/cm²)', '14. Power Supply Voltage ON (V)', '15. Susp Pressure FL (mm/kg)', '16. Susp Pressure FR (mm/kg)', '17. Susp Pressure RL (mm/kg)', '18. Susp Pressure RR (mm/kg)', '19. Tyre Condition',
-    'Temuan Deviasi / ADD ACTIVITIES', 'Jumlah Backlog', 'Jumlah Aktivitas', 'Divalidasi Oleh', 'Dibuat Pada', 'Foto Temuan (URL)'
+    'Jumlah Backlog', 'Jumlah Aktivitas', 'Divalidasi Oleh', 'Dibuat Pada'
   ];
 
   var articHeaders = [
     'ID', 'Tipe Menu / QA', 'Code Unit', 'EGI', 'Tanggal', 'Status Unit', 'Start Time', 'Finish Time', 'Total Jam', 'HM Unit', 'PIC Mekanik',
     '1. Lock Door & Handle', '2. Wiper & Washer', '3. Radio Komunikasi', '4. Rotary Lamp', '5. Work Lamp Front/Rear', '6. LOTO / Safety Isolation', '7. Air Pressure Indicator', '8. Lever Hydraulic CV', '9. Engine Oil Level', '10. Coolant Radiator Level', '11. V-Belt & AC Compressor', '12. Transmission Oil Level', '13. Hydraulic Oil Level', '14. Hydraulic Oil Leaks', '15. Fuel Wiggins Pressureless', '16. Battery & Terminal', '17. PDU Power Distribution', '18. Spider Joint / Drive Shaft', '19. Pin Lock Artic', '20. Artic Frame Lubrication', '21. Grease Fitting & Auto Lube', '22. LH Steering Cylinder', '23. RH Steering Cylinder', '24. LH Articulation Cylinder', '25. RH Articulation Cylinder', '26. Pinion & Segment Circle', '27. Spacer & Wear Plate Circle', '28. Circle Reverse Motor', '29. Guide Blade & Cutting Edge', '30. Wheel Leaning Cylinder', '31. Blade Side Shift Cylinder', '32. Power Tilt Cylinder', '33. Drawbar Ball Joint Cylinder', '34. LH Lift Cylinder', '35. RH Lift Cylinder', '36. Ripper / Scarifier Cylinder',
-    'Temuan Deviasi / ADD ACTIVITIES', 'Jumlah Backlog', 'Jumlah Aktivitas', 'Divalidasi Oleh', 'Dibuat Pada', 'Foto Temuan (URL)'
+    'Jumlah Backlog', 'Jumlah Aktivitas', 'Divalidasi Oleh', 'Dibuat Pada'
   ];
 
   var defs = [
@@ -354,12 +354,10 @@ export const RIGID_SHEET_HEADERS = [
   'HM Unit',
   'PIC Mekanik',
   ...RIGID_CHECKLIST_ITEMS.map(i => i.name),
-  'Temuan Deviasi / ADD ACTIVITIES',
   'Jumlah Backlog',
   'Jumlah Aktivitas',
   'Divalidasi Oleh',
   'Dibuat Pada',
-  'Foto Temuan (URL)',
 ];
 
 export const ARTIC_SHEET_HEADERS = [
@@ -375,12 +373,10 @@ export const ARTIC_SHEET_HEADERS = [
   'HM Unit',
   'PIC Mekanik',
   ...ARTIC_CHECKLIST_ITEMS.map(i => i.name),
-  'Temuan Deviasi / ADD ACTIVITIES',
   'Jumlah Backlog',
   'Jumlah Aktivitas',
   'Divalidasi Oleh',
   'Dibuat Pada',
-  'Foto Temuan (URL)',
 ];
 
 export const BACKLOG_SHEET_HEADERS = [
@@ -463,12 +459,10 @@ export const buildRigidSheetRow = (r: DailyCheckRigid): (string | number)[] => {
     r.hmUnit,
     r.picMekanik,
     ...itemValues,
-    r.temuanDeviasi || '-',
     r.jumlahBacklog || 0,
     r.jumlahAktivitas || 0,
     r.divalidasiOleh || '-',
     r.createdAt,
-    serializePhotos(r.photoUrls, r.photoUrl),
   ];
 };
 
@@ -499,12 +493,10 @@ export const buildArticSheetRow = (a: DailyCheckArtic): (string | number)[] => {
     a.hmUnit,
     a.picMekanik,
     ...itemValues,
-    a.temuanDeviasi || '-',
     a.jumlahBacklog || 0,
     a.jumlahAktivitas || 0,
     a.divalidasiOleh || '-',
     a.createdAt,
-    serializePhotos(a.photoUrls, a.photoUrl),
   ];
 };
 
@@ -677,11 +669,11 @@ export const initializeSheetHeaders = async (spreadsheetId: string, token: strin
       values: [BAP_SHEET_HEADERS],
     },
     {
-      range: 'DAILY_CHECK_RIGID!A1:AJ1',
+      range: 'DAILY_CHECK_RIGID!A1:AH1',
       values: [RIGID_SHEET_HEADERS],
     },
     {
-      range: 'DAILY_CHECK_ARTIC!A1:BA1',
+      range: 'DAILY_CHECK_ARTIC!A1:AY1',
       values: [ARTIC_SHEET_HEADERS],
     },
     {
@@ -931,12 +923,11 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
           };
         });
 
-        const temuanDeviasi = String(r[30] || '');
-        const jumlahBacklog = Number(r[31]) || 0;
-        const jumlahAktivitas = Number(r[32]) || 0;
-        const divalidasiOleh = String(r[33] || '');
-        const createdAt = String(r[34] || new Date().toISOString());
-        const photos = parsePhotos(r[35]);
+        const isLegacy36Cols = r.length >= 35;
+        const jumlahBacklog = Number(isLegacy36Cols ? r[31] : r[30]) || 0;
+        const jumlahAktivitas = Number(isLegacy36Cols ? r[32] : r[31]) || 0;
+        const divalidasiOleh = String((isLegacy36Cols ? r[33] : r[32]) || '');
+        const createdAt = String((isLegacy36Cols ? r[34] : r[33]) || new Date().toISOString());
 
         return {
           id,
@@ -951,13 +942,11 @@ const parseRigidRows = (rows: any[][]): DailyCheckRigid[] => {
           hmUnit,
           picMekanik,
           items,
-          temuanDeviasi,
+          temuanDeviasi: '',
           jumlahBacklog,
           jumlahAktivitas,
           divalidasiOleh,
           createdAt,
-          photoUrl: photos.photoUrl,
-          photoUrls: photos.photoUrls,
           syncedToSheets: true,
         };
       }
@@ -1046,12 +1035,11 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
           };
         });
 
-        const temuanDeviasi = String(r[47] || '');
-        const jumlahBacklog = Number(r[48]) || 0;
-        const jumlahAktivitas = Number(r[49]) || 0;
-        const divalidasiOleh = String(r[50] || '');
-        const createdAt = String(r[51] || new Date().toISOString());
-        const photos = parsePhotos(r[52]);
+        const isLegacy53Cols = r.length >= 52;
+        const jumlahBacklog = Number(isLegacy53Cols ? r[48] : r[47]) || 0;
+        const jumlahAktivitas = Number(isLegacy53Cols ? r[49] : r[48]) || 0;
+        const divalidasiOleh = String((isLegacy53Cols ? r[50] : r[49]) || '');
+        const createdAt = String((isLegacy53Cols ? r[51] : r[50]) || new Date().toISOString());
 
         return {
           id,
@@ -1066,13 +1054,11 @@ const parseArticRows = (rows: any[][]): DailyCheckArtic[] => {
           hmUnit,
           picMekanik,
           items,
-          temuanDeviasi,
+          temuanDeviasi: '',
           jumlahBacklog,
           jumlahAktivitas,
           divalidasiOleh,
           createdAt,
-          photoUrl: photos.photoUrl,
-          photoUrls: photos.photoUrls,
           syncedToSheets: true,
         };
       }

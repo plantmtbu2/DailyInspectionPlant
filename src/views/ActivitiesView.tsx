@@ -65,6 +65,7 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
   const getStatusBadge = (status: AddActivityItem['status']) => {
     switch (status) {
       case 'DONE':
+      case 'CLOSED':
         return 'bg-emerald-500/10 text-[#4ade80] border-emerald-500/30';
       case 'MONITORING':
         return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
@@ -113,7 +114,7 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
           </div>
 
           <div className="flex space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {(['ALL', 'DONE', 'MONITORING', 'PENDING'] as const).map(st => (
+            {(['ALL', 'DONE', 'CLOSED', 'MONITORING', 'PENDING'] as const).map(st => (
               <button
                 key={st}
                 onClick={() => setFilterStatus(st)}
@@ -308,13 +309,13 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
             <div className="flex items-center justify-between pt-2 border-t border-[rgba(242,239,235,0.1)] text-xs font-mono">
               <span className="text-[rgba(242,239,235,0.5)] text-[10px] uppercase">Perbarui Status:</span>
               <div className="flex items-center space-x-1.5">
-                {(['DONE', 'MONITORING', 'PENDING'] as const).map(st => (
+                {(['DONE', 'CLOSED', 'MONITORING', 'PENDING'] as const).map(st => (
                   <button
                     key={st}
                     onClick={() => onUpdateStatus(item.id, st)}
                     className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase border transition ${
                       item.status === st
-                        ? st === 'DONE'
+                        ? st === 'DONE' || st === 'CLOSED'
                           ? 'bg-[#4ade80]/20 text-[#4ade80] border-[#4ade80]'
                           : st === 'MONITORING'
                           ? 'bg-blue-500/20 text-blue-300 border-blue-500'

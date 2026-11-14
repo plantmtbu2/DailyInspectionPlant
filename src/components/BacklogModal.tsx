@@ -17,6 +17,31 @@ import {
 import { formatBacklogWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
 
+const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const applyBcsPrefix = (
+  currentDesc: string,
+  prevCodeUnit: string,
+  nextCodeUnit: string
+): string => {
+  const nextCu = nextCodeUnit.trim().toUpperCase();
+  const prevCu = prevCodeUnit.trim().toUpperCase();
+  let body = currentDesc || '';
+
+  if (prevCu) {
+    const prevPattern = new RegExp(`^BCS\\s+${escapeRegex(prevCu)}\\s*`, 'i');
+    if (prevPattern.test(body)) {
+      body = body.replace(prevPattern, '');
+    } else {
+      body = body.replace(/^BCS\s*/i, '');
+    }
+  } else {
+    body = body.replace(/^BCS\s*/i, '');
+  }
+
+  return nextCu ? `BCS ${nextCu} ${body}` : `BCS ${body}`;
+};
+
 interface BacklogModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -123,7 +148,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setSumberTemuan(source || 'MANUAL');
       setMoBacklog(`MO-BL-${Math.floor(1000 + Math.random() * 9000)}`);
       setNomorReservasi('');
-      setDeskripsiBacklog('');
+      setDeskripsiBacklog(`BCS ${initialCodeUnit.trim().toUpperCase()} `);
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
       setStatus('WAITING_PART');
       setTanggalTemuan(new Date().toISOString().slice(0, 10));
@@ -135,7 +160,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setCodeUnit('');
       setMoBacklog(`MO-BL-${Math.floor(1000 + Math.random() * 9000)}`);
       setNomorReservasi('');
-      setDeskripsiBacklog('');
+      setDeskripsiBacklog('BCS ');
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
       setStatus('WAITING_PART');
       setTanggalTemuan(new Date().toISOString().slice(0, 10));
@@ -184,7 +209,24 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setFormError('Pilih Code Unit terlebih dahulu.');
       return;
     }
-    if (!deskripsiBacklog.trim()) {
+    const cleanCodeUnit = codeUnit.trim().toUpperCase();
+    const expectedPrefix = `BCS ${cleanCodeUnit}`;
+    let finalDeskripsi = deskripsiBacklog.trim();
+
+    if (!itemToEdit) {
+      const prefixCheckRegex = new RegExp(`^BCS\\s+${escapeRegex(cleanCodeUnit)}(?:\\s+|$)`, 'i');
+      if (!prefixCheckRegex.test(finalDeskripsi)) {
+        const bodyOnly = finalDeskripsi.replace(/^BCS\s*/i, '').trim();
+        finalDeskripsi = bodyOnly ? `${expectedPrefix} ${bodyOnly}` : expectedPrefix;
+      }
+      const descBodyAfterPrefix = finalDeskripsi
+        .replace(new RegExp(`^BCS\\s+${escapeRegex(cleanCodeUnit)}\\s*`, 'i'), '')
+        .trim();
+      if (!descBodyAfterPrefix) {
+        setFormError(`Mohon lengkapi Deskripsi Backlog setelah awalan "${expectedPrefix} ".`);
+        return;
+      }
+    } else if (!finalDeskripsi) {
       setFormError('Mohon isi Deskripsi Backlog.');
       return;
     }
@@ -235,7 +277,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         codeUnit,
         moBacklog: moBacklog.trim() || '-',
         nomorReservasi: nomorReservasi || '-',
-        deskripsiBacklog,
+        deskripsiBacklog: finalDeskripsi,
         parts: finalParts,
         partNumber: summaryPartNumber,
         deskripsiPart: summaryDeskripsiPart,
@@ -385,7 +427,13 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
               <CodeUnitSelector
                 units={units}
                 selectedCodeUnit={codeUnit}
-                onChange={u => setCodeUnit(u ? u.codeUnit : '')}
+                onChange={u => {
+                  const nextCode = u ? u.codeUnit : '';
+                  if (!itemToEdit) {
+                    setDeskripsiBacklog(prev => applyBcsPrefix(prev, codeUnit, nextCode));
+                  }
+                  setCodeUnit(nextCode);
+                }}
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -417,13 +465,20 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Deskripsi Backlog *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-semibold">Deskripsi Backlog *</label>
+                  {!itemToEdit && (
+                    <span className="text-[10px] font-mono text-amber-400">
+                      Format: BCS {codeUnit ? codeUnit.toUpperCase() : '<CODE UNIT>'} &lt;DESKRIPSI&gt;
+                    </span>
+                  )}
+                </div>
                 <textarea
                   required
                   rows={2}
                   value={deskripsiBacklog}
                   onChange={e => setDeskripsiBacklog(e.target.value)}
-                  placeholder="Uraikan temuan backlog, kondisi komponen, atau gejala kerusakan yang memerlukan tindak lanjut..."
+                  placeholder={`Contoh: BCS ${codeUnit ? codeUnit.toUpperCase() : 'DT5500'} BLADE WIPER BROKEN`}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:border-amber-400 outline-none resize-none"
                 />
               </div>

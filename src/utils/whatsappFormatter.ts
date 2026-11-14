@@ -8,6 +8,56 @@ import {
 } from '../types';
 import { RIGID_CHECKLIST_ITEMS, ARTIC_CHECKLIST_ITEMS } from '../constants/checklists';
 import { dataUrlToFile, downloadDataUrl } from './imageUtils';
+import { getBacklogs, getActivities } from '../services/storageService';
+
+const getClosedStatusEmoji = (status?: string): string =>
+  String(status || '').trim().toUpperCase() === 'CLOSED' ? '✅' : '🅾️';
+
+export const getUnitBacklogAndActivityPhotos = (
+  codeUnit: string,
+  backlogsList?: BacklogItem[],
+  activitiesList?: AddActivityItem[]
+): string[] => {
+  const targetUnit = (codeUnit || '').trim().toUpperCase();
+  const sourceBacklogs = backlogsList ?? getBacklogs();
+  const sourceActivities = activitiesList ?? getActivities();
+
+  const unitBacklogs = targetUnit
+    ? sourceBacklogs.filter(b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnit)
+    : sourceBacklogs;
+  const unitActivities = targetUnit
+    ? sourceActivities.filter(a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnit)
+    : sourceActivities;
+
+  const collected: string[] = [];
+  const seen = new Set<string>();
+
+  const addUrl = (url?: string) => {
+    const clean = (url || '').trim();
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      collected.push(clean);
+    }
+  };
+
+  unitBacklogs.forEach(b => {
+    if (b.photoUrls && b.photoUrls.length > 0) {
+      b.photoUrls.forEach(addUrl);
+    } else if (b.photoUrl) {
+      addUrl(b.photoUrl);
+    }
+  });
+
+  unitActivities.forEach(a => {
+    if (a.photoUrls && a.photoUrls.length > 0) {
+      a.photoUrls.forEach(addUrl);
+    } else if (a.photoUrl) {
+      addUrl(a.photoUrl);
+    }
+  });
+
+  return collected;
+};
 
 /**
  * Normalizes phone numbers to international WhatsApp format (e.g., 0812... -> 62812...)
@@ -268,7 +318,11 @@ const formatChecklistLines = (items: ChecklistItemStatus[]): string => {
     .join('\n');
 };
 
-export const formatDailyRigidWhatsApp = (item: DailyCheckRigid): string => {
+export const formatDailyRigidWhatsApp = (
+  item: DailyCheckRigid,
+  linkedBacklogs?: BacklogItem[],
+  linkedActivities?: AddActivityItem[]
+): string => {
   const isDaily = item.qaType === 'DAILY_INSPECTION';
   const isFinal = item.qaType === 'QA7_FINAL';
   const qaTitle = isDaily
@@ -296,9 +350,35 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
   // Format all checklist parameter results (all 19 items)
   const allParametersText = formatChecklistLines(allItems);
 
-  const photoCount = item.photoUrls && item.photoUrls.length > 0
-    ? item.photoUrls.length
-    : (item.photoUrl ? 1 : 0);
+  const targetUnit = (item.codeUnit || '').trim().toUpperCase();
+  const unitBacklogs = (linkedBacklogs ?? getBacklogs()).filter(
+    b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnit
+  );
+  const unitActivities = (linkedActivities ?? getActivities()).filter(
+    a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnit
+  );
+
+  const backlogSectionText =
+    unitBacklogs.length > 0
+      ? unitBacklogs
+          .map(
+            b =>
+              `${getClosedStatusEmoji(b.status)} [${b.status}] ${b.deskripsiBacklog}`
+          )
+          .join('\n')
+      : '• Tidak ada backlog untuk unit ini';
+
+  const activitySectionText =
+    unitActivities.length > 0
+      ? unitActivities
+          .map(
+            a =>
+              `${getClosedStatusEmoji(a.status)} [${a.status}] ${a.deskripsiAktivitas}${a.action ? ` (Action: ${a.action})` : ''}`
+          )
+          .join('\n')
+      : '• Tidak ada add activity untuk unit ini';
+
+  const linkedPhotos = getUnitBacklogAndActivityPhotos(item.codeUnit, unitBacklogs, unitActivities);
 
   return `📋 *LAPORAN ${qaTitle}* 🚛
 ---------------------------------------
@@ -321,18 +401,21 @@ ${deviationText}
 📝 *HASIL SEMUA PARAMETER CHECKLIST (${allItems.length} ITEM):*
 ${allParametersText}
 
-🔍 *TEMUAN DEVIASI / ADD ACTIVITIES:*
-${item.temuanDeviasi || 'Nihil / Semua item dalam toleransi'}
+📋 *BACKLOG TERKAIT (${unitBacklogs.length}):*
+${backlogSectionText}
 
-📊 *LINKED STATUS (TERHUBUNG OTOMATIS):*
-• Jumlah Backlog Aktif Terkait: *${item.jumlahBacklog}*
-• Jumlah Aktivitas Terkait: *${item.jumlahAktivitas}*
-${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Hasil Inspeksi` : ''}
+🔧 *ADD ACTIVITIES (${unitActivities.length}):*
+${activitySectionText}
+${linkedPhotos.length > 0 ? `\n📷 *DOKUMENTASI FOTO (BACKLOG & ADD ACTIVITY):* Terlampir ${linkedPhotos.length} Foto` : ''}
 ---------------------------------------
 _Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
 
-export const formatDailyArticWhatsApp = (item: DailyCheckArtic): string => {
+export const formatDailyArticWhatsApp = (
+  item: DailyCheckArtic,
+  linkedBacklogs?: BacklogItem[],
+  linkedActivities?: AddActivityItem[]
+): string => {
   const isDaily = item.qaType === 'DAILY_INSPECTION';
   const isFinal = item.qaType === 'QA7_FINAL';
   const qaTitle = isDaily
@@ -359,9 +442,35 @@ ${monitors.map(m => `• ${m.name}${m.remark ? ` (${m.remark})` : ''}`).join('\n
   // Format all checklist parameter results (all 36 items)
   const allParametersText = formatChecklistLines(allItems);
 
-  const photoCount = item.photoUrls && item.photoUrls.length > 0
-    ? item.photoUrls.length
-    : (item.photoUrl ? 1 : 0);
+  const targetUnit = (item.codeUnit || '').trim().toUpperCase();
+  const unitBacklogs = (linkedBacklogs ?? getBacklogs()).filter(
+    b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnit
+  );
+  const unitActivities = (linkedActivities ?? getActivities()).filter(
+    a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnit
+  );
+
+  const backlogSectionText =
+    unitBacklogs.length > 0
+      ? unitBacklogs
+          .map(
+            b =>
+              `${getClosedStatusEmoji(b.status)} [${b.status}] ${b.deskripsiBacklog}`
+          )
+          .join('\n')
+      : '• Tidak ada backlog untuk unit ini';
+
+  const activitySectionText =
+    unitActivities.length > 0
+      ? unitActivities
+          .map(
+            a =>
+              `${getClosedStatusEmoji(a.status)} [${a.status}] ${a.deskripsiAktivitas}${a.action ? ` (Action: ${a.action})` : ''}`
+          )
+          .join('\n')
+      : '• Tidak ada add activity untuk unit ini';
+
+  const linkedPhotos = getUnitBacklogAndActivityPhotos(item.codeUnit, unitBacklogs, unitActivities);
 
   return `🚜 *LAPORAN ${qaTitle}* 🚜
 ---------------------------------------
@@ -384,13 +493,12 @@ ${deviationText}
 📝 *HASIL SEMUA PARAMETER CHECKLIST (${allItems.length} ITEM):*
 ${allParametersText}
 
-🔍 *TEMUAN DEVIASI / ADD ACTIVITIES:*
-${item.temuanDeviasi || 'Nihil / Semua item dalam kondisi baik'}
+📋 *BACKLOG TERKAIT (${unitBacklogs.length}):*
+${backlogSectionText}
 
-📊 *LINKED STATUS (TERHUBUNG OTOMATIS):*
-• Jumlah Backlog Aktif Terkait: *${item.jumlahBacklog}*
-• Jumlah Aktivitas Terkait: *${item.jumlahAktivitas}*
-${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Hasil Inspeksi` : ''}
+🔧 *ADD ACTIVITIES (${unitActivities.length}):*
+${activitySectionText}
+${linkedPhotos.length > 0 ? `\n📷 *DOKUMENTASI FOTO (BACKLOG & ADD ACTIVITY):* Terlampir ${linkedPhotos.length} Foto` : ''}
 ---------------------------------------
 _Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
@@ -426,7 +534,7 @@ export const formatBacklogWhatsApp = (bl: BacklogItem): string => {
 📅 *Tanggal Temuan:* ${bl.tanggalTemuan}
 👷 *PIC Pelapor:* ${bl.pic}
 🔍 *Sumber Temuan:* ${bl.sumberTemuan}
-📌 *Status:* ${bl.status}
+📌 *Status:* ${getClosedStatusEmoji(bl.status)} ${bl.status}
 
 📋 *Deskripsi Temuan / Kerusakan:*
 ${bl.deskripsiBacklog}
@@ -448,7 +556,7 @@ export const formatActivityWhatsApp = (act: AddActivityItem): string => {
 🆔 *ID Aktivitas:* ${act.id}
 📅 *Tanggal:* ${act.tanggalTemuan}
 👷 *PIC Mekanik:* ${act.pic}
-📌 *Status:* ${act.status}
+📌 *Status:* ${getClosedStatusEmoji(act.status)} ${act.status}
 
 📝 *Deskripsi Aktivitas:*
 ${act.deskripsiAktivitas}

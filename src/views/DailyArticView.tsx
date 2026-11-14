@@ -13,15 +13,17 @@ import {
   XCircle,
   Edit3,
   Trash2,
-  Camera,
   ShieldCheck,
   Zap,
   ListTodo,
   Wrench,
   Eye,
 } from 'lucide-react';
-import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
-import { formatDailyArticWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
+import {
+  formatDailyArticWhatsApp,
+  shareToWhatsApp,
+  getUnitBacklogAndActivityPhotos,
+} from '../utils/whatsappFormatter';
 
 interface DailyArticViewProps {
   list: DailyCheckArtic[];
@@ -57,12 +59,6 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
   onEditBacklog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [previewPhoto, setPreviewPhoto] = useState<{
-    urls: string[];
-    index?: number;
-    title: string;
-    subtitle?: string;
-  } | null>(null);
 
   const isDaily = activeQaType === 'DAILY_INSPECTION';
   const isFinal = activeQaType === 'QA7_FINAL';
@@ -285,11 +281,25 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                   )}
                   <button
                     onClick={() => {
-                      const allPhotos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
-                      shareToWhatsApp(formatDailyArticWhatsApp(item), {
-                        photoUrls: allPhotos,
-                        title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Artic' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Artic' : 'QA 1 Pre Artic'} - ${item.codeUnit}`,
-                      });
+                      const targetUnit = item.codeUnit.trim().toUpperCase();
+                      const unitAllBacklogs = backlogs.filter(
+                        b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnit
+                      );
+                      const unitAllActivities = activities.filter(
+                        a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnit
+                      );
+                      const linkedPhotos = getUnitBacklogAndActivityPhotos(
+                        item.codeUnit,
+                        unitAllBacklogs,
+                        unitAllActivities
+                      );
+                      shareToWhatsApp(
+                        formatDailyArticWhatsApp(item, unitAllBacklogs, unitAllActivities),
+                        {
+                          photoUrls: linkedPhotos,
+                          title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Artic' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Artic' : 'QA 1 Pre Artic'} - ${item.codeUnit}`,
+                        }
+                      );
                     }}
                     title="WhatsApp (W)"
                     className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.15)] border border-[rgba(242,239,235,0.1)] text-[#4ade80] rounded transition"
@@ -378,61 +388,6 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* Temuan Deviasi */}
-              {item.temuanDeviasi && item.temuanDeviasi !== 'Nihil / Seluruh Komponen Dalam Kondisi Baik' && (
-                <div className="text-xs bg-amber-500/5 border border-amber-500/20 rounded-xl p-2.5 text-amber-300">
-                  <span className="font-bold block text-[10px] uppercase text-amber-400 mb-0.5">
-                    Temuan Deviasi / ADD ACTIVITIES:
-                  </span>
-                  <p>{item.temuanDeviasi}</p>
-                </div>
-              )}
-
-              {/* Foto Dokumentasi Inspeksi Unit (Bisa lebih dari 1 foto) */}
-              {(() => {
-                const photos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
-                if (photos.length === 0) return null;
-
-                return (
-                  <div className="bg-slate-850/60 p-2.5 rounded-xl border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-1.5 text-slate-300 font-semibold text-[11px]">
-                        <Camera className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Dokumentasi Foto Inspeksi ({photos.length} Foto)</span>
-                      </div>
-                      <span className="text-[10px] text-slate-500">Klik untuk melihat galeri</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {photos.map((pUrl, pIdx) => (
-                        <button
-                          key={`${item.id}-photo-${pIdx}`}
-                          type="button"
-                          onClick={() =>
-                            setPreviewPhoto({
-                              urls: photos,
-                              index: pIdx,
-                              title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Artic' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Artic' : 'QA 1 Pre Artic'} - ${item.codeUnit}`,
-                              subtitle: `Foto ${pIdx + 1} dari ${photos.length} | ${item.tanggal} (${item.status})`,
-                            })
-                          }
-                          className="relative group w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-700 hover:ring-2 hover:ring-amber-400 transition"
-                        >
-                          <img
-                            src={pUrl}
-                            alt={`Foto ${pIdx + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
-                          />
-                          <span className="absolute bottom-0 right-0 bg-slate-950/80 text-amber-400 text-[9px] font-bold px-1 rounded-tl">
-                            #{pIdx + 1}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* Live Connected Backlogs & Activities Panel */}
               {(() => {
@@ -590,18 +545,6 @@ export const DailyArticView: React.FC<DailyArticViewProps> = ({
           </div>
         )}
       </div>
-
-      {previewPhoto && (
-        <PhotoPreviewModal
-          isOpen={true}
-          onClose={() => setPreviewPhoto(null)}
-          photoUrl={previewPhoto.urls[previewPhoto.index || 0]}
-          photoUrls={previewPhoto.urls}
-          initialIndex={previewPhoto.index || 0}
-          title={previewPhoto.title}
-          subtitle={previewPhoto.subtitle}
-        />
-      )}
     </div>
   );
 };

@@ -713,44 +713,6 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                     </div>
                   ))}
                 </div>
-
-                {/* Temuan Deviasi */}
-                <div className="border border-slate-300 rounded p-2.5 bg-slate-50 mt-2">
-                  <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1">
-                    Temuan Deviasi / ADD ACTIVITIES:
-                  </span>
-                  <p className="text-slate-800">{report.data.temuanDeviasi || 'Nihil'}</p>
-                </div>
-
-                {(() => {
-                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
-                    ? report.data.photoUrls
-                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
-                  if (photos.length === 0) return null;
-
-                  return (
-                    <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
-                      <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
-                        Lampiran Dokumentasi Foto Daily Check / QA Rigid ({photos.length} Foto):
-                      </span>
-                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                        {photos.map((p, idx) => (
-                          <div key={idx} className="flex flex-col items-center">
-                            <img
-                              src={p}
-                              alt={`Foto Rigid ${idx + 1}`}
-                              crossOrigin="anonymous"
-                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                            />
-                            {photos.length > 1 && (
-                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             )}
 
@@ -814,43 +776,6 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                     </div>
                   ))}
                 </div>
-
-                <div className="border border-slate-300 rounded p-2.5 bg-slate-50 mt-2">
-                  <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1">
-                    Temuan Deviasi / ADD ACTIVITIES:
-                  </span>
-                  <p className="text-slate-800">{report.data.temuanDeviasi || 'Nihil'}</p>
-                </div>
-
-                {(() => {
-                  const photos = report.data.photoUrls && report.data.photoUrls.length > 0
-                    ? report.data.photoUrls
-                    : (report.data.photoUrl ? [report.data.photoUrl] : []);
-                  if (photos.length === 0) return null;
-
-                  return (
-                    <div className="border border-slate-300 rounded p-3 bg-slate-50 mt-2">
-                      <span className="font-bold text-slate-800 block text-[11px] uppercase mb-1.5">
-                        Lampiran Dokumentasi Foto Daily Check / QA Artic ({photos.length} Foto):
-                      </span>
-                      <div className={`grid gap-2.5 ${photos.length === 1 ? 'grid-cols-1 place-items-center' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                        {photos.map((p, idx) => (
-                          <div key={idx} className="flex flex-col items-center">
-                            <img
-                              src={p}
-                              alt={`Foto Artic ${idx + 1}`}
-                              crossOrigin="anonymous"
-                              className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
-                            />
-                            {photos.length > 1 && (
-                              <span className="text-[10px] text-slate-600 mt-1 font-semibold font-mono">Foto #{idx + 1}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             )}
 

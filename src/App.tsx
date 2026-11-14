@@ -1365,6 +1365,7 @@ export default function App() {
         itemToEdit={editingRigidItem}
         qaType={rigidModalQaType}
         backlogs={backlogs}
+        activities={activities}
         onSave={handleSaveDailyRigid}
         onPrintPreview={item => setPrintableReport({ type: 'DAILY_RIGID', data: item })}
         onOpenAddBacklog={cu => {
@@ -1396,6 +1397,7 @@ export default function App() {
         itemToEdit={editingArticItem}
         qaType={articModalQaType}
         backlogs={backlogs}
+        activities={activities}
         onSave={handleSaveDailyArtic}
         onPrintPreview={item => setPrintableReport({ type: 'DAILY_ARTIC', data: item })}
         onOpenAddBacklog={cu => {

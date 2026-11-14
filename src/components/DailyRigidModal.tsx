@@ -9,7 +9,6 @@ import {
 } from '../types';
 import { RIGID_CHECKLIST_ITEMS } from '../constants/checklists';
 import { CodeUnitSelector } from './CodeUnitSelector';
-import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
 import { getBacklogs, getActivities } from '../services/storageService';
 import {
@@ -31,7 +30,11 @@ import {
   Eye,
   Edit3,
 } from 'lucide-react';
-import { formatDailyRigidWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
+import {
+  formatDailyRigidWhatsApp,
+  shareToWhatsApp,
+  getUnitBacklogAndActivityPhotos,
+} from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
 
 interface DailyRigidModalProps {
@@ -89,8 +92,6 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     }))
   );
 
-  const [temuanDeviasi, setTemuanDeviasi] = useState('');
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<{
     urls: string[];
     index: number;
@@ -120,11 +121,13 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
   const allBacklogs = backlogs || getBacklogs();
   const allActivities = activities || getActivities();
 
-  const activeUnitBacklogs = codeUnit
+  const allUnitBacklogs = codeUnit
     ? allBacklogs.filter(
-        b => b.codeUnit && b.codeUnit.trim().toLowerCase() === codeUnit.trim().toLowerCase() && b.status !== 'CLOSED'
+        b => b.codeUnit && b.codeUnit.trim().toLowerCase() === codeUnit.trim().toLowerCase()
       )
     : [];
+
+  const activeUnitBacklogs = allUnitBacklogs.filter(b => b.status !== 'CLOSED');
 
   const unitActivities = codeUnit
     ? allActivities.filter(
@@ -187,13 +190,6 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
             };
       });
       setItems(mergedItems);
-
-      setTemuanDeviasi(itemToEdit.temuanDeviasi || '');
-
-      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? [...itemToEdit.photoUrls]
-        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
-      setPhotoUrls(existingPhotos);
     } else if (initialCodeUnit) {
       // Create Mode with selected unit
       setCodeUnit(initialCodeUnit);
@@ -222,8 +218,6 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
           remark: '',
         }))
       );
-      setTemuanDeviasi('');
-      setPhotoUrls([]);
     } else {
       // Create Mode default empty
       setCodeUnit('');
@@ -246,8 +240,6 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
           remark: '',
         }))
       );
-      setTemuanDeviasi('');
-      setPhotoUrls([]);
     }
     setSavedSuccessRecord(null);
     setFormError(null);
@@ -301,10 +293,6 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     try {
       setIsSubmitting(true);
       const activeQaType = itemToEdit?.qaType || qaType || 'DAILY_INSPECTION';
-      const isDaily = activeQaType === 'DAILY_INSPECTION';
-      const isFinal = activeQaType === 'QA7_FINAL';
-      const prefix = isDaily ? 'DAILY-RIG' : isFinal ? 'QA7-RIG' : 'QA1-RIG';
-      const randomSuffix = Math.floor(100 + Math.random() * 900);
 
       const formattedDate = formatDateDDMMYYYY(tanggal);
       const formattedStartTime = formatTimeHHMM(startTime);
@@ -323,11 +311,11 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
         picMekanik: picMekanik || 'Mekanik Heavy Equipment',
         divalidasiOleh: divalidasiOleh.trim(),
         items,
-        temuanDeviasi: temuanDeviasi || 'Nihil / Parameter Sesuai Standar',
+        temuanDeviasi: '',
         jumlahBacklog: activeUnitBacklogs.length,
         jumlahAktivitas: unitActivities.length,
-        photoUrls: photoUrls,
-        photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
+        photoUrls: [],
+        photoUrl: undefined,
         syncedToSheets: true,
         createdAt: itemToEdit ? itemToEdit.createdAt : new Date().toISOString(),
       };
@@ -424,70 +412,96 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
                 </div>
               </div>
 
-              {/* Photos Preview if available */}
-              {((savedSuccessRecord.photoUrls && savedSuccessRecord.photoUrls.length > 0) || savedSuccessRecord.photoUrl) && (
-                <div className="pt-2">
-                  <span className="text-[11px] font-semibold text-slate-300 block mb-2">
-                    Foto Dokumentasi Terlampir ({savedSuccessRecord.photoUrls?.length || 1} Foto):
-                  </span>
-                  <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg mx-auto">
-                    {(savedSuccessRecord.photoUrls || [savedSuccessRecord.photoUrl!]).map((url, idx) => (
+              {(() => {
+                const targetUnit = savedSuccessRecord.codeUnit.trim().toUpperCase();
+                const linkedUnitBacklogs = allBacklogs.filter(
+                  b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnit
+                );
+                const linkedUnitActivities = allActivities.filter(
+                  a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnit
+                );
+                const linkedPhotos = getUnitBacklogAndActivityPhotos(
+                  savedSuccessRecord.codeUnit,
+                  linkedUnitBacklogs,
+                  linkedUnitActivities
+                );
+
+                return (
+                  <>
+                    {linkedPhotos.length > 0 && (
+                      <div className="pt-2">
+                        <span className="text-[11px] font-semibold text-slate-300 block mb-2">
+                          Foto Backlog &amp; Add Activity Terlampir ({linkedPhotos.length} Foto):
+                        </span>
+                        <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg mx-auto">
+                          {linkedPhotos.map((url, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() =>
+                                setPreviewPhoto({
+                                  urls: linkedPhotos,
+                                  index: idx,
+                                  title: `Foto Backlog & Activity - ${savedSuccessRecord.codeUnit}`,
+                                  subtitle: `${savedSuccessRecord.tanggal} (${savedSuccessRecord.status})`,
+                                })
+                              }
+                              className="relative group rounded-xl overflow-hidden border border-slate-700 h-24 w-28 bg-slate-950 shadow-md"
+                            >
+                              <img
+                                src={url}
+                                alt={`Foto ${idx + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-semibold space-x-1">
+                                <Camera className="w-3.5 h-3.5" />
+                                <span>#{idx + 1}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons: WhatsApp & Print */}
+                    <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto">
                       <button
-                        key={idx}
                         type="button"
                         onClick={() =>
-                          setPreviewPhoto({
-                            urls: savedSuccessRecord.photoUrls || [savedSuccessRecord.photoUrl!],
-                            index: idx,
-                            title: `Inspeksi Rigid - ${savedSuccessRecord.codeUnit}`,
-                            subtitle: `${savedSuccessRecord.tanggal} (${savedSuccessRecord.status})`,
-                          })
+                          shareToWhatsApp(
+                            formatDailyRigidWhatsApp(
+                              savedSuccessRecord,
+                              linkedUnitBacklogs,
+                              linkedUnitActivities
+                            ),
+                            {
+                              photoUrls: linkedPhotos,
+                              title: `Laporan ${savedSuccessRecord.codeUnit} - ${savedSuccessRecord.qaType || 'Rigid'}`,
+                            }
+                          )
                         }
-                        className="relative group rounded-xl overflow-hidden border border-slate-700 h-24 w-28 bg-slate-950 shadow-md"
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition"
                       >
-                        <img
-                          src={url}
-                          alt={`Foto Inspeksi ${idx + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-semibold space-x-1">
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>#{idx + 1}</span>
-                        </div>
+                        <MessageSquare className="w-4 h-4" />
+                        <span>
+                          {linkedPhotos.length > 0
+                            ? 'Share WhatsApp (+ Foto BL & ACT)'
+                            : 'Share WhatsApp'}
+                        </span>
                       </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* Action Buttons: WhatsApp & Print */}
-              <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto">
-                <button
-                  type="button"
-                  onClick={() =>
-                    shareToWhatsApp(
-                      formatDailyRigidWhatsApp(savedSuccessRecord),
-                      {
-                        photoUrls: savedSuccessRecord.photoUrls || (savedSuccessRecord.photoUrl ? [savedSuccessRecord.photoUrl] : []),
-                        title: `Laporan ${savedSuccessRecord.codeUnit} - ${savedSuccessRecord.qaType || 'Rigid'}`,
-                      }
-                    )
-                  }
-                  className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Share WhatsApp (+ Foto)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onPrintPreview(savedSuccessRecord)}
-                  className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 active:scale-95 transition"
-                >
-                  <Printer className="w-4 h-4 text-amber-400" />
-                  <span>Cetak / Simpan PDF</span>
-                </button>
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => onPrintPreview(savedSuccessRecord)}
+                        className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 active:scale-95 transition"
+                      >
+                        <Printer className="w-4 h-4 text-amber-400" />
+                        <span>Cetak / Simpan PDF</span>
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="pt-2">
                 <button
@@ -734,36 +748,6 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
                   })}
                 </div>
               </div>
-
-              {/* Temuan Deviasi / ADD ACTIVITIES */}
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <label className="block text-slate-300 font-semibold">
-                  TEMUAN DEVIASI / ADD ACTIVITIES
-                </label>
-                <textarea
-                  rows={2}
-                  value={temuanDeviasi}
-                  onChange={e => setTemuanDeviasi(e.target.value)}
-                  placeholder="Tuliskan temuan deviasi jika ada item yang DEFECT/MONITOR, atau rencana tindakan perbaikan..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:border-amber-400 outline-none resize-none"
-                />
-              </div>
-
-              {/* SECTION: FOTO DOKUMENTASI (BISA LEBIH DARI 1) */}
-              <PhotoUploader
-                photoUrls={photoUrls}
-                onChangePhotos={setPhotoUrls}
-                label="Foto Dokumentasi Daily Check Rigid (Bisa Lebih Dari 1)"
-                description="Ambil foto fisik unit, walkaround ban, suspensi, engine bay, atau deviasi temuan dari kamera / galeri"
-                onPreviewFullscreen={(url, idx, all) =>
-                  setPreviewPhoto({
-                    urls: all || [url],
-                    index: idx || 0,
-                    title: `Foto ${menuTitle} - ${codeUnit || 'Unit'}`,
-                    subtitle: `Inspeksi ${tanggal} (${status})`,
-                  })
-                }
-              />
 
               {/* SECTION: KETERHUBUNGAN OTOMATIS KE BACKLOG & AKTIVITAS UNIT */}
               <div className="bg-slate-850/90 border border-amber-500/30 rounded-xl p-3.5 space-y-3">

@@ -33,6 +33,7 @@ import {
   formatBacklogWhatsApp,
   formatActivityWhatsApp,
   shareToWhatsApp,
+  getUnitBacklogAndActivityPhotos,
 } from '../utils/whatsappFormatter';
 
 interface DetailViewModalProps {
@@ -92,6 +93,11 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
         a => a.codeUnit && a.codeUnit.trim().toUpperCase() === unitCode.trim().toUpperCase()
       )
     : [];
+
+  const displayPhotos: string[] =
+    type === 'RIGID' || type === 'ARTIC'
+      ? getUnitBacklogAndActivityPhotos(unitCode, linkedBacklogs, linkedActivities)
+      : photos;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -401,16 +407,6 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
             </div>
           )}
 
-          {/* Temuan Deviasi (Rigid / Artic) */}
-          {data.temuanDeviasi && (
-            <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl text-amber-300">
-              <strong className="block text-[10px] uppercase text-amber-400 mb-0.5">
-                Temuan Deviasi / ADD ACTIVITIES:
-              </strong>
-              <p className="whitespace-pre-line">{data.temuanDeviasi}</p>
-            </div>
-          )}
-
           {/* SECTION: LINKED BACKLOGS FOR RIGID, ARTIC, OR UNIT (BISA DILIHAT DAN DIUBAH) */}
           {(type === 'RIGID' || type === 'ARTIC' || type === 'UNIT') && (
             <div className="bg-slate-850/90 border border-amber-500/30 rounded-xl p-3.5 space-y-2.5">
@@ -487,22 +483,27 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
           )}
 
           {/* Photos Gallery */}
-          {photos.length > 0 && (
+          {displayPhotos.length > 0 && (
             <div className="space-y-2 pt-1 border-t border-slate-800">
               <span className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
                 <Camera className="w-3.5 h-3.5 text-amber-400" />
-                <span>Dokumentasi Foto ({photos.length} Foto) - Klik untuk memperbesar</span>
+                <span>
+                  {type === 'RIGID' || type === 'ARTIC'
+                    ? `Dokumentasi Foto Backlog & Add Activity (${displayPhotos.length} Foto)`
+                    : `Dokumentasi Foto (${displayPhotos.length} Foto)`}{' '}
+                  - Klik untuk memperbesar
+                </span>
               </span>
               <div className="flex flex-wrap gap-2">
-                {photos.map((pUrl: string, pIdx: number) => (
+                {displayPhotos.map((pUrl: string, pIdx: number) => (
                   <button
                     key={pIdx}
                     type="button"
                     onClick={() => {
                       if (onOpenPhotoPreview) {
-                        onOpenPhotoPreview(photos, pIdx);
+                        onOpenPhotoPreview(displayPhotos, pIdx);
                       } else {
-                        setPreviewPhoto({ urls: photos, index: pIdx });
+                        setPreviewPhoto({ urls: displayPhotos, index: pIdx });
                       }
                     }}
                     className="relative group w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 hover:border-amber-400 transition"
@@ -539,16 +540,16 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
                 onClick={() => {
                   const message =
                     type === 'RIGID'
-                      ? formatDailyRigidWhatsApp(data)
+                      ? formatDailyRigidWhatsApp(data, linkedBacklogs, linkedActivities)
                       : type === 'ARTIC'
-                      ? formatDailyArticWhatsApp(data)
+                      ? formatDailyArticWhatsApp(data, linkedBacklogs, linkedActivities)
                       : type === 'BAP'
                       ? formatBAPWhatsApp(data)
                       : type === 'BACKLOG'
                       ? formatBacklogWhatsApp(data)
                       : formatActivityWhatsApp(data);
                   shareToWhatsApp(message, {
-                    photoUrls: photos,
+                    photoUrls: displayPhotos,
                     title,
                   });
                 }}
