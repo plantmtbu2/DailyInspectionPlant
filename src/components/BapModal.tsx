@@ -3,7 +3,8 @@ import { BAPRecord, CodeUnit } from '../types';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
-import { X, FileWarning, Save, CheckCircle, MessageSquare, Printer, Camera } from 'lucide-react';
+import { X, FileWarning, Save, CheckCircle, MessageSquare, Printer, Camera, Users } from 'lucide-react';
+import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatBAPWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
 
@@ -48,6 +49,7 @@ export const BapModal: React.FC<BapModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedSuccessRecord, setSavedSuccessRecord] = useState<BAPRecord | null>(null);
+  const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const initializedSessionKeyRef = useRef<string | null>(null);
 
@@ -268,8 +270,8 @@ export const BapModal: React.FC<BapModalProps> = ({
                 </div>
               )}
 
-              {/* Action Buttons: WhatsApp & Print */}
-              <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Action Buttons: WhatsApp, Group WA & Print */}
+              <div className="pt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -284,7 +286,22 @@ export const BapModal: React.FC<BapModalProps> = ({
                   className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Kirim via WhatsApp (+ Foto)</span>
+                  <span>Share WA (+ Foto)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGroupShareData({
+                      title: `Laporan BAP ${savedSuccessRecord.codeUnit}`,
+                      message: formatBAPWhatsApp(savedSuccessRecord),
+                      photoUrls: savedSuccessRecord.photoUrls || (savedSuccessRecord.photoUrl ? [savedSuccessRecord.photoUrl] : []),
+                    })
+                  }
+                  className="py-2.5 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-teal-600/20 active:scale-95 transition"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Share Group WA</span>
                 </button>
 
                 <button
@@ -523,6 +540,14 @@ export const BapModal: React.FC<BapModalProps> = ({
           subtitle={previewPhoto.subtitle}
         />
       )}
+
+      <WhatsAppGroupShareModal
+        isOpen={!!groupShareData}
+        onClose={() => setGroupShareData(null)}
+        title={groupShareData?.title || ''}
+        messageText={groupShareData?.message || ''}
+        photoUrls={groupShareData?.photoUrls || []}
+      />
     </div>
   );
 };

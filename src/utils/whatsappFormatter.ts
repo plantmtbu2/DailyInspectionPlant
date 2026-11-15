@@ -191,23 +191,210 @@ export const shareToWhatsApp = async (
   return { success: true, method: 'whatsapp-link' };
 };
 
+export interface SavedWhatsAppGroup {
+  id: string;
+  name: string;
+  inviteLink: string;
+}
+
+const WA_GROUPS_STORAGE_KEY = 'plant2_wa_groups';
+const WA_SELECTED_GROUP_KEY = 'plant2_selected_wa_group_id';
+
+export const normalizeWhatsAppGroupLink = (input: string): string => {
+  const trimmed = (input || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('chat.whatsapp.com/')) return `https://${trimmed}`;
+  if (/^[A-Za-z0-9]{15,}$/.test(trimmed)) return `https://chat.whatsapp.com/${trimmed}`;
+  return trimmed;
+};
+
+export const getStoredWhatsAppGroups = (): SavedWhatsAppGroup[] => {
+  try {
+    const raw = localStorage.getItem(WA_GROUPS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveWhatsAppGroups = (groups: SavedWhatsAppGroup[]): void => {
+  try {
+    localStorage.setItem(WA_GROUPS_STORAGE_KEY, JSON.stringify(groups));
+  } catch {}
+};
+
+export const getSelectedWhatsAppGroupId = (): string => {
+  try {
+    return localStorage.getItem(WA_SELECTED_GROUP_KEY) || '';
+  } catch {
+    return '';
+  }
+};
+
+export const setSelectedWhatsAppGroupId = (id: string): void => {
+  try {
+    localStorage.setItem(WA_SELECTED_GROUP_KEY, id);
+  } catch {}
+};
+
+export const copyTextToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } else if (typeof document !== 'undefined') {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return ok;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+};
+
+export interface WhatsAppGroupShareOptions {
+  groupInviteLink?: string;
+  groupName?: string;
+  photoUrls?: string[];
+  pdfBlob?: Blob;
+  pdfFileName?: string;
+  title?: string;
+  onToast?: (message: string, type: 'info' | 'success' | 'error') => void;
+}
+
+export const shareToWhatsAppGroup = async (
+  text: string,
+  options: WhatsAppGroupShareOptions = {}
+): Promise<{ success: boolean; method: string }> => {
+  const {
+    groupInviteLink = '',
+    groupName = '',
+    photoUrls = [],
+    pdfBlob,
+    pdfFileName = 'Laporan_Plant2_MTBU.pdf',
+    title = 'Laporan Plant 2 MTBU',
+    onToast,
+  } = options;
+
+  await copyTextToClipboard(text);
+
+  const cleanInviteLink = normalizeWhatsAppGroupLink(groupInviteLink);
+  const validPhotos = (photoUrls || []).filter(u => Boolean(u && typeof u === 'string'));
+
+  // Build native File attachments when available
+  const shareFiles: File[] = [];
+  if (pdfBlob) {
+    shareFiles.push(new File([pdfBlob], pdfFileName, { type: 'application/pdf' }));
+  } else {
+    for (let i = 0; i < validPhotos.length; i++) {
+      const url = validPhotos[i];
+      if (url.startsWith('data:image')) {
+        shareFiles.push(dataUrlToFile(url, `foto_laporan_${i + 1}.jpg`));
+      }
+    }
+  }
+
+  // If no direct chat.whatsapp.com invite link is targeted and Web Share API with files is supported (Android/iOS),
+  // open the OS Share Sheet directly so the user picks the target WhatsApp Group with attachments + caption!
+  if (
+    !cleanInviteLink &&
+    shareFiles.length > 0 &&
+    typeof navigator !== 'undefined' &&
+    navigator.share &&
+    navigator.canShare &&
+    navigator.canShare({ files: shareFiles })
+  ) {
+    try {
+      await navigator.share({
+        title,
+        text,
+        files: shareFiles,
+      });
+      if (onToast) onToast('Pilih Group WhatsApp tujuan untuk mengirim laporan & lampiran!', 'success');
+      return { success: true, method: 'web-share-group-files' };
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return { success: false, method: 'cancelled' };
+      }
+    }
+  }
+
+  // Download attachments automatically so user can drop them into the Group chat
+  if (pdfBlob) {
+    try {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = pdfFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } catch {}
+  } else if (validPhotos.length > 0) {
+    validPhotos.forEach((photo, idx) => {
+      downloadDataUrl(photo, `foto_laporan_${idx + 1}.jpg`);
+    });
+  }
+
+  const targetUrl = cleanInviteLink || constructWhatsAppDeepLink(text, '');
+  const link = document.createElement('a');
+  link.href = targetUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  if (onToast) {
+    if (cleanInviteLink) {
+      onToast(
+        `Teks laporan disalin${pdfBlob ? ' & PDF diunduh' : validPhotos.length > 0 ? ' & foto diunduh' : ''}! Membuka Group "${groupName || 'WhatsApp'}", silakan tempel (Paste) lalu kirim.`,
+        'success'
+      );
+    } else {
+      onToast(
+        `Membuka WhatsApp untuk memilih Group tujuan${pdfBlob ? ' (PDF ikut diunduh)' : validPhotos.length > 0 ? ' (foto ikut diunduh)' : ''}.`,
+        'info'
+      );
+    }
+  }
+
+  return { success: true, method: cleanInviteLink ? 'whatsapp-group-link' : 'whatsapp-group-picker' };
+};
+
 /**
- * Formats a pre-filled summary message addressed directly to a Group Leader / Pengawas
+ * Formats a pre-filled summary message addressed directly to a Group Leader / Pengawas or Group WhatsApp
  */
 export const formatGroupLeaderReportWhatsApp = (
   type: 'BAP' | 'DAILY_RIGID' | 'DAILY_ARTIC' | 'BACKLOG' | 'ACTIVITY',
   data: any,
   GroupLeaderName = 'Bapak/Ibu GroupLeader',
-  sheetUrl?: string
+  sheetUrl?: string,
+  linkedBacklogs?: BacklogItem[],
+  linkedActivities?: AddActivityItem[]
 ): string => {
   let body = '';
   if (type === 'BAP') body = formatBAPWhatsApp(data);
-  else if (type === 'DAILY_RIGID') body = formatDailyRigidWhatsApp(data);
-  else if (type === 'DAILY_ARTIC') body = formatDailyArticWhatsApp(data);
+  else if (type === 'DAILY_RIGID') body = formatDailyRigidWhatsApp(data, linkedBacklogs, linkedActivities);
+  else if (type === 'DAILY_ARTIC') body = formatDailyArticWhatsApp(data, linkedBacklogs, linkedActivities);
   else if (type === 'BACKLOG') body = formatBacklogWhatsApp(data);
   else if (type === 'ACTIVITY') body = formatActivityWhatsApp(data);
 
-  const header = `*Yth. ${GroupLeaderName}*\nMohon izin mengirimkan laporan inspeksi & perawatan unit alat berat:\n\n`;
+  const header = GroupLeaderName && GroupLeaderName.trim()
+    ? `*Yth. ${GroupLeaderName.trim()}*\nMohon izin mengirimkan laporan inspeksi & perawatan unit alat berat:\n\n`
+    : '';
   const sheetFooter = sheetUrl ? `\n\n📊 *Live Google Sheets:* ${sheetUrl}` : '';
 
   return `${header}${body}${sheetFooter}`;

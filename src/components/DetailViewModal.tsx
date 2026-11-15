@@ -23,9 +23,11 @@ import {
   Tractor,
   FileWarning,
   MessageSquare,
+  Users,
 } from 'lucide-react';
 import { BacklogItem, AddActivityItem } from '../types';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
+import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import {
   formatDailyRigidWhatsApp,
   formatDailyArticWhatsApp,
@@ -70,6 +72,7 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
   onViewBacklog,
 }) => {
   const [previewPhoto, setPreviewPhoto] = useState<{ urls: string[]; index: number } | null>(null);
+  const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
 
   const handleEditBacklog = onOpenEditBacklog || onEditBacklog;
   if (!isOpen || !data) return null;
@@ -535,29 +538,56 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
 
           <div className="flex items-center space-x-2">
             {type !== 'UNIT' && (
-              <button
-                type="button"
-                onClick={() => {
-                  const message =
-                    type === 'RIGID'
-                      ? formatDailyRigidWhatsApp(data, linkedBacklogs, linkedActivities)
-                      : type === 'ARTIC'
-                      ? formatDailyArticWhatsApp(data, linkedBacklogs, linkedActivities)
-                      : type === 'BAP'
-                      ? formatBAPWhatsApp(data)
-                      : type === 'BACKLOG'
-                      ? formatBacklogWhatsApp(data)
-                      : formatActivityWhatsApp(data);
-                  shareToWhatsApp(message, {
-                    photoUrls: displayPhotos,
-                    title,
-                  });
-                }}
-                className="py-2 px-4 bg-[#4ade80] hover:bg-[#22c55e] text-[#111113] font-black rounded uppercase tracking-wider flex items-center space-x-1.5 transition shadow-md shadow-[#4ade80]/20 active:scale-95"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Share WA</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const message =
+                      type === 'RIGID'
+                        ? formatDailyRigidWhatsApp(data, linkedBacklogs, linkedActivities)
+                        : type === 'ARTIC'
+                        ? formatDailyArticWhatsApp(data, linkedBacklogs, linkedActivities)
+                        : type === 'BAP'
+                        ? formatBAPWhatsApp(data)
+                        : type === 'BACKLOG'
+                        ? formatBacklogWhatsApp(data)
+                        : formatActivityWhatsApp(data);
+                    shareToWhatsApp(message, {
+                      photoUrls: displayPhotos,
+                      title,
+                    });
+                  }}
+                  className="py-2 px-3.5 bg-[#4ade80] hover:bg-[#22c55e] text-[#111113] font-black rounded uppercase tracking-wider flex items-center space-x-1.5 transition shadow-md shadow-[#4ade80]/20 active:scale-95"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Share WA</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const message =
+                      type === 'RIGID'
+                        ? formatDailyRigidWhatsApp(data, linkedBacklogs, linkedActivities)
+                        : type === 'ARTIC'
+                        ? formatDailyArticWhatsApp(data, linkedBacklogs, linkedActivities)
+                        : type === 'BAP'
+                        ? formatBAPWhatsApp(data)
+                        : type === 'BACKLOG'
+                        ? formatBacklogWhatsApp(data)
+                        : formatActivityWhatsApp(data);
+                    setGroupShareData({
+                      title,
+                      message,
+                      photoUrls: displayPhotos,
+                    });
+                  }}
+                  className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded uppercase tracking-wider flex items-center space-x-1.5 transition shadow-md shadow-emerald-600/20 active:scale-95"
+                  title="Share Langsung ke Group WhatsApp"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Group WA</span>
+                </button>
+              </>
             )}
             {onEdit && (
               <button
@@ -600,6 +630,14 @@ export const DetailViewModal: React.FC<DetailViewModalProps> = ({
           subtitle={`Foto ${previewPhoto.index + 1} dari ${previewPhoto.urls.length}`}
         />
       )}
+
+      <WhatsAppGroupShareModal
+        isOpen={!!groupShareData}
+        onClose={() => setGroupShareData(null)}
+        title={groupShareData?.title || title}
+        messageText={groupShareData?.message || ''}
+        photoUrls={groupShareData?.photoUrls || []}
+      />
     </div>
   );
 };

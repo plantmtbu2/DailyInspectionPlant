@@ -18,7 +18,9 @@ import {
   ListTodo,
   Wrench,
   Eye,
+  Users,
 } from 'lucide-react';
+import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
 import {
   formatDailyRigidWhatsApp,
   shareToWhatsApp,
@@ -59,6 +61,7 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
   onEditBacklog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
 
   const isDaily = activeQaType === 'DAILY_INSPECTION';
   const isFinal = activeQaType === 'QA7_FINAL';
@@ -308,6 +311,31 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
                     <MessageSquare className="w-4 h-4" />
                   </button>
                   <button
+                    onClick={() => {
+                      const targetUnit = item.codeUnit.trim().toUpperCase();
+                      const unitAllBacklogs = backlogs.filter(
+                        b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnit
+                      );
+                      const unitAllActivities = activities.filter(
+                        a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnit
+                      );
+                      const linkedPhotos = getUnitBacklogAndActivityPhotos(
+                        item.codeUnit,
+                        unitAllBacklogs,
+                        unitAllActivities
+                      );
+                      setGroupShareData({
+                        title: `${item.qaType === 'QA7_FINAL' ? 'QA 7 Final Rigid' : item.qaType === 'DAILY_INSPECTION' ? 'Daily Rigid' : 'QA 1 Pre Rigid'} - ${item.codeUnit}`,
+                        message: formatDailyRigidWhatsApp(item, unitAllBacklogs, unitAllActivities),
+                        photoUrls: linkedPhotos,
+                      });
+                    }}
+                    title="Share Langsung ke Group WhatsApp"
+                    className="w-8 h-8 flex items-center justify-center bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/35 text-emerald-300 rounded transition"
+                  >
+                    <Users className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => onPrintPreview(item)}
                     title="Cetak PDF (P)"
                     className="w-8 h-8 flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.15)] border border-[rgba(242,239,235,0.1)] text-[#facc15] rounded transition"
@@ -519,6 +547,14 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
           </div>
         )}
       </div>
+
+      <WhatsAppGroupShareModal
+        isOpen={!!groupShareData}
+        onClose={() => setGroupShareData(null)}
+        title={groupShareData?.title || ''}
+        messageText={groupShareData?.message || ''}
+        photoUrls={groupShareData?.photoUrls || []}
+      />
     </div>
   );
 };

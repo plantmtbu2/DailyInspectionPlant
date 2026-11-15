@@ -22,7 +22,9 @@ import {
   FileCheck,
   Search,
   Filter,
+  Users,
 } from 'lucide-react';
+import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
 import {
   DailyCheckRigid,
   DailyCheckArtic,
@@ -419,6 +421,30 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
     });
   };
 
+  const [groupShareText, setGroupShareText] = useState<string | null>(null);
+
+  const handleOpenGroupShare = () => {
+    const summary: DashboardAchievementSummary = {
+      periodType,
+      periodLabel,
+      totalUnits: totalTargetUnits,
+      inspectedUnitsCount: uniqueInspectedCount,
+      uninspectedUnitsCount: uninspectedUnitsList.length,
+      totalInspections: periodInspections.length,
+      achievementRate,
+      rigidCount: rigidInspectionsCount,
+      articCount: articInspectionsCount,
+      runningCount: runningUnitsCount,
+      breakdownCount: breakdownUnitsCount,
+      standbyCount: standbyUnitsCount,
+      defectItemsCount: totalDefectsCount,
+      backlogCount: connectedBacklogsCount,
+      activityCount: connectedActivitiesCount,
+      uninspectedUnitCodes: uninspectedUnitsList.map(u => u.codeUnit),
+    };
+    setGroupShareText(formatDashboardAchievementWhatsApp(summary));
+  };
+
   // Quick action: start inspection for an uninspected unit
   const handleStartInspection = (unit: CodeUnit) => {
     const isRigid =
@@ -459,10 +485,19 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
           <button
             onClick={handleShareWhatsApp}
             className="px-3.5 py-2 rounded bg-[#4ade80] hover:bg-[#22c55e] text-[#111113] text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#4ade80]/20"
-            title="Kirim ringkasan capaian ke WhatsApp Group Leader"
+            title="Kirim ringkasan capaian ke WhatsApp"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Share WA</span>
+          </button>
+
+          <button
+            onClick={handleOpenGroupShare}
+            className="px-3.5 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-emerald-600/20"
+            title="Share langsung ke Group WhatsApp"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Group WA</span>
           </button>
 
           <button
@@ -1140,6 +1175,13 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
           </div>
         </div>
       </div>
+
+      <WhatsAppGroupShareModal
+        isOpen={!!groupShareText}
+        onClose={() => setGroupShareText(null)}
+        title={`Dashboard Pencapaian ${periodType} (${periodLabel})`}
+        messageText={groupShareText || ''}
+      />
     </div>
   );
 };

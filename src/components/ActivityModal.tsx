@@ -3,7 +3,8 @@ import { AddActivityItem, CodeUnit } from '../types';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
-import { X, Wrench, Save, CheckCircle, MessageSquare, Camera } from 'lucide-react';
+import { X, Wrench, Save, CheckCircle, MessageSquare, Camera, Users } from 'lucide-react';
+import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatActivityWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
 
@@ -41,6 +42,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedItem, setSavedItem] = useState<AddActivityItem | null>(null);
+  const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const initializedSessionKeyRef = useRef<string | null>(null);
@@ -219,7 +221,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               )}
 
               {/* Action Buttons */}
-              <div className="pt-3 max-w-xs mx-auto">
+              <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto">
                 <button
                   type="button"
                   onClick={() =>
@@ -235,6 +237,21 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>Kirim via WhatsApp (+ Foto)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGroupShareData({
+                      title: `Laporan Aktivitas ${savedItem.codeUnit}`,
+                      message: formatActivityWhatsApp(savedItem),
+                      photoUrls: savedItem.photoUrls || (savedItem.photoUrl ? [savedItem.photoUrl] : []),
+                    })
+                  }
+                  className="w-full py-2.5 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-teal-600/20 active:scale-95 transition"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Share Group WA</span>
                 </button>
               </div>
 
@@ -384,6 +401,14 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
           subtitle={previewPhoto.subtitle}
         />
       )}
+
+      <WhatsAppGroupShareModal
+        isOpen={!!groupShareData}
+        onClose={() => setGroupShareData(null)}
+        title={groupShareData?.title || ''}
+        messageText={groupShareData?.message || ''}
+        photoUrls={groupShareData?.photoUrls || []}
+      />
     </div>
   );
 };

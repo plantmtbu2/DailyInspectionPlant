@@ -1485,6 +1485,8 @@ export default function App() {
         isOpen={!!printableReport}
         onClose={() => setPrintableReport(null)}
         report={printableReport}
+        allBacklogs={backlogs}
+        allActivities={activities}
       />
 
       {/* 9. Modal Konfirmasi Hapus */}

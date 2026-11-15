@@ -18,20 +18,18 @@ import {
   Copy,
   Check,
   UserCheck,
+  Users,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 import {
-  shareToWhatsApp,
   constructWhatsAppDeepLink,
   formatGroupLeaderReportWhatsApp,
-  formatBAPWhatsApp,
-  formatDailyRigidWhatsApp,
-  formatDailyArticWhatsApp,
-  formatBacklogWhatsApp,
-  formatActivityWhatsApp,
+  getUnitBacklogAndActivityPhotos,
 } from '../utils/whatsappFormatter';
 import { getStoredSheetsConfig } from '../services/googleSheetsService';
+import { getBacklogs, getActivities } from '../services/storageService';
+import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 
 type PrintableData =
   | { type: 'BAP'; data: BAPRecord }
@@ -44,16 +42,21 @@ interface PrintReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   report: PrintableData | null;
+  allBacklogs?: BacklogItem[];
+  allActivities?: AddActivityItem[];
 }
 
 export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   isOpen,
   onClose,
   report,
+  allBacklogs,
+  allActivities,
 }) => {
   const printCanvasRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isGroupShareOpen, setIsGroupShareOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // GroupLeader & WhatsApp Deep Link state
@@ -89,6 +92,69 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
   const getReportCodeUnit = () => report.data.codeUnit || 'UNIT';
 
+  const sourceBacklogs = allBacklogs ?? getBacklogs();
+  const sourceActivities = allActivities ?? getActivities();
+  const targetUnitUpper = (report.data.codeUnit || '').trim().toUpperCase();
+  const unitBacklogs = targetUnitUpper
+    ? sourceBacklogs.filter(b => b.codeUnit && b.codeUnit.trim().toUpperCase() === targetUnitUpper)
+    : [];
+  const unitActivities = targetUnitUpper
+    ? sourceActivities.filter(a => a.codeUnit && a.codeUnit.trim().toUpperCase() === targetUnitUpper)
+    : [];
+
+  type LinkedPhotoEntry = {
+    url: string;
+    source: 'BACKLOG' | 'ADD ACTIVITY';
+    status: string;
+    description: string;
+  };
+
+  const linkedPhotoEntries: LinkedPhotoEntry[] = (() => {
+    const entries: LinkedPhotoEntry[] = [];
+    const seen = new Set<string>();
+    const pushPhoto = (
+      url: string | undefined,
+      source: 'BACKLOG' | 'ADD ACTIVITY',
+      status: string,
+      description: string
+    ) => {
+      const clean = (url || '').trim();
+      if (clean && !seen.has(clean)) {
+        seen.add(clean);
+        entries.push({ url: clean, source, status, description });
+      }
+    };
+
+    unitBacklogs.forEach(b => {
+      const imgs = b.photoUrls && b.photoUrls.length > 0 ? b.photoUrls : b.photoUrl ? [b.photoUrl] : [];
+      imgs.forEach(u => pushPhoto(u, 'BACKLOG', b.status, b.deskripsiBacklog));
+    });
+
+    unitActivities.forEach(a => {
+      const imgs = a.photoUrls && a.photoUrls.length > 0 ? a.photoUrls : a.photoUrl ? [a.photoUrl] : [];
+      imgs.forEach(u => pushPhoto(u, 'ADD ACTIVITY', a.status, a.deskripsiAktivitas));
+    });
+
+    return entries;
+  })();
+
+  const getReportPhotoUrls = (): string[] => {
+    if (report.type === 'DAILY_RIGID' || report.type === 'DAILY_ARTIC') {
+      return getUnitBacklogAndActivityPhotos(report.data.codeUnit, unitBacklogs, unitActivities);
+    }
+    const ownPhotos =
+      report.data.photoUrls && report.data.photoUrls.length > 0
+        ? report.data.photoUrls
+        : report.data.photoUrl
+        ? [report.data.photoUrl]
+        : [];
+    if (report.type === 'BAP') {
+      const extra = getUnitBacklogAndActivityPhotos(report.data.codeUnit, unitBacklogs, unitActivities);
+      return Array.from(new Set([...ownPhotos, ...extra]));
+    }
+    return ownPhotos;
+  };
+
   const getReportDate = () => {
     if ('tanggal' in report.data) return report.data.tanggal;
     if ('tanggalTemuan' in report.data) return report.data.tanggalTemuan;
@@ -99,6 +165,26 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   const createPDFInstance = async () => {
     if (!printCanvasRef.current) return null;
     const element = printCanvasRef.current;
+
+    // Pastikan semua gambar selesai dimuat sebelum di-render ke kanvas PDF
+    const imgs = Array.from(element.querySelectorAll('img'));
+    await Promise.all(
+      imgs.map(
+        img =>
+          new Promise<void>(resolve => {
+            if (img.complete) return resolve();
+            const timer = setTimeout(() => resolve(), 4000);
+            img.onload = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+            img.onerror = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+          })
+      )
+    );
 
     let canvas: HTMLCanvasElement;
     try {
@@ -209,14 +295,16 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     } catch {}
   };
 
-  const getWhatsAppMessage = () => {
+  const getWhatsAppMessage = (forGroup = false) => {
     const sheetsConfig = getStoredSheetsConfig();
     const sheetUrl = sheetsConfig?.spreadsheetUrl;
     return formatGroupLeaderReportWhatsApp(
       report.type,
       report.data,
-      GroupLeaderName || '',
-      sheetUrl
+      forGroup ? '' : (GroupLeaderName || ''),
+      sheetUrl,
+      unitBacklogs,
+      unitActivities
     );
   };
 
@@ -363,8 +451,8 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             <button
               onClick={() => handleShareWhatsApp()}
               disabled={isGeneratingPDF || isSharing}
-              className="py-1.5 px-3.5 bg-[#4ade80] hover:bg-[#22c55e] active:scale-95 text-[#111113] rounded text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 shadow-md shadow-[#4ade80]/20 transition disabled:opacity-50"
-              title="Kirim laporan dan PDF langsung ke WhatsApp GroupLeader"
+              className="py-1.5 px-3 bg-[#4ade80] hover:bg-[#22c55e] active:scale-95 text-[#111113] rounded text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 shadow-md shadow-[#4ade80]/20 transition disabled:opacity-50"
+              title="Kirim laporan dan PDF ke WhatsApp Pengawas"
             >
               {isSharing ? (
                 <>
@@ -374,9 +462,20 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               ) : (
                 <>
                   <MessageSquare className="w-4 h-4" />
-                  <span>Share WhatsApp</span>
+                  <span>Share WA</span>
                 </>
               )}
+            </button>
+
+            {/* Tombol Share Langsung ke Group WhatsApp */}
+            <button
+              onClick={() => setIsGroupShareOpen(true)}
+              disabled={isGeneratingPDF || isSharing}
+              className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 transition disabled:opacity-50"
+              title="Share langsung ke Group WhatsApp (PDF atau Teks + Foto)"
+            >
+              <Users className="w-4 h-4" />
+              <span>Group WA</span>
             </button>
 
             {/* Tombol Pengawas / GroupLeader Setting Panel */}
@@ -631,7 +730,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                             <img
                               src={p}
                               alt={`Foto Kerusakan ${idx + 1}`}
-                              crossOrigin="anonymous"
+                              crossOrigin={p.startsWith('data:') ? undefined : 'anonymous'}
                               className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
                             />
                             {photos.length > 1 && (
@@ -643,6 +742,32 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                     </div>
                   );
                 })()}
+
+                {linkedPhotoEntries.length > 0 && (
+                  <div className="border border-slate-300 rounded p-3 bg-slate-50">
+                    <span className="font-bold block text-slate-800 mb-2 uppercase text-[11px]">
+                      Lampiran Foto Backlog &amp; Add Activity Terkait ({linkedPhotoEntries.length} Foto):
+                    </span>
+                    <div className={`grid gap-3 ${linkedPhotoEntries.length === 1 ? 'grid-cols-1 place-items-center' : linkedPhotoEntries.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                      {linkedPhotoEntries.map((entry, idx) => (
+                        <div key={idx} className="flex flex-col items-center border border-slate-200 bg-white rounded p-2">
+                          <img
+                            src={entry.url}
+                            alt={`Foto ${entry.source} ${idx + 1}`}
+                            crossOrigin={entry.url.startsWith('data:') ? undefined : 'anonymous'}
+                            className="max-h-44 max-w-full rounded border border-slate-200 object-contain"
+                          />
+                          <div className="mt-1.5 text-center w-full">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${entry.source === 'BACKLOG' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                              {entry.source} • {entry.status}
+                            </span>
+                            <p className="text-[10px] text-slate-700 mt-0.5 line-clamp-2">{entry.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -713,6 +838,73 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {/* Ringkasan Backlog & Add Activity Terkait */}
+                {(unitBacklogs.length > 0 || unitActivities.length > 0) && (
+                  <div className="border border-slate-300 rounded p-3 bg-slate-50 space-y-2">
+                    <span className="font-bold text-slate-800 uppercase text-[11px] block">
+                      Backlog &amp; Add Activity Terkait Unit {report.data.codeUnit}:
+                    </span>
+                    {unitBacklogs.length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">
+                          Backlog ({unitBacklogs.length}):
+                        </span>
+                        {unitBacklogs.map((b, bIdx) => (
+                          <div key={b.id || bIdx} className="text-[11px] text-slate-800 flex items-start space-x-1.5">
+                            <span>{String(b.status || '').toUpperCase() === 'CLOSED' ? '✅' : '🅾️'}</span>
+                            <span>
+                              <strong className="font-mono">[{b.status}]</strong> {b.deskripsiBacklog}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {unitActivities.length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-slate-200">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">
+                          Add Activities ({unitActivities.length}):
+                        </span>
+                        {unitActivities.map((a, aIdx) => (
+                          <div key={a.id || aIdx} className="text-[11px] text-slate-800 flex items-start space-x-1.5">
+                            <span>{String(a.status || '').toUpperCase() === 'CLOSED' ? '✅' : '🅾️'}</span>
+                            <span>
+                              <strong className="font-mono">[{a.status}]</strong> {a.deskripsiAktivitas}
+                              {a.action ? ` — Action: ${a.action}` : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Lampiran Foto Backlog & Add Activity */}
+                {linkedPhotoEntries.length > 0 && (
+                  <div className="border border-slate-300 rounded p-3 bg-slate-50">
+                    <span className="font-bold block text-slate-800 mb-2 uppercase text-[11px]">
+                      Lampiran Dokumentasi Foto Backlog &amp; Add Activity ({linkedPhotoEntries.length} Foto):
+                    </span>
+                    <div className={`grid gap-3 ${linkedPhotoEntries.length === 1 ? 'grid-cols-1 place-items-center' : linkedPhotoEntries.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                      {linkedPhotoEntries.map((entry, idx) => (
+                        <div key={idx} className="flex flex-col items-center border border-slate-200 bg-white rounded p-2">
+                          <img
+                            src={entry.url}
+                            alt={`Foto ${entry.source} ${idx + 1}`}
+                            crossOrigin={entry.url.startsWith('data:') ? undefined : 'anonymous'}
+                            className="max-h-44 max-w-full rounded border border-slate-200 object-contain"
+                          />
+                          <div className="mt-1.5 text-center w-full">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${entry.source === 'BACKLOG' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                              {entry.source} • {entry.status}
+                            </span>
+                            <p className="text-[10px] text-slate-700 mt-0.5 line-clamp-2">{entry.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -776,6 +968,73 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {/* Ringkasan Backlog & Add Activity Terkait */}
+                {(unitBacklogs.length > 0 || unitActivities.length > 0) && (
+                  <div className="border border-slate-300 rounded p-3 bg-slate-50 space-y-2">
+                    <span className="font-bold text-slate-800 uppercase text-[11px] block">
+                      Backlog &amp; Add Activity Terkait Unit {report.data.codeUnit}:
+                    </span>
+                    {unitBacklogs.length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-amber-800 uppercase block">
+                          Backlog ({unitBacklogs.length}):
+                        </span>
+                        {unitBacklogs.map((b, bIdx) => (
+                          <div key={b.id || bIdx} className="text-[11px] text-slate-800 flex items-start space-x-1.5">
+                            <span>{String(b.status || '').toUpperCase() === 'CLOSED' ? '✅' : '🅾️'}</span>
+                            <span>
+                              <strong className="font-mono">[{b.status}]</strong> {b.deskripsiBacklog}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {unitActivities.length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-slate-200">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">
+                          Add Activities ({unitActivities.length}):
+                        </span>
+                        {unitActivities.map((a, aIdx) => (
+                          <div key={a.id || aIdx} className="text-[11px] text-slate-800 flex items-start space-x-1.5">
+                            <span>{String(a.status || '').toUpperCase() === 'CLOSED' ? '✅' : '🅾️'}</span>
+                            <span>
+                              <strong className="font-mono">[{a.status}]</strong> {a.deskripsiAktivitas}
+                              {a.action ? ` — Action: ${a.action}` : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Lampiran Foto Backlog & Add Activity */}
+                {linkedPhotoEntries.length > 0 && (
+                  <div className="border border-slate-300 rounded p-3 bg-slate-50">
+                    <span className="font-bold block text-slate-800 mb-2 uppercase text-[11px]">
+                      Lampiran Dokumentasi Foto Backlog &amp; Add Activity ({linkedPhotoEntries.length} Foto):
+                    </span>
+                    <div className={`grid gap-3 ${linkedPhotoEntries.length === 1 ? 'grid-cols-1 place-items-center' : linkedPhotoEntries.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                      {linkedPhotoEntries.map((entry, idx) => (
+                        <div key={idx} className="flex flex-col items-center border border-slate-200 bg-white rounded p-2">
+                          <img
+                            src={entry.url}
+                            alt={`Foto ${entry.source} ${idx + 1}`}
+                            crossOrigin={entry.url.startsWith('data:') ? undefined : 'anonymous'}
+                            className="max-h-44 max-w-full rounded border border-slate-200 object-contain"
+                          />
+                          <div className="mt-1.5 text-center w-full">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${entry.source === 'BACKLOG' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                              {entry.source} • {entry.status}
+                            </span>
+                            <p className="text-[10px] text-slate-700 mt-0.5 line-clamp-2">{entry.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -877,7 +1136,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                             <img
                               src={p}
                               alt={`Foto Backlog ${idx + 1}`}
-                              crossOrigin="anonymous"
+                              crossOrigin={p.startsWith('data:') ? undefined : 'anonymous'}
                               className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
                             />
                             {photos.length > 1 && (
@@ -943,7 +1202,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                             <img
                               src={p}
                               alt={`Foto Aktivitas ${idx + 1}`}
-                              crossOrigin="anonymous"
+                              crossOrigin={p.startsWith('data:') ? undefined : 'anonymous'}
                               className="max-h-52 max-w-full rounded border border-slate-300 object-contain shadow-sm"
                             />
                             {photos.length > 1 && (
@@ -995,6 +1254,22 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           </div>
         </div>
       </div>
+
+      <WhatsAppGroupShareModal
+        isOpen={isGroupShareOpen}
+        onClose={() => setIsGroupShareOpen(false)}
+        title={`Laporan ${report.type} - ${getReportCodeUnit()}`}
+        messageText={getWhatsAppMessage(true)}
+        photoUrls={getReportPhotoUrls()}
+        onGeneratePdf={async () => {
+          const res = await createPDFInstance();
+          if (!res) return null;
+          return {
+            blob: res.pdf.output('blob'),
+            fileName: res.fileName,
+          };
+        }}
+      />
     </div>
   );
 };

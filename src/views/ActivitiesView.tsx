@@ -11,8 +11,10 @@ import {
   Trash2,
   Camera,
   Eye,
+  Users,
 } from 'lucide-react';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
+import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
 import { formatActivityWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 
 import { CodeUnit } from '../types';
@@ -47,6 +49,7 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
     title: string;
     subtitle?: string;
   } | null>(null);
+  const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
 
   const availableUnits = Array.from(new Set(activities.map(a => a.codeUnit)));
 
@@ -217,6 +220,20 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
                   <MessageSquare className="w-4 h-4" />
                 </button>
                 <button
+                  onClick={() => {
+                    const allPhotos = item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls : (item.photoUrl ? [item.photoUrl] : []);
+                    setGroupShareData({
+                      title: `Aktivitas ${item.id} - ${item.codeUnit}`,
+                      message: formatActivityWhatsApp(item),
+                      photoUrls: allPhotos,
+                    });
+                  }}
+                  title="Share Langsung ke Group WhatsApp"
+                  className="w-8 h-8 rounded flex items-center justify-center bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/35 text-emerald-300 transition"
+                >
+                  <Users className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => onPrintPreview(item)}
                   title="Cetak PDF / Print"
                   className="w-8 h-8 rounded flex items-center justify-center bg-[rgba(242,239,235,0.06)] hover:bg-[#facc15]/20 border border-[rgba(242,239,235,0.1)] hover:border-[#facc15]/40 text-[#facc15] transition"
@@ -353,6 +370,14 @@ export const ActivitiesView: React.FC<ActivitiesViewProps> = ({
           subtitle={previewPhoto.subtitle}
         />
       )}
+
+      <WhatsAppGroupShareModal
+        isOpen={!!groupShareData}
+        onClose={() => setGroupShareData(null)}
+        title={groupShareData?.title || ''}
+        messageText={groupShareData?.message || ''}
+        photoUrls={groupShareData?.photoUrls || []}
+      />
     </div>
   );
 };
