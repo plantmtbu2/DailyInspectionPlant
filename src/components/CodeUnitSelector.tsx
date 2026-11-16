@@ -38,9 +38,9 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
     if (onSelectUnit) onSelectUnit(u);
   };
 
-  // Ensure we ALWAYS have unit data available even if parent passed empty array
+  // Respect explicitly passed filtered units array (even if empty); only fallback if prop omitted
   const allUnits = useMemo(() => {
-    if (units && units.length > 0) return units;
+    if (units !== undefined) return units;
     return getCodeUnits();
   }, [units]);
 
@@ -195,7 +195,13 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
               type="text"
               value={manualCode}
               onChange={e => setManualCode(e.target.value.toUpperCase())}
-              placeholder="Contoh: RD-777D-03 atau HD-785-06"
+              placeholder={
+                filterType === 'Rigid'
+                  ? 'Contoh: DT5500 atau DT4100'
+                  : filterType === 'Artic'
+                  ? 'Contoh: GR01, CP02, atau WL03'
+                  : 'Contoh: DT5500 atau GR01'
+              }
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono uppercase focus:border-amber-400 outline-none"
             />
             <div className="flex items-center space-x-2">
@@ -249,7 +255,13 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
               className="w-full bg-slate-800 border-2 border-slate-700 hover:border-slate-600 focus:border-amber-400 rounded-xl px-3 py-2.5 text-xs text-white font-medium focus:outline-none transition cursor-pointer shadow-sm"
             >
               <option value="" style={{ backgroundColor: '#0f172a', color: '#94a3b8' }}>
-                -- Pilih Code Unit Alat Berat --
+                {allUnits.length === 0
+                  ? filterType === 'Rigid'
+                    ? '-- Belum ada unit DT terdaftar di Master Unit --'
+                    : filterType === 'Artic'
+                    ? '-- Belum ada unit GR / CP / WL terdaftar di Master Unit --'
+                    : '-- Belum ada Code Unit terdaftar --'
+                  : '-- Pilih Code Unit Alat Berat --'}
               </option>
 
               {/* If there's an active custom/manual code not in master list, show it */}

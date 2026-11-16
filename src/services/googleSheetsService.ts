@@ -409,9 +409,42 @@ export const ADD_ACTIVITIES_SHEET_HEADERS = [
   'Foto Aktivitas',
 ];
 
+const MAX_SHEET_CELL_CHARS = 48000;
+
+const isValidPhotoString = (val?: string): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed) return false;
+  return (
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://')
+  );
+};
+
 export const serializePhotos = (urls?: string[], single?: string): string => {
-  if (urls && urls.length > 0) return urls.join(' \n ');
-  return single || '';
+  const candidates = (urls && urls.length > 0 ? urls : single ? [single] : [])
+    .map(s => (typeof s === 'string' ? s.trim() : ''))
+    .filter(isValidPhotoString);
+
+  if (candidates.length === 0) return '';
+
+  const selected: string[] = [];
+  let currentLength = 0;
+  const separator = ' \n ';
+
+  for (const photo of candidates) {
+    const nextLength =
+      selected.length === 0
+        ? photo.length
+        : currentLength + separator.length + photo.length;
+    if (nextLength <= MAX_SHEET_CELL_CHARS) {
+      selected.push(photo);
+      currentLength = nextLength;
+    }
+  }
+
+  return selected.join(separator);
 };
 
 export const parsePhotos = (cellVal?: any): { photoUrl?: string; photoUrls?: string[] } => {
@@ -419,14 +452,14 @@ export const parsePhotos = (cellVal?: any): { photoUrl?: string; photoUrls?: str
   const str = String(cellVal).trim();
   if (!str) return {};
   if (str.includes('\n')) {
-    const list = str.split('\n').map(s => s.trim()).filter(Boolean);
-    return { photoUrl: list[0], photoUrls: list };
+    const list = str.split('\n').map(s => s.trim()).filter(isValidPhotoString);
+    return list.length > 0 ? { photoUrl: list[0], photoUrls: list } : {};
   }
   if (str.includes(' ; ')) {
-    const list = str.split(' ; ').map(s => s.trim()).filter(Boolean);
-    return { photoUrl: list[0], photoUrls: list };
+    const list = str.split(' ; ').map(s => s.trim()).filter(isValidPhotoString);
+    return list.length > 0 ? { photoUrl: list[0], photoUrls: list } : {};
   }
-  return { photoUrl: str, photoUrls: [str] };
+  return isValidPhotoString(str) ? { photoUrl: str, photoUrls: [str] } : {};
 };
 
 export const buildRigidSheetRow = (r: DailyCheckRigid): (string | number)[] => {
@@ -1203,7 +1236,7 @@ const parseActivityRows = (rows: any[][]): AddActivityItem[] => {
         codeUnit: String(r[1]),
         deskripsiAktivitas: String(r[2] || ''),
         action: String(r[3] || ''),
-        status: (['DONE', 'MONITORING', 'PENDING'].includes(r[4]) ? r[4] : 'DONE') as any,
+        status: (['DONE', 'CLOSED', 'MONITORING', 'PENDING'].includes(r[4]) ? r[4] : 'DONE') as any,
         tanggalTemuan: String(r[5] || new Date().toISOString().slice(0, 10)),
         pic: String(r[6] || ''),
         syncedToSheets: true,

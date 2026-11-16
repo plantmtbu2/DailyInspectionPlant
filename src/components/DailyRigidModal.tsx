@@ -38,6 +38,7 @@ import {
   getUnitBacklogAndActivityPhotos,
 } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
+import { isRigidUnitCode } from '../utils/unitFilter';
 
 interface DailyRigidModalProps {
   isOpen: boolean;
@@ -120,6 +121,11 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     }
   }, [startTime, finishTime]);
 
+  const rigidUnits = React.useMemo(
+    () => (units || []).filter(u => isRigidUnitCode(u.codeUnit)),
+    [units]
+  );
+
   // Compute live linked backlogs & activities for the currently selected code unit
   const allBacklogs = backlogs || getBacklogs();
   const allActivities = activities || getActivities();
@@ -196,8 +202,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     } else if (initialCodeUnit) {
       // Create Mode with selected unit
       setCodeUnit(initialCodeUnit);
-      const allUnits = units && units.length > 0 ? units : [];
-      const matched = allUnits.find(
+      const matched = rigidUnits.find(
         u => u.codeUnit.toLowerCase() === initialCodeUnit.toLowerCase()
       );
       if (matched) {
@@ -549,10 +554,11 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
                 {/* Code Unit Selector */}
                 <div className="sm:col-span-2">
                   <CodeUnitSelector
-                    units={units}
+                    units={rigidUnits}
                     selectedUnit={codeUnit}
                     onSelectUnit={handleUnitSelect}
-                    label="Code Unit Rigid Dump Truck *"
+                    filterType="Rigid"
+                    label="Code Unit Rigid Dump Truck (Unit DT) *"
                   />
                 </div>
 

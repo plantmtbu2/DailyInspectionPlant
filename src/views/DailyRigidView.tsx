@@ -26,6 +26,7 @@ import {
   shareToWhatsApp,
   getUnitBacklogAndActivityPhotos,
 } from '../utils/whatsappFormatter';
+import { isRigidUnitCode } from '../utils/unitFilter';
 
 interface DailyRigidViewProps {
   list: DailyCheckRigid[];
@@ -68,11 +69,13 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
   const isPre = activeQaType === 'QA1_PRE';
   const isAll = activeQaType === 'ALL';
 
-  const dailyCount = list.filter(i => i.qaType === 'DAILY_INSPECTION').length;
-  const qa1Count = list.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
-  const qa7Count = list.filter(i => i.qaType === 'QA7_FINAL').length;
+  const rigidOnlyList = list.filter(i => isRigidUnitCode(i.codeUnit));
 
-  const currentList = list.filter(item => {
+  const dailyCount = rigidOnlyList.filter(i => i.qaType === 'DAILY_INSPECTION').length;
+  const qa1Count = rigidOnlyList.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
+  const qa7Count = rigidOnlyList.filter(i => i.qaType === 'QA7_FINAL').length;
+
+  const currentList = rigidOnlyList.filter(item => {
     if (activeQaType === 'ALL') return true;
     const itemQaType = item.qaType || 'QA1_PRE';
     return itemQaType === activeQaType;
@@ -183,7 +186,7 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
               : 'text-[rgba(242,239,235,0.5)] hover:text-[#f2efeb] hover:bg-[rgba(242,239,235,0.05)] border border-transparent'
           }`}
         >
-          <span>SEMUA ({list.length})</span>
+          <span>SEMUA ({rigidOnlyList.length})</span>
         </button>
       </div>
 

@@ -7,6 +7,7 @@ import { X, Wrench, Save, CheckCircle, MessageSquare, Camera, Users } from 'luci
 import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatActivityWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
+import { getVaultPhotos, readVaultPhotosAsync } from '../services/photoStorageService';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
 
   const initializedSessionKeyRef = useRef<string | null>(null);
+  const hasUserEditedPhotosRef = useRef<boolean>(false);
 
   useEffect(() => {
     setFormError(null);
@@ -60,6 +62,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       return;
     }
     initializedSessionKeyRef.current = sessionKey;
+    hasUserEditedPhotosRef.current = false;
 
     if (itemToEdit) {
       setCodeUnit(itemToEdit.codeUnit || '');
@@ -68,11 +71,35 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       setStatus(itemToEdit.status || 'DONE');
       setTanggalTemuan(formatDateForInput(itemToEdit.tanggalTemuan));
       setPic(itemToEdit.pic || '');
-      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? [...itemToEdit.photoUrls]
-        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+
+      const directPhotos = (
+        itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+          ? itemToEdit.photoUrls
+          : itemToEdit.photoUrl
+          ? [itemToEdit.photoUrl]
+          : []
+      ).filter(Boolean);
+      const vaultPhotos = getVaultPhotos('ACTIVITY', itemToEdit.id) || [];
+      const existingPhotos = directPhotos.length > 0 ? [...directPhotos] : [...vaultPhotos];
       setPhotoUrls(existingPhotos);
       setPhotoUrl(existingPhotos[0] || undefined);
+
+      // Async backup hydration from IndexedDB if synchronous cache wasn't populated yet
+      if (existingPhotos.length === 0) {
+        const targetId = itemToEdit.id;
+        void readVaultPhotosAsync('ACTIVITY', targetId).then(dbPhotos => {
+          if (
+            dbPhotos &&
+            dbPhotos.length > 0 &&
+            !hasUserEditedPhotosRef.current &&
+            initializedSessionKeyRef.current === `EDIT:${targetId}`
+          ) {
+            setPhotoUrls([...dbPhotos]);
+            setPhotoUrl(dbPhotos[0]);
+          }
+        });
+      }
+
       setSavedItem(null);
     } else if (initialCodeUnit) {
       setCodeUnit(initialCodeUnit);
@@ -114,6 +141,14 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     try {
       setIsSubmitting(true);
       const formattedDate = formatDateDDMMYYYY(tanggalTemuan);
+      const normalizedPhotos = (
+        photoUrls && photoUrls.length > 0
+          ? photoUrls
+          : photoUrl
+          ? [photoUrl]
+          : []
+      ).filter(Boolean);
+
       const item: AddActivityItem = {
         id: itemToEdit ? itemToEdit.id : `ACT-${Date.now().toString().slice(-5)}`,
         codeUnit,
@@ -122,8 +157,8 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         status,
         tanggalTemuan: formattedDate,
         pic: pic || 'Mekanik Maintenance',
-        photoUrls: photoUrls,
-        photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
+        photoUrls: normalizedPhotos,
+        photoUrl: normalizedPhotos.length > 0 ? normalizedPhotos[0] : undefined,
         syncedToSheets: true,
         createdAt: itemToEdit ? itemToEdit.createdAt : new Date().toISOString(),
       };
@@ -344,9 +379,16 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
               {/* Dokumentasi Foto Aktivitas (Bisa Banyak) */}
               <PhotoUploader
+                photoUrl={photoUrl}
                 photoUrls={photoUrls}
-                onChangePhotos={setPhotoUrls}
-                onChange={setPhotoUrl}
+                onChangePhotos={next => {
+                  hasUserEditedPhotosRef.current = true;
+                  setPhotoUrls(next);
+                }}
+                onChange={nextSingle => {
+                  hasUserEditedPhotosRef.current = true;
+                  setPhotoUrl(nextSingle);
+                }}
                 label="Foto Dokumentasi Pengerjaan / Tindakan Mekanik (Bisa Lebih Dari 1)"
                 description="Ambil foto proses servis, penggantian sparepart baru, atau hasil akhir pengerjaan dari kamera / galeri"
                 onPreviewFullscreen={(url, idx, all) =>

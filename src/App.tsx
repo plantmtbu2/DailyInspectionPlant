@@ -47,6 +47,8 @@ import {
   pullAllDataFromGoogleSheet,
 } from './services/googleSheetsService';
 import { initAuth } from './services/firebaseAuth';
+import { initPhotoVault } from './services/photoStorageService';
+import { isRigidUnitCode, isArticUnitCode } from './utils/unitFilter';
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -202,10 +204,10 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Load initial local storage data first
+    // 1. Load initial local storage data first, then hydrate Photo Vault (IndexedDB)
     reloadLocalState();
 
-    // 2. Automatically sync and load default database directly from connected Google Sheet
+    // 2. Automatically sync and load default database directly from connected Google Sheet AFTER Photo Vault finishes initializing
     const syncDefaultDatabaseFromSheet = async () => {
       const cfg = getStoredSheetsConfig();
       if (!cfg || (!cfg.spreadsheetId && !cfg.webAppUrl)) {
@@ -237,7 +239,7 @@ export default function App() {
         );
 
         if (hasRemoteData) {
-          // Replace local database with Google Sheets data
+          // Replace local database with Google Sheets data (preserving Photo Vault photos)
           replaceEntireDataset(pulled);
           reloadLocalState();
           showToast(`Database Google Sheet terhubung (${pulled.codeUnits.length} Unit terdaftar)`, 'success');
@@ -252,7 +254,14 @@ export default function App() {
       }
     };
 
-    syncDefaultDatabaseFromSheet();
+    const initializeAppData = async () => {
+      await initPhotoVault();
+      if (!isMounted) return;
+      reloadLocalState();
+      await syncDefaultDatabaseFromSheet();
+    };
+
+    void initializeAppData();
 
     const unsubscribe = initAuth(() => {
       setSheetsConfig(getStoredSheetsConfig());
@@ -585,7 +594,10 @@ export default function App() {
   };
 
   const handleOpenEditBacklog = (item: BacklogItem) => {
-    const latest = backlogs.find(b => b.id === item.id) || item;
+    const latest =
+      getBacklogs().find(b => b.id === item.id) ||
+      backlogs.find(b => b.id === item.id) ||
+      item;
     setEditingBacklogItem(latest);
     setSelectedUnitForBacklog(latest.codeUnit);
     setIsBacklogModalOpen(true);
@@ -599,7 +611,10 @@ export default function App() {
   };
 
   const handleOpenEditActivity = (item: AddActivityItem) => {
-    const latest = activities.find(a => a.id === item.id) || item;
+    const latest =
+      getActivities().find(a => a.id === item.id) ||
+      activities.find(a => a.id === item.id) ||
+      item;
     setEditingActivityItem(latest);
     setSelectedUnitForActivity(latest.codeUnit);
     setIsActivityModalOpen(true);
@@ -731,12 +746,14 @@ export default function App() {
   // Counts for badges
   const openBapCount = bapList.filter(b => b.status === 'OPEN').length;
   const activeBacklogCount = backlogs.filter(b => b.status !== 'CLOSED').length;
-  const dailyRigidCount = dailyRigidList.filter(i => (i.qaType || 'DAILY_INSPECTION') === 'DAILY_INSPECTION').length;
-  const dailyArticCount = dailyArticList.filter(i => (i.qaType || 'DAILY_INSPECTION') === 'DAILY_INSPECTION').length;
-  const qa1RigidCount = dailyRigidList.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
-  const qa7RigidCount = dailyRigidList.filter(i => i.qaType === 'QA7_FINAL').length;
-  const qa1ArticCount = dailyArticList.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
-  const qa7ArticCount = dailyArticList.filter(i => i.qaType === 'QA7_FINAL').length;
+  const rigidOnlyInspections = dailyRigidList.filter(i => isRigidUnitCode(i.codeUnit));
+  const articOnlyInspections = dailyArticList.filter(i => isArticUnitCode(i.codeUnit));
+  const dailyRigidCount = rigidOnlyInspections.filter(i => (i.qaType || 'DAILY_INSPECTION') === 'DAILY_INSPECTION').length;
+  const dailyArticCount = articOnlyInspections.filter(i => (i.qaType || 'DAILY_INSPECTION') === 'DAILY_INSPECTION').length;
+  const qa1RigidCount = rigidOnlyInspections.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
+  const qa7RigidCount = rigidOnlyInspections.filter(i => i.qaType === 'QA7_FINAL').length;
+  const qa1ArticCount = articOnlyInspections.filter(i => (i.qaType || 'QA1_PRE') === 'QA1_PRE').length;
+  const qa7ArticCount = articOnlyInspections.filter(i => i.qaType === 'QA7_FINAL').length;
 
   if (!isAuthenticated) {
     return <LoginScreen />;

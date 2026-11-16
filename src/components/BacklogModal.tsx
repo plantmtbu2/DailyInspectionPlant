@@ -18,6 +18,7 @@ import {
 import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatBacklogWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
+import { getVaultPhotos, readVaultPhotosAsync } from '../services/photoStorageService';
 
 const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -92,6 +93,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
 
   const initializedSessionKeyRef = useRef<string | null>(null);
+  const hasUserEditedPhotosRef = useRef<boolean>(false);
 
   useEffect(() => {
     setFormError(null);
@@ -106,6 +108,7 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       return;
     }
     initializedSessionKeyRef.current = sessionKey;
+    hasUserEditedPhotosRef.current = false;
 
     if (itemToEdit) {
       setCodeUnit(itemToEdit.codeUnit || '');
@@ -140,11 +143,35 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setStatus(itemToEdit.status || 'WAITING_PART');
       setTanggalTemuan(formatDateForInput(itemToEdit.tanggalTemuan));
       setPic(itemToEdit.pic || '');
-      const existingPhotos = itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
-        ? [...itemToEdit.photoUrls]
-        : (itemToEdit.photoUrl ? [itemToEdit.photoUrl] : []);
+
+      const directPhotos = (
+        itemToEdit.photoUrls && itemToEdit.photoUrls.length > 0
+          ? itemToEdit.photoUrls
+          : itemToEdit.photoUrl
+          ? [itemToEdit.photoUrl]
+          : []
+      ).filter(Boolean);
+      const vaultPhotos = getVaultPhotos('BACKLOG', itemToEdit.id) || [];
+      const existingPhotos = directPhotos.length > 0 ? [...directPhotos] : [...vaultPhotos];
       setPhotoUrls(existingPhotos);
       setPhotoUrl(existingPhotos[0] || undefined);
+
+      // Async backup hydration from IndexedDB if synchronous cache wasn't populated yet
+      if (existingPhotos.length === 0) {
+        const targetId = itemToEdit.id;
+        void readVaultPhotosAsync('BACKLOG', targetId).then(dbPhotos => {
+          if (
+            dbPhotos &&
+            dbPhotos.length > 0 &&
+            !hasUserEditedPhotosRef.current &&
+            initializedSessionKeyRef.current === `EDIT:${targetId}`
+          ) {
+            setPhotoUrls([...dbPhotos]);
+            setPhotoUrl(dbPhotos[0]);
+          }
+        });
+      }
+
       setSavedItem(null);
     } else if (initialCodeUnit) {
       setCodeUnit(initialCodeUnit);
@@ -275,6 +302,14 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         ? `${codeUnit}-${moBacklog.trim().replace(/\s+/g, '_')}-${Date.now().toString().slice(-4)}`
         : `${codeUnit}-AUTO-${Date.now().toString().slice(-4)}`;
 
+      const normalizedPhotos = (
+        photoUrls && photoUrls.length > 0
+          ? photoUrls
+          : photoUrl
+          ? [photoUrl]
+          : []
+      ).filter(Boolean);
+
       const item: BacklogItem = {
         id: generatedId,
         codeUnit,
@@ -289,8 +324,8 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
         status,
         tanggalTemuan: formattedDate,
         pic: pic || 'Mekanik Maintenance',
-        photoUrls: photoUrls,
-        photoUrl: photoUrls.length > 0 ? photoUrls[0] : undefined,
+        photoUrls: normalizedPhotos,
+        photoUrl: normalizedPhotos.length > 0 ? normalizedPhotos[0] : undefined,
         syncedToSheets: true,
         createdAt: itemToEdit ? itemToEdit.createdAt : new Date().toISOString(),
       };
@@ -675,9 +710,16 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
 
               {/* Dokumentasi Foto Temuan Backlog */}
               <PhotoUploader
+                photoUrl={photoUrl}
                 photoUrls={photoUrls}
-                onChangePhotos={setPhotoUrls}
-                onChange={setPhotoUrl}
+                onChangePhotos={next => {
+                  hasUserEditedPhotosRef.current = true;
+                  setPhotoUrls(next);
+                }}
+                onChange={nextSingle => {
+                  hasUserEditedPhotosRef.current = true;
+                  setPhotoUrl(nextSingle);
+                }}
                 label="Foto Dokumentasi Temuan Backlog / Sparepart (Bisa Lebih Dari 1)"
                 description="Ambil foto komponen aus, patah, bocor, atau label part number yang dibutuhkan dari kamera / galeri"
                 onPreviewFullscreen={(url, idx, all) =>

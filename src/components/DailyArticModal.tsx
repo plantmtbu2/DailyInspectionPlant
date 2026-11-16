@@ -38,6 +38,7 @@ import {
   getUnitBacklogAndActivityPhotos,
 } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
+import { isArticUnitCode } from '../utils/unitFilter';
 
 interface DailyArticModalProps {
   isOpen: boolean;
@@ -121,6 +122,11 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
     }
   }, [startTime, finishTime]);
 
+  const articUnits = React.useMemo(
+    () => (units || []).filter(u => isArticUnitCode(u.codeUnit)),
+    [units]
+  );
+
   // Compute live linked backlogs & activities for the currently selected code unit
   const allBacklogs = backlogs || getBacklogs();
   const allActivities = activities || getActivities();
@@ -195,8 +201,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
     } else if (initialCodeUnit) {
       // Create Mode with selected unit
       setCodeUnit(initialCodeUnit);
-      const allUnits = units && units.length > 0 ? units : [];
-      const matched = allUnits.find(
+      const matched = articUnits.find(
         u => u.codeUnit.toLowerCase() === initialCodeUnit.toLowerCase()
       );
       if (matched) {
@@ -543,10 +548,11 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
                 {/* Code Unit Selector */}
                 <div className="sm:col-span-2">
                   <CodeUnitSelector
-                    units={units}
+                    units={articUnits}
                     selectedUnit={codeUnit}
                     onSelectUnit={handleUnitSelect}
-                    label="Code Unit Articulated / Motor Grader *"
+                    filterType="Artic"
+                    label="Code Unit Articulated / Grader / Compactor / Wheel Loader (Unit GR, CP, WL) *"
                   />
                 </div>
 

@@ -16,6 +16,12 @@ import {
   getStoredSheetsConfig,
   pushAllDataToGoogleSheet,
 } from './googleSheetsService';
+import {
+  saveVaultPhotos,
+  deleteVaultPhotos,
+  hydrateItemsWithVaultPhotos,
+  getVaultPhotos,
+} from './photoStorageService';
 
 const STORAGE_KEYS = {
   CODE_UNITS: 'fleetcheck_code_units_v1',
@@ -134,6 +140,28 @@ export const autoSyncToGoogleSheetIfConnected = async () => {
   }, 350);
 };
 
+const safeSetCollection = (key: string, items: any[]) => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch (err) {
+    // QuotaExceededError fallback: strip heavy inline data:image base64 from localStorage copy;
+    // Backlog & Activity photos remain safely stored in IndexedDB Photo Vault.
+    try {
+      const lightweight = items.map((it: any) => ({
+        ...it,
+        photoUrl: it?.photoUrl && !String(it.photoUrl).startsWith('data:') ? it.photoUrl : undefined,
+        photoUrls: Array.isArray(it?.photoUrls)
+          ? it.photoUrls.filter((u: string) => u && !String(u).startsWith('data:'))
+          : undefined,
+      }));
+      localStorage.setItem(key, JSON.stringify(lightweight));
+    } catch (innerErr) {
+      console.warn(`Gagal menulis ${key} ke localStorage:`, innerErr);
+    }
+  }
+};
+
 // Replace entire dataset (used during pull from Google Sheet)
 export const replaceEntireDataset = (data: {
   codeUnits?: CodeUnit[];
@@ -144,22 +172,48 @@ export const replaceEntireDataset = (data: {
   activities?: AddActivityItem[];
 }) => {
   if (data.codeUnits !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.CODE_UNITS, JSON.stringify(deduplicateById(data.codeUnits)));
+    safeSetCollection(STORAGE_KEYS.CODE_UNITS, deduplicateById(data.codeUnits));
   }
   if (data.bapList !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(deduplicateById(data.bapList)));
+    safeSetCollection(STORAGE_KEYS.BAP, deduplicateById(data.bapList));
   }
   if (data.dailyRigidList !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(deduplicateById(data.dailyRigidList)));
+    safeSetCollection(STORAGE_KEYS.DAILY_RIGID, deduplicateById(data.dailyRigidList));
   }
   if (data.dailyArticList !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(deduplicateById(data.dailyArticList)));
+    safeSetCollection(STORAGE_KEYS.DAILY_ARTIC, deduplicateById(data.dailyArticList));
   }
   if (data.backlogs !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(deduplicateById(data.backlogs)));
+    // Ensure any locally saved backlog photos (still in localStorage/vault) are preserved even when Sheet omits >50k cells
+    const existingLocalBacklogs = getBacklogs();
+    for (const prev of existingLocalBacklogs) {
+      const prevPhotos = prev.photoUrls && prev.photoUrls.length > 0 ? prev.photoUrls : prev.photoUrl ? [prev.photoUrl] : [];
+      if (prevPhotos.length > 0 && !getVaultPhotos('BACKLOG', prev.id)) {
+        void saveVaultPhotos('BACKLOG', prev.id, prevPhotos);
+      }
+    }
+    const hydratedBacklogs = hydrateItemsWithVaultPhotos(
+      'BACKLOG',
+      deduplicateById(data.backlogs),
+      { preserveCleared: true }
+    );
+    safeSetCollection(STORAGE_KEYS.BACKLOG, hydratedBacklogs);
   }
   if (data.activities !== undefined) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(deduplicateById(data.activities)));
+    // Ensure any locally saved activity photos are preserved even when Sheet omits >50k cells
+    const existingLocalActivities = getActivities();
+    for (const prev of existingLocalActivities) {
+      const prevPhotos = prev.photoUrls && prev.photoUrls.length > 0 ? prev.photoUrls : prev.photoUrl ? [prev.photoUrl] : [];
+      if (prevPhotos.length > 0 && !getVaultPhotos('ACTIVITY', prev.id)) {
+        void saveVaultPhotos('ACTIVITY', prev.id, prevPhotos);
+      }
+    }
+    const hydratedActivities = hydrateItemsWithVaultPhotos(
+      'ACTIVITY',
+      deduplicateById(data.activities),
+      { preserveCleared: true }
+    );
+    safeSetCollection(STORAGE_KEYS.ACTIVITIES, hydratedActivities);
   }
 };
 
@@ -225,17 +279,22 @@ export const deleteCodeUnit = async (id: string, cascade = true): Promise<CodeUn
 
   if (cascade && unitToDelete) {
     const targetCode = unitToDelete.codeUnit;
+    const deletedBacklogs = getBacklogs().filter(b => b.codeUnit === targetCode);
+    const deletedActivities = getActivities().filter(a => a.codeUnit === targetCode);
+    deletedBacklogs.forEach(b => void deleteVaultPhotos('BACKLOG', b.id));
+    deletedActivities.forEach(a => void deleteVaultPhotos('ACTIVITY', a.id));
+
     const baps = getBAPList().filter(b => b.codeUnit !== targetCode);
     const rigids = getDailyRigidList().filter(r => r.codeUnit !== targetCode);
     const artics = getDailyArticList().filter(a => a.codeUnit !== targetCode);
     const backlogs = getBacklogs().filter(b => b.codeUnit !== targetCode);
     const activities = getActivities().filter(a => a.codeUnit !== targetCode);
 
-    localStorage.setItem(STORAGE_KEYS.BAP, JSON.stringify(baps));
-    localStorage.setItem(STORAGE_KEYS.DAILY_RIGID, JSON.stringify(rigids));
-    localStorage.setItem(STORAGE_KEYS.DAILY_ARTIC, JSON.stringify(artics));
-    localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(backlogs));
-    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(activities));
+    safeSetCollection(STORAGE_KEYS.BAP, baps);
+    safeSetCollection(STORAGE_KEYS.DAILY_RIGID, rigids);
+    safeSetCollection(STORAGE_KEYS.DAILY_ARTIC, artics);
+    safeSetCollection(STORAGE_KEYS.BACKLOG, backlogs);
+    safeSetCollection(STORAGE_KEYS.ACTIVITIES, activities);
   }
 
   autoSyncToGoogleSheetIfConnected();
@@ -475,7 +534,8 @@ export const getBacklogs = (): BacklogItem[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.BACKLOG);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? deduplicateById(parsed) : [];
+    if (!Array.isArray(parsed)) return [];
+    return hydrateItemsWithVaultPhotos('BACKLOG', deduplicateById(parsed), { preserveCleared: true });
   } catch {
     return [];
   }
@@ -483,20 +543,56 @@ export const getBacklogs = (): BacklogItem[] => {
 
 export const addBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
   markLocalMutation();
+  const normalizedPhotos = (
+    item.photoUrls && item.photoUrls.length > 0
+      ? item.photoUrls
+      : item.photoUrl
+      ? [item.photoUrl]
+      : []
+  ).filter(Boolean);
+
+  await saveVaultPhotos('BACKLOG', item.id, normalizedPhotos);
+
+  const normalizedItem: BacklogItem = {
+    ...item,
+    photoUrls: normalizedPhotos,
+    photoUrl: normalizedPhotos.length > 0 ? normalizedPhotos[0] : undefined,
+  };
+
   const list = getBacklogs();
-  const exists = list.some(b => b.id === item.id);
-  const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
-  localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
+  const exists = list.some(b => b.id === normalizedItem.id);
+  const updated = deduplicateById(
+    exists ? list.map(b => (b.id === normalizedItem.id ? normalizedItem : b)) : [normalizedItem, ...list]
+  );
+  safeSetCollection(STORAGE_KEYS.BACKLOG, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
 export const updateBacklog = async (item: BacklogItem): Promise<BacklogItem[]> => {
   markLocalMutation();
+  const normalizedPhotos = (
+    item.photoUrls && item.photoUrls.length > 0
+      ? item.photoUrls
+      : item.photoUrl
+      ? [item.photoUrl]
+      : []
+  ).filter(Boolean);
+
+  await saveVaultPhotos('BACKLOG', item.id, normalizedPhotos);
+
+  const normalizedItem: BacklogItem = {
+    ...item,
+    photoUrls: normalizedPhotos,
+    photoUrl: normalizedPhotos.length > 0 ? normalizedPhotos[0] : undefined,
+  };
+
   const list = getBacklogs();
-  const exists = list.some(b => b.id === item.id);
-  const updated = deduplicateById(exists ? list.map(b => (b.id === item.id ? item : b)) : [item, ...list]);
-  localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
+  const exists = list.some(b => b.id === normalizedItem.id);
+  const updated = deduplicateById(
+    exists ? list.map(b => (b.id === normalizedItem.id ? normalizedItem : b)) : [normalizedItem, ...list]
+  );
+  safeSetCollection(STORAGE_KEYS.BACKLOG, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
@@ -505,16 +601,17 @@ export const updateBacklogStatus = (id: string, status: BacklogItem['status']): 
   markLocalMutation();
   const list = getBacklogs();
   const updated = list.map(b => (b.id === id ? { ...b, status } : b));
-  localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
+  safeSetCollection(STORAGE_KEYS.BACKLOG, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
 export const deleteBacklog = async (id: string): Promise<BacklogItem[]> => {
   markLocalMutation();
+  await deleteVaultPhotos('BACKLOG', id);
   const list = getBacklogs();
   const updated = list.filter(b => b.id !== id);
-  localStorage.setItem(STORAGE_KEYS.BACKLOG, JSON.stringify(updated));
+  safeSetCollection(STORAGE_KEYS.BACKLOG, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
@@ -528,7 +625,8 @@ export const getActivities = (): AddActivityItem[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.ACTIVITIES);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? deduplicateById(parsed) : [];
+    if (!Array.isArray(parsed)) return [];
+    return hydrateItemsWithVaultPhotos('ACTIVITY', deduplicateById(parsed), { preserveCleared: true });
   } catch {
     return [];
   }
@@ -536,20 +634,56 @@ export const getActivities = (): AddActivityItem[] => {
 
 export const addActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
   markLocalMutation();
+  const normalizedPhotos = (
+    item.photoUrls && item.photoUrls.length > 0
+      ? item.photoUrls
+      : item.photoUrl
+      ? [item.photoUrl]
+      : []
+  ).filter(Boolean);
+
+  await saveVaultPhotos('ACTIVITY', item.id, normalizedPhotos);
+
+  const normalizedItem: AddActivityItem = {
+    ...item,
+    photoUrls: normalizedPhotos,
+    photoUrl: normalizedPhotos.length > 0 ? normalizedPhotos[0] : undefined,
+  };
+
   const list = getActivities();
-  const exists = list.some(a => a.id === item.id);
-  const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list]);
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
+  const exists = list.some(a => a.id === normalizedItem.id);
+  const updated = deduplicateById(
+    exists ? list.map(a => (a.id === normalizedItem.id ? normalizedItem : a)) : [normalizedItem, ...list]
+  );
+  safeSetCollection(STORAGE_KEYS.ACTIVITIES, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
 export const updateActivity = async (item: AddActivityItem): Promise<AddActivityItem[]> => {
   markLocalMutation();
+  const normalizedPhotos = (
+    item.photoUrls && item.photoUrls.length > 0
+      ? item.photoUrls
+      : item.photoUrl
+      ? [item.photoUrl]
+      : []
+  ).filter(Boolean);
+
+  await saveVaultPhotos('ACTIVITY', item.id, normalizedPhotos);
+
+  const normalizedItem: AddActivityItem = {
+    ...item,
+    photoUrls: normalizedPhotos,
+    photoUrl: normalizedPhotos.length > 0 ? normalizedPhotos[0] : undefined,
+  };
+
   const list = getActivities();
-  const exists = list.some(a => a.id === item.id);
-  const updated = deduplicateById(exists ? list.map(a => (a.id === item.id ? item : a)) : [item, ...list]);
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
+  const exists = list.some(a => a.id === normalizedItem.id);
+  const updated = deduplicateById(
+    exists ? list.map(a => (a.id === normalizedItem.id ? normalizedItem : a)) : [normalizedItem, ...list]
+  );
+  safeSetCollection(STORAGE_KEYS.ACTIVITIES, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
@@ -558,16 +692,17 @@ export const updateActivityStatus = (id: string, status: AddActivityItem['status
   markLocalMutation();
   const list = getActivities();
   const updated = list.map(a => (a.id === id ? { ...a, status } : a));
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
+  safeSetCollection(STORAGE_KEYS.ACTIVITIES, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };
 
 export const deleteActivity = async (id: string): Promise<AddActivityItem[]> => {
   markLocalMutation();
+  await deleteVaultPhotos('ACTIVITY', id);
   const list = getActivities();
   const updated = list.filter(a => a.id !== id);
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
+  safeSetCollection(STORAGE_KEYS.ACTIVITIES, updated);
   autoSyncToGoogleSheetIfConnected();
   return updated;
 };

@@ -49,7 +49,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       setIsProcessing(true);
       setProcessingError(null);
 
-      const compressedArray = await compressMultipleImages(files, 960, 960, 0.78);
+      const compressedArray = await compressMultipleImages(files, 768, 768, 0.72);
       if (compressedArray.length === 0) {
         setProcessingError('Tidak ada file gambar valid yang dapat diproses.');
         return;
