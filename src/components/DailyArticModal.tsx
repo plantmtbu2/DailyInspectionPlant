@@ -7,7 +7,7 @@ import {
   AddActivityItem,
   QAType,
 } from '../types';
-import { ARTIC_CHECKLIST_ITEMS } from '../constants/checklists';
+import { getActiveArticChecklistItems, getAppSettings } from '../services/settingsService';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
 import { getBacklogs, getActivities } from '../services/storageService';
@@ -84,9 +84,9 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
   const [picMekanik, setPicMekanik] = useState('');
   const [divalidasiOleh, setDivalidasiOleh] = useState('');
 
-  // Checklist Items initialization (36 items)
+  // Checklist Items initialization
   const [items, setItems] = useState<ChecklistItemStatus[]>(() =>
-    ARTIC_CHECKLIST_ITEMS.map(def => ({
+    getActiveArticChecklistItems().map(def => ({
       id: def.id,
       name: def.name,
       status: 'OK',
@@ -177,9 +177,10 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setPicMekanik(itemToEdit.picMekanik || '');
       setDivalidasiOleh(itemToEdit.divalidasiOleh || '');
 
-      // Merge & deep clone checklist items to ensure all 36 items exist
+      // Merge & deep clone checklist items to ensure all active items exist
+      const activeChecklistDefs = getActiveArticChecklistItems();
       const existingItems = itemToEdit.items || [];
-      const mergedItems: ChecklistItemStatus[] = ARTIC_CHECKLIST_ITEMS.map(def => {
+      const mergedItems: ChecklistItemStatus[] = activeChecklistDefs.map(def => {
         const found = existingItems.find(it => it.id === def.id || it.name === def.name);
         return found
           ? {
@@ -216,7 +217,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setPicMekanik('');
       setDivalidasiOleh('');
       setItems(
-        ARTIC_CHECKLIST_ITEMS.map(def => ({
+        getActiveArticChecklistItems().map(def => ({
           id: def.id,
           name: def.name,
           status: 'OK',
@@ -236,7 +237,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setPicMekanik('');
       setDivalidasiOleh('');
       setItems(
-        ARTIC_CHECKLIST_ITEMS.map(def => ({
+        getActiveArticChecklistItems().map(def => ({
           id: def.id,
           name: def.name,
           status: 'OK',
@@ -284,6 +285,10 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
     e.preventDefault();
     if (!codeUnit) {
       setFormError('Mohon pilih Code Unit Articulated / Grader terlebih dahulu.');
+      return;
+    }
+    if (getAppSettings().inspection.requireValidator && !divalidasiOleh.trim()) {
+      setFormError('Mohon isi nama Pengawas / Group Leader (wajib sesuai pengaturan Admin).');
       return;
     }
     setFormError(null);

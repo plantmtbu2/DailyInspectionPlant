@@ -22,6 +22,7 @@ import {
   hydrateItemsWithVaultPhotos,
   getVaultPhotos,
 } from './photoStorageService';
+import { getAppSettings } from './settingsService';
 
 const STORAGE_KEYS = {
   CODE_UNITS: 'fleetcheck_code_units_v1',
@@ -112,6 +113,7 @@ export const isBackgroundSyncInFlight = (): boolean =>
 
 export const autoSyncToGoogleSheetIfConnected = async () => {
   if (typeof window === 'undefined') return;
+  if (!getAppSettings().sync.autoSyncOnSave) return;
   const config = getStoredSheetsConfig();
   if (!config?.spreadsheetId && !config?.webAppUrl) return;
 

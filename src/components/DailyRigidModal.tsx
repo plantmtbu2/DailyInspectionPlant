@@ -7,7 +7,7 @@ import {
   AddActivityItem,
   QAType,
 } from '../types';
-import { RIGID_CHECKLIST_ITEMS } from '../constants/checklists';
+import { getActiveRigidChecklistItems, getAppSettings } from '../services/settingsService';
 import { CodeUnitSelector } from './CodeUnitSelector';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
 import { getBacklogs, getActivities } from '../services/storageService';
@@ -86,7 +86,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
 
   // Checklist Items initialization
   const [items, setItems] = useState<ChecklistItemStatus[]>(() =>
-    RIGID_CHECKLIST_ITEMS.map(def => ({
+    getActiveRigidChecklistItems().map(def => ({
       id: def.id,
       name: def.name,
       status: 'OK',
@@ -176,9 +176,10 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setPicMekanik(itemToEdit.picMekanik || '');
       setDivalidasiOleh(itemToEdit.divalidasiOleh || '');
 
-      // Merge & deep clone checklist items to ensure all 19 parameters exist and prevent stale reference mutations
+      // Merge & deep clone checklist items to ensure all active parameters exist
+      const activeChecklistDefs = getActiveRigidChecklistItems();
       const existingItems = itemToEdit.items || [];
-      const mergedItems: ChecklistItemStatus[] = RIGID_CHECKLIST_ITEMS.map(def => {
+      const mergedItems: ChecklistItemStatus[] = activeChecklistDefs.map(def => {
         const found = existingItems.find(it => it.id === def.id || it.name === def.name);
         return found
           ? {
@@ -217,7 +218,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setPicMekanik('');
       setDivalidasiOleh('');
       setItems(
-        RIGID_CHECKLIST_ITEMS.map(def => ({
+        getActiveRigidChecklistItems().map(def => ({
           id: def.id,
           name: def.name,
           status: 'OK',
@@ -239,7 +240,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
       setPicMekanik('');
       setDivalidasiOleh('');
       setItems(
-        RIGID_CHECKLIST_ITEMS.map(def => ({
+        getActiveRigidChecklistItems().map(def => ({
           id: def.id,
           name: def.name,
           status: 'OK',
@@ -294,6 +295,10 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
     e.preventDefault();
     if (!codeUnit) {
       setFormError('Mohon pilih Code Unit terlebih dahulu.');
+      return;
+    }
+    if (getAppSettings().inspection.requireValidator && !divalidasiOleh.trim()) {
+      setFormError('Mohon isi nama Pengawas / Group Leader (wajib sesuai pengaturan Admin).');
       return;
     }
     setFormError(null);
@@ -690,7 +695,7 @@ export const DailyRigidModal: React.FC<DailyRigidModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {items.map(it => {
-                    const def = RIGID_CHECKLIST_ITEMS.find(d => d.id === it.id);
+                    const def = getActiveRigidChecklistItems().find(d => d.id === it.id);
                     const isMeasurement = def?.type === 'measurement';
 
                     return (

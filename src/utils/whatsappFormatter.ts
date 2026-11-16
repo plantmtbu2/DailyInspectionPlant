@@ -9,6 +9,20 @@ import {
 import { RIGID_CHECKLIST_ITEMS, ARTIC_CHECKLIST_ITEMS } from '../constants/checklists';
 import { dataUrlToFile, downloadDataUrl } from './imageUtils';
 import { getBacklogs, getActivities } from '../services/storageService';
+import { getAppSettings } from '../services/settingsService';
+
+const applyWhatsAppSignature = (rawText: string): string => {
+  const { whatsappHeaderNote, whatsappFooterSignature } = getAppSettings().reporting;
+  const parts: string[] = [];
+  if (whatsappHeaderNote && whatsappHeaderNote.trim()) {
+    parts.push(whatsappHeaderNote.trim());
+  }
+  parts.push(rawText);
+  if (whatsappFooterSignature && whatsappFooterSignature.trim()) {
+    parts.push(whatsappFooterSignature.trim());
+  }
+  return parts.join('\n\n');
+};
 
 const getClosedStatusEmoji = (status?: string): string =>
   String(status || '').trim().toUpperCase() === 'CLOSED' ? '✅' : '🅾️';
@@ -118,6 +132,8 @@ export const shareToWhatsApp = async (
     photoUrls = maybePhotoUrls || [];
   }
 
+  const finalText = applyWhatsAppSignature(text);
+
   // Filter valid image URLs
   const validPhotos = photoUrls.filter(u => Boolean(u && typeof u === 'string'));
 
@@ -136,7 +152,7 @@ export const shareToWhatsApp = async (
       if (files.length > 0 && typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files })) {
         await navigator.share({
           title,
-          text,
+          text: finalText,
           files,
         });
         if (onToast) onToast('Laporan & foto berhasil dibagikan ke WhatsApp!', 'success');
@@ -162,10 +178,10 @@ export const shareToWhatsApp = async (
   // Copy text to clipboard reliably as handy fallback (handles long 36-item Artic reports)
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(finalText);
     } else if (typeof document !== 'undefined') {
       const textarea = document.createElement('textarea');
-      textarea.value = text;
+      textarea.value = finalText;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -179,7 +195,7 @@ export const shareToWhatsApp = async (
   }
 
   // Open WhatsApp URL
-  const url = constructWhatsAppDeepLink(text, phone);
+  const url = constructWhatsAppDeepLink(finalText, phone);
   const link = document.createElement('a');
   link.href = url;
   link.target = '_blank';
@@ -287,7 +303,8 @@ export const shareToWhatsAppGroup = async (
     onToast,
   } = options;
 
-  await copyTextToClipboard(text);
+  const finalText = applyWhatsAppSignature(text);
+  await copyTextToClipboard(finalText);
 
   const cleanInviteLink = normalizeWhatsAppGroupLink(groupInviteLink);
   const validPhotos = (photoUrls || []).filter(u => Boolean(u && typeof u === 'string'));
@@ -318,7 +335,7 @@ export const shareToWhatsAppGroup = async (
     try {
       await navigator.share({
         title,
-        text,
+        text: finalText,
         files: shareFiles,
       });
       if (onToast) onToast('Pilih Group WhatsApp tujuan untuk mengirim laporan & lampiran!', 'success');
@@ -348,7 +365,7 @@ export const shareToWhatsAppGroup = async (
     });
   }
 
-  const targetUrl = cleanInviteLink || constructWhatsAppDeepLink(text, '');
+  const targetUrl = cleanInviteLink || constructWhatsAppDeepLink(finalText, '');
   const link = document.createElement('a');
   link.href = targetUrl;
   link.target = '_blank';

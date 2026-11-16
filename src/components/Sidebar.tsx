@@ -13,10 +13,13 @@ import {
   BarChart3,
   User,
   LogOut,
+  Sliders,
 } from 'lucide-react';
 import { ActiveTab } from './BottomNav';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
+import { AppModuleId } from '../services/settingsService';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -49,9 +52,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { theme, setTheme } = useTheme();
   const { currentUser, isAdmin, logout } = useAuth();
+  const { settings, canAccessModule } = useSettings();
 
   const navItems: Array<{
-    id: ActiveTab;
+    id: AppModuleId;
     label: string;
     icon: React.ElementType;
     badge?: number;
@@ -60,72 +64,74 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }> = [
     {
       id: 'dashboard',
-      label: 'Dashboard Pencapaian',
+      label: settings.modules.dashboard?.label || 'Dashboard Pencapaian',
       icon: BarChart3,
     },
     {
       id: 'daily-rigid',
-      label: 'Daily Rigid',
+      label: settings.modules['daily-rigid']?.label || 'Daily Rigid',
       icon: Truck,
       badge: dailyRigidCount,
     },
     {
       id: 'daily-artic',
-      label: 'Daily Artic',
+      label: settings.modules['daily-artic']?.label || 'Daily Artic',
       icon: Tractor,
       badge: dailyArticCount,
     },
     {
       id: 'qa1-rigid',
-      label: 'QA 1 Pre Rigid',
+      label: settings.modules['qa1-rigid']?.label || 'QA 1 Pre Rigid',
       icon: Zap,
       badge: qa1RigidCount,
     },
     {
       id: 'qa7-rigid',
-      label: 'QA 7 Final Rigid',
+      label: settings.modules['qa7-rigid']?.label || 'QA 7 Final Rigid',
       icon: ShieldCheck,
       badge: qa7RigidCount,
     },
     {
       id: 'qa1-artic',
-      label: 'QA 1 Pre Artic',
+      label: settings.modules['qa1-artic']?.label || 'QA 1 Pre Artic',
       icon: Tractor,
       badge: qa1ArticCount,
     },
     {
       id: 'qa7-artic',
-      label: 'QA 7 Final Artic',
+      label: settings.modules['qa7-artic']?.label || 'QA 7 Final Artic',
       icon: ShieldCheck,
       badge: qa7ArticCount,
     },
     {
       id: 'backlog',
-      label: 'Backlog',
+      label: settings.modules.backlog?.label || 'Backlog',
       icon: AlertOctagon,
       badge: activeBacklogCount,
       isWarning: true,
     },
     {
       id: 'activities',
-      label: 'Activities',
+      label: settings.modules.activities?.label || 'Activities',
       icon: Wrench,
       badge: activitiesCount,
     },
     {
       id: 'bap',
-      label: 'BAP',
+      label: settings.modules.bap?.label || 'BAP',
       icon: FileWarning,
       badge: openBapCount,
       isAccent: true,
     },
     {
       id: 'units',
-      label: 'Code Unit',
+      label: settings.modules.units?.label || 'Code Unit',
       icon: Layers,
       badge: codeUnitsCount,
     },
   ];
+
+  const visibleNavItems = navItems.filter(item => canAccessModule(item.id, isAdmin));
 
   return (
     <aside className="hidden lg:flex flex-col w-[280px] shrink-0 h-screen sticky top-0 bg-gradient-to-b from-[#18181b] to-[#111113] border-r border-[rgba(242,239,235,0.1)] p-5 select-none z-30">
@@ -145,15 +151,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div>
             <h1 className="font-syne font-extrabold text-xl tracking-tight text-[#f2efeb] uppercase leading-none">
-              PLANT<span className="text-[#facc15]">2</span>
+              {settings.general.appBrandPrefix}
+              <span className="text-[#facc15]">{settings.general.appBrandAccent}</span>
             </h1>
             <p className="text-[10px] font-mono tracking-wider text-[rgba(242,239,235,0.5)] uppercase mt-1">
-              Heavy Equipment Systems
+              {settings.general.appSubtitle}
             </p>
           </div>
         </div>
         <div className="flex items-center justify-between text-[10px] font-mono text-[rgba(242,239,235,0.4)] pt-1">
-          <span>MTBU SITE</span>
+          <span>{settings.general.siteName}</span>
           <span className="flex items-center space-x-1 text-[#4ade80]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
             <span>SYSTEM ACTIVE</span>
@@ -163,9 +170,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation List */}
       <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
-        {navItems.map(item => {
+        {visibleNavItems.map(item => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
+          const isLockedForUsers = settings.modules[item.id]?.enabled === false;
 
           return (
             <button
@@ -184,9 +192,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 />
                 <span className="truncate">{item.label}</span>
+                {isAdmin && isLockedForUsers && (
+                  <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#fb7185]/20 text-[#fb7185] border border-[#fb7185]/30 shrink-0">
+                    OFF
+                  </span>
+                )}
               </div>
 
-              {typeof item.badge === 'number' && item.badge > 0 && (
+              {settings.general.showNavBadges && typeof item.badge === 'number' && item.badge > 0 && (
                 <span
                   className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded ${
                     item.isWarning
@@ -204,6 +217,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
+
+        {/* Admin-Only SETTINGS Module */}
+        {isAdmin && (
+          <div className="pt-2 mt-2 border-t border-[rgba(242,239,235,0.08)]">
+            <div className="px-3.5 pb-1 text-[9px] font-mono uppercase tracking-widest text-[rgba(250,204,21,0.7)]">
+              Administration
+            </div>
+            <button
+              onClick={() => onChangeTab('settings')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded text-xs font-bold uppercase tracking-wider transition border text-left ${
+                activeTab === 'settings'
+                  ? 'bg-[#facc15] border-[#facc15] text-[#111113] shadow-sm'
+                  : 'text-[#facc15] bg-[rgba(250,204,21,0.06)] hover:bg-[rgba(250,204,21,0.12)] border-[rgba(250,204,21,0.2)]'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5 truncate">
+                <Sliders
+                  className={`w-4 h-4 shrink-0 ${
+                    activeTab === 'settings' ? 'text-[#111113]' : 'text-[#facc15]'
+                  }`}
+                />
+                <span className="truncate">SETTINGS</span>
+              </div>
+              <span
+                className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                  activeTab === 'settings'
+                    ? 'bg-[#111113] text-[#facc15]'
+                    : 'bg-[#facc15]/20 text-[#facc15]'
+                }`}
+              >
+                ADMIN
+              </span>
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Active User Card & Logout (Profil Admin & User) */}

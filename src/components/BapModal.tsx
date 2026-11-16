@@ -7,6 +7,7 @@ import { X, FileWarning, Save, CheckCircle, MessageSquare, Printer, Camera, User
 import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatBAPWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatTimeHHMM, formatDateForInput } from '../utils/dateUtils';
+import { getAppSettings } from '../services/settingsService';
 
 interface BapModalProps {
   isOpen: boolean;
@@ -98,18 +99,20 @@ export const BapModal: React.FC<BapModalProps> = ({
         setHm(0);
         setLokasiPekerjaan('');
       }
+      const defaultBapSt = getAppSettings().operations.defaultBapStatus || 'OPEN';
       setKerusakan('');
       setEstimasiPekerjaan('');
       setMo('');
       setTanggal(new Date().toISOString().slice(0, 10));
       setJam(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'));
       setPicMekanik('');
-      setStatus('OPEN');
+      setStatus(defaultBapSt);
       setCatatanTambahan('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedSuccessRecord(null);
     } else {
+      const defaultBapSt = getAppSettings().operations.defaultBapStatus || 'OPEN';
       setCodeUnit('');
       setHm(0);
       setKerusakan('');
@@ -119,7 +122,7 @@ export const BapModal: React.FC<BapModalProps> = ({
       setTanggal(new Date().toISOString().slice(0, 10));
       setJam(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'));
       setPicMekanik('');
-      setStatus('OPEN');
+      setStatus(defaultBapSt);
       setCatatanTambahan('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
@@ -148,6 +151,10 @@ export const BapModal: React.FC<BapModalProps> = ({
     }
     if (!kerusakan.trim()) {
       setFormError('Deskripsi kerusakan wajib diisi.');
+      return;
+    }
+    if (getAppSettings().operations.requireBapMo && !mo.trim()) {
+      setFormError('Nomor MO wajib diisi sesuai pengaturan Admin.');
       return;
     }
     setFormError(null);

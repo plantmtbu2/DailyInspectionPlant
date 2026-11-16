@@ -17,11 +17,13 @@ import {
   ShieldCheck,
   User,
   LogOut,
+  Sliders,
 } from 'lucide-react';
 import { GoogleSheetsConfig, CodeUnit, BacklogItem, BAPRecord, DailyCheckRigid, DailyCheckArtic, AddActivityItem } from '../types';
 import { ActiveTab } from './BottomNav';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { UserProfileModal } from './UserProfileModal';
 
 interface HeaderProps {
@@ -57,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { theme, toggleTheme } = useTheme();
   const { currentUser, isAdmin } = useAuth();
+  const { settings } = useSettings();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -168,10 +171,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <h1 className="font-syne font-extrabold text-sm tracking-tight text-[#f2efeb] uppercase leading-none">
-              PLANT<span className="text-[#facc15]">2</span>
+              {settings.general.appBrandPrefix}
+              <span className="text-[#facc15]">{settings.general.appBrandAccent}</span>
             </h1>
             <p className="text-[9px] font-mono tracking-wider text-[rgba(242,239,235,0.4)] uppercase">
-              Heavy Equipment Systems
+              {settings.general.appSubtitle}
             </p>
           </div>
         </div>
@@ -478,6 +482,19 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </button>
+
+          {/* Admin-only Quick Settings Button */}
+          {isAdmin && onNavigateToTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('settings')}
+              title="Buka Modul SETTINGS (Khusus Admin)"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded border border-[#facc15]/40 bg-[#facc15]/10 hover:bg-[#facc15]/20 text-[#facc15] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span className="hidden md:inline font-bold text-[10px]">Settings</span>
+            </button>
+          )}
 
           {/* User Profile Button */}
           <button

@@ -3,6 +3,7 @@ import { CodeUnit } from '../types';
 import { X, Plus, Search, Truck, MapPin, Gauge, Edit3, Trash2, Check, CloudUpload, Camera } from 'lucide-react';
 import { PhotoUploader } from './PhotoUploader';
 import { PhotoPreviewModal } from './PhotoPreviewModal';
+import { getAppSettings } from '../services/settingsService';
 
 interface CodeUnitManagerModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
   );
 
   const handleStartNew = () => {
+    const appSettings = getAppSettings();
     setEditingUnit({
       id: `CU-${Date.now().toString().slice(-4)}`,
       isNewUnit: true,
@@ -57,7 +59,7 @@ export const CodeUnitManagerModal: React.FC<CodeUnitManagerModalProps> = ({
       brand: 'Caterpillar',
       lokasiPit: 'PIT Barat',
       currentHm: 0,
-      statusUnit: 'READY',
+      statusUnit: appSettings.operations.defaultUnitStatus || 'READY',
       photoUrl: undefined,
       photoUrls: [],
     });

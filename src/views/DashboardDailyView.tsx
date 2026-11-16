@@ -36,6 +36,7 @@ import {
   DashboardAchievementSummary,
 } from '../utils/whatsappFormatter';
 import { isRigidUnitCode, isArticUnitCode } from '../utils/unitFilter';
+import { getAppSettings } from '../services/settingsService';
 
 interface DashboardDailyViewProps {
   dailyRigidList: DailyCheckRigid[];
@@ -186,7 +187,9 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
   const todayIso = useMemo(() => today.toISOString().slice(0, 10), [today]);
 
   // Timeframe state: HARIAN | BULANAN | TAHUNAN
-  const [periodType, setPeriodType] = useState<PeriodType>('HARIAN');
+  const [periodType, setPeriodType] = useState<PeriodType>(
+    () => getAppSettings().dashboard.defaultPeriod || 'HARIAN'
+  );
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());

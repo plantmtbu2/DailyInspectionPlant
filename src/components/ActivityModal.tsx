@@ -8,6 +8,7 @@ import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatActivityWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
 import { getVaultPhotos, readVaultPhotosAsync } from '../services/photoStorageService';
+import { getAppSettings } from '../services/settingsService';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -102,20 +103,22 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
       setSavedItem(null);
     } else if (initialCodeUnit) {
+      const defaultSt = getAppSettings().operations.defaultActivityStatus || 'DONE';
       setCodeUnit(initialCodeUnit);
       setDeskripsiAktivitas('');
       setAction('');
-      setStatus('DONE');
+      setStatus(defaultSt);
       setTanggalTemuan(new Date().toISOString().slice(0, 10));
       setPic('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
     } else {
+      const defaultSt = getAppSettings().operations.defaultActivityStatus || 'DONE';
       setCodeUnit('');
       setDeskripsiAktivitas('');
       setAction('');
-      setStatus('DONE');
+      setStatus(defaultSt);
       setTanggalTemuan(new Date().toISOString().slice(0, 10));
       setPic('');
       setPhotoUrls([]);

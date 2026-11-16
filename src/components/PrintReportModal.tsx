@@ -30,6 +30,7 @@ import {
 import { getStoredSheetsConfig } from '../services/googleSheetsService';
 import { getBacklogs, getActivities } from '../services/storageService';
 import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
+import { getAppSettings } from '../services/settingsService';
 
 type PrintableData =
   | { type: 'BAP'; data: BAPRecord }
@@ -614,7 +615,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   PLANT MTBU 2
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  Mining Operations & Fleet Maintenance Support System
+                  {getAppSettings().reporting.pdfReportSubtitle || 'Mining Operations & Fleet Maintenance Support System'}
                 </p>
               </div>
 

@@ -19,6 +19,7 @@ import { WhatsAppGroupShareModal } from './WhatsAppGroupShareModal';
 import { formatBacklogWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 import { formatDateDDMMYYYY, formatDateForInput } from '../utils/dateUtils';
 import { getVaultPhotos, readVaultPhotosAsync } from '../services/photoStorageService';
+import { getAppSettings } from '../services/settingsService';
 
 const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -27,22 +28,28 @@ const applyBcsPrefix = (
   prevCodeUnit: string,
   nextCodeUnit: string
 ): string => {
+  const ops = getAppSettings().operations;
+  if (!ops.backlogEnableAutoPrefix) {
+    return currentDesc || '';
+  }
+  const prefixWord = (ops.backlogAutoPrefixText || 'BCS').trim().toUpperCase() || 'BCS';
+  const escapedPrefix = escapeRegex(prefixWord);
   const nextCu = nextCodeUnit.trim().toUpperCase();
   const prevCu = prevCodeUnit.trim().toUpperCase();
   let body = currentDesc || '';
 
   if (prevCu) {
-    const prevPattern = new RegExp(`^BCS\\s+${escapeRegex(prevCu)}\\s*`, 'i');
+    const prevPattern = new RegExp(`^${escapedPrefix}\\s+${escapeRegex(prevCu)}\\s*`, 'i');
     if (prevPattern.test(body)) {
       body = body.replace(prevPattern, '');
     } else {
-      body = body.replace(/^BCS\s*/i, '');
+      body = body.replace(new RegExp(`^${escapedPrefix}\\s*`, 'i'), '');
     }
   } else {
-    body = body.replace(/^BCS\s*/i, '');
+    body = body.replace(new RegExp(`^${escapedPrefix}\\s*`, 'i'), '');
   }
 
-  return nextCu ? `BCS ${nextCu} ${body}` : `BCS ${body}`;
+  return nextCu ? `${prefixWord} ${nextCu} ${body}` : `${prefixWord} ${body}`;
 };
 
 interface BacklogModalProps {
@@ -174,25 +181,31 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
 
       setSavedItem(null);
     } else if (initialCodeUnit) {
+      const ops = getAppSettings().operations;
+      const prefixWord = (ops.backlogAutoPrefixText || 'BCS').trim().toUpperCase() || 'BCS';
       setCodeUnit(initialCodeUnit);
       setSumberTemuan(source || 'MANUAL');
       setMoBacklog(`MO-BL-${Math.floor(1000 + Math.random() * 9000)}`);
       setNomorReservasi('');
-      setDeskripsiBacklog(`BCS ${initialCodeUnit.trim().toUpperCase()} `);
+      setDeskripsiBacklog(
+        ops.backlogEnableAutoPrefix ? `${prefixWord} ${initialCodeUnit.trim().toUpperCase()} ` : ''
+      );
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
-      setStatus('WAITING_PART');
+      setStatus(ops.defaultBacklogStatus || 'WAITING_PART');
       setTanggalTemuan(new Date().toISOString().slice(0, 10));
       setPic('');
       setPhotoUrls([]);
       setPhotoUrl(undefined);
       setSavedItem(null);
     } else {
+      const ops = getAppSettings().operations;
+      const prefixWord = (ops.backlogAutoPrefixText || 'BCS').trim().toUpperCase() || 'BCS';
       setCodeUnit('');
       setMoBacklog(`MO-BL-${Math.floor(1000 + Math.random() * 9000)}`);
       setNomorReservasi('');
-      setDeskripsiBacklog('BCS ');
+      setDeskripsiBacklog(ops.backlogEnableAutoPrefix ? `${prefixWord} ` : '');
       setParts([{ id: '1', partNumber: '', deskripsiPart: '', qty: 1 }]);
-      setStatus('WAITING_PART');
+      setStatus(ops.defaultBacklogStatus || 'WAITING_PART');
       setTanggalTemuan(new Date().toISOString().slice(0, 10));
       setPic('');
       setPhotoUrls([]);
@@ -239,18 +252,21 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
       setFormError('Pilih Code Unit terlebih dahulu.');
       return;
     }
+    const ops = getAppSettings().operations;
     const cleanCodeUnit = codeUnit.trim().toUpperCase();
-    const expectedPrefix = `BCS ${cleanCodeUnit}`;
+    const prefixWord = (ops.backlogAutoPrefixText || 'BCS').trim().toUpperCase() || 'BCS';
+    const escapedPrefix = escapeRegex(prefixWord);
+    const expectedPrefix = `${prefixWord} ${cleanCodeUnit}`;
     let finalDeskripsi = deskripsiBacklog.trim();
 
-    if (!itemToEdit) {
-      const prefixCheckRegex = new RegExp(`^BCS\\s+${escapeRegex(cleanCodeUnit)}(?:\\s+|$)`, 'i');
+    if (!itemToEdit && ops.backlogEnableAutoPrefix) {
+      const prefixCheckRegex = new RegExp(`^${escapedPrefix}\\s+${escapeRegex(cleanCodeUnit)}(?:\\s+|$)`, 'i');
       if (!prefixCheckRegex.test(finalDeskripsi)) {
-        const bodyOnly = finalDeskripsi.replace(/^BCS\s*/i, '').trim();
+        const bodyOnly = finalDeskripsi.replace(new RegExp(`^${escapedPrefix}\\s*`, 'i'), '').trim();
         finalDeskripsi = bodyOnly ? `${expectedPrefix} ${bodyOnly}` : expectedPrefix;
       }
       const descBodyAfterPrefix = finalDeskripsi
-        .replace(new RegExp(`^BCS\\s+${escapeRegex(cleanCodeUnit)}\\s*`, 'i'), '')
+        .replace(new RegExp(`^${escapedPrefix}\\s+${escapeRegex(cleanCodeUnit)}\\s*`, 'i'), '')
         .trim();
       if (!descBodyAfterPrefix) {
         setFormError(`Mohon lengkapi Deskripsi Backlog setelah awalan "${expectedPrefix} ".`);

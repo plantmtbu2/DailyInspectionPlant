@@ -66,6 +66,8 @@ import { PrintReportModal } from './components/PrintReportModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DetailViewModal } from './components/DetailViewModal';
 import { useAuth } from './context/AuthContext';
+import { useSettings } from './context/SettingsContext';
+import { AppModuleId, getAppSettings } from './services/settingsService';
 
 // Views
 import { DashboardDailyView } from './views/DashboardDailyView';
@@ -75,15 +77,17 @@ import { DailyArticView } from './views/DailyArticView';
 import { BacklogView } from './views/BacklogView';
 import { ActivitiesView } from './views/ActivitiesView';
 import { UnitsView } from './views/UnitsView';
+import { SettingsView } from './views/SettingsView';
 
 // Icons for Quick Top Nav Bar
-import { Zap, ShieldCheck, Tractor, AlertOctagon, Wrench, FileWarning, Layers, Truck, ClipboardCheck, BarChart3 } from 'lucide-react';
+import { Zap, ShieldCheck, Tractor, AlertOctagon, Wrench, FileWarning, Layers, Truck, BarChart3, Sliders } from 'lucide-react';
 
 export default function App() {
-  const { currentUser, isAdmin, isAuthenticated } = useAuth();
+  const { isAdmin, isAuthenticated } = useAuth();
+  const { settings, canAccessModule, getModulePermission, getFirstAccessibleModule } = useSettings();
 
-  // Navigation: default to DAILY INSPECTION RIGID
-  const [activeTab, setActiveTab] = useState<ActiveTab>('daily-rigid');
+  // Navigation: initialized from Settings defaultLandingTab
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => getFirstAccessibleModule(isAdmin));
 
   // Core Data Lists - initialized synchronously from localStorage
   const [codeUnits, setCodeUnits] = useState<CodeUnit[]>(() => getCodeUnits());
@@ -258,7 +262,9 @@ export default function App() {
       await initPhotoVault();
       if (!isMounted) return;
       reloadLocalState();
-      await syncDefaultDatabaseFromSheet();
+      if (getAppSettings().sync.autoSyncOnStartup) {
+        await syncDefaultDatabaseFromSheet();
+      }
     };
 
     void initializeAppData();
@@ -332,8 +338,32 @@ export default function App() {
     }
   };
 
-  // Periodic 2-way sync polling (safely paused while any edit modal is open or recent local edits are syncing)
+  // Guard activeTab when user role changes or Admin disables a module
   useEffect(() => {
+    if (!canAccessModule(activeTab, isAdmin)) {
+      setActiveTab(getFirstAccessibleModule(isAdmin));
+    }
+  }, [activeTab, isAdmin, canAccessModule, getFirstAccessibleModule]);
+
+  const navigateToTabSafely = useCallback(
+    (tab: ActiveTab) => {
+      if (tab === 'settings' && !isAdmin) {
+        showToast('Akses ditolak: Modul SETTINGS hanya dapat diakses oleh ADMIN.', 'error');
+        return;
+      }
+      if (!canAccessModule(tab, isAdmin)) {
+        showToast('Modul ini sedang dinonaktifkan untuk User oleh Administrator.', 'error');
+        return;
+      }
+      setActiveTab(tab);
+    },
+    [isAdmin, canAccessModule, showToast]
+  );
+
+  // Periodic 2-way sync polling (respecting Settings pollingIntervalSeconds)
+  useEffect(() => {
+    const intervalSec = settings.sync.pollingIntervalSeconds;
+    if (!intervalSec || intervalSec <= 0) return;
     if (!sheetsConfig?.spreadsheetId && !sheetsConfig?.webAppUrl) return;
 
     const interval = setInterval(async () => {
@@ -364,10 +394,10 @@ export default function App() {
       } catch {
         // Silent background sync
       }
-    }, 30000);
+    }, Math.max(10, intervalSec) * 1000);
 
     return () => clearInterval(interval);
-  }, [sheetsConfig?.spreadsheetId, sheetsConfig?.webAppUrl, reloadLocalState]);
+  }, [sheetsConfig?.spreadsheetId, sheetsConfig?.webAppUrl, settings.sync.pollingIntervalSeconds, reloadLocalState]);
 
   // -------------------------------------------------------------
   // AUTOMATIC BACKGROUND SYNC TO GOOGLE SHEET (DEBOUNCED & NON-BLOCKING)
@@ -375,6 +405,52 @@ export default function App() {
   const triggerBackgroundPush = useCallback(() => {
     autoSyncToGoogleSheetIfConnected();
   }, []);
+
+  const checkPermission = useCallback(
+    (moduleId: AppModuleId, action: 'create' | 'edit' | 'delete' | 'export'): boolean => {
+      const perm = getModulePermission(moduleId, isAdmin);
+      const allowed =
+        action === 'create'
+          ? perm.canCreate
+          : action === 'edit'
+          ? perm.canEdit
+          : action === 'delete'
+          ? perm.canDelete
+          : perm.canExport;
+      if (!allowed) {
+        const actionLabel =
+          action === 'create'
+            ? 'Tambah'
+            : action === 'edit'
+            ? 'Edit'
+            : action === 'delete'
+            ? 'Hapus'
+            : 'Cetak PDF / Share WA';
+        showToast(
+          `Izin ${actionLabel} pada modul "${perm.label}" dikunci oleh Administrator melalui SETTINGS.`,
+          'error'
+        );
+      }
+      return allowed;
+    },
+    [getModulePermission, isAdmin, showToast]
+  );
+
+  const handleOpenPrintableReport = useCallback(
+    (
+      moduleId: AppModuleId,
+      reportData:
+        | { type: 'BAP'; data: BAPRecord }
+        | { type: 'DAILY_RIGID'; data: DailyCheckRigid }
+        | { type: 'DAILY_ARTIC'; data: DailyCheckArtic }
+        | { type: 'BACKLOG'; data: BacklogItem }
+        | { type: 'ACTIVITY'; data: AddActivityItem }
+    ) => {
+      if (!checkPermission(moduleId, 'export')) return;
+      setPrintableReport(reportData);
+    },
+    [checkPermission]
+  );
 
   // -------------------------------------------------------------
   // CRUD HANDLERS (SEALU DISINKRONKAN DENGAN GOOGLE SHEET)
@@ -388,6 +464,7 @@ export default function App() {
   };
 
   const handleDeleteUnit = (id: string, name: string) => {
+    if (!checkPermission('units', 'delete')) return;
     const stats = getUnitStats(name);
     const relatedDesc =
       stats.inspectionCount + stats.bapCount + stats.backlogCount + stats.activityCount > 0
@@ -429,6 +506,7 @@ export default function App() {
   };
 
   const handleDeleteBAP = (item: BAPRecord) => {
+    if (!checkPermission('bap', 'delete')) return;
     setDeleteDialog({
       isOpen: true,
       title: 'Hapus Permanen Laporan BAP?',
@@ -459,6 +537,13 @@ export default function App() {
   };
 
   const handleDeleteDailyRigid = (item: DailyCheckRigid) => {
+    const modId: AppModuleId =
+      item.qaType === 'QA7_FINAL'
+        ? 'qa7-rigid'
+        : item.qaType === 'QA1_PRE'
+        ? 'qa1-rigid'
+        : 'daily-rigid';
+    if (!checkPermission(modId, 'delete')) return;
     const titleText = item.qaType === 'QA7_FINAL' ? 'Hapus Permanen QA 7 Final Rigid?' : item.qaType === 'DAILY_INSPECTION' ? 'Hapus Permanen Daily Rigid?' : 'Hapus Permanen QA 1 Pre Rigid?';
     setDeleteDialog({
       isOpen: true,
@@ -490,6 +575,13 @@ export default function App() {
   };
 
   const handleDeleteDailyArtic = (item: DailyCheckArtic) => {
+    const modId: AppModuleId =
+      item.qaType === 'QA7_FINAL'
+        ? 'qa7-artic'
+        : item.qaType === 'QA1_PRE'
+        ? 'qa1-artic'
+        : 'daily-artic';
+    if (!checkPermission(modId, 'delete')) return;
     const titleText = item.qaType === 'QA7_FINAL' ? 'Hapus Permanen QA 7 Final Artic?' : item.qaType === 'DAILY_INSPECTION' ? 'Hapus Permanen Daily Artic?' : 'Hapus Permanen QA 1 Pre Artic?';
     setDeleteDialog({
       isOpen: true,
@@ -520,12 +612,14 @@ export default function App() {
   };
 
   const handleUpdateBacklogStatus = (id: string, status: BacklogItem['status']) => {
+    if (!checkPermission('backlog', 'edit')) return;
     const updated = updateBacklogStatus(id, status);
     setBacklogs([...updated]);
     triggerBackgroundPush();
   };
 
   const handleDeleteBacklog = (item: BacklogItem) => {
+    if (!checkPermission('backlog', 'delete')) return;
     setDeleteDialog({
       isOpen: true,
       title: 'Hapus Permanen Data Backlog?',
@@ -555,12 +649,14 @@ export default function App() {
   };
 
   const handleUpdateActivityStatus = (id: string, status: AddActivityItem['status']) => {
+    if (!checkPermission('activities', 'edit')) return;
     const updated = updateActivityStatus(id, status);
     setActivities([...updated]);
     triggerBackgroundPush();
   };
 
   const handleDeleteActivity = (item: AddActivityItem) => {
+    if (!checkPermission('activities', 'delete')) return;
     setDeleteDialog({
       isOpen: true,
       title: 'Hapus Permanen Aktivitas Mekanik?',
@@ -578,6 +674,13 @@ export default function App() {
 
   // Open Edit Modals with guaranteed freshest updated data from current state
   const handleOpenEditDailyRigid = (item: DailyCheckRigid) => {
+    const modId: AppModuleId =
+      item.qaType === 'QA7_FINAL'
+        ? 'qa7-rigid'
+        : item.qaType === 'QA1_PRE'
+        ? 'qa1-rigid'
+        : 'daily-rigid';
+    if (!checkPermission(modId, 'edit')) return;
     const latest = dailyRigidList.find(r => r.id === item.id) || item;
     setEditingRigidItem(latest);
     setSelectedUnitForRigid(latest.codeUnit);
@@ -586,6 +689,13 @@ export default function App() {
   };
 
   const handleOpenEditDailyArtic = (item: DailyCheckArtic) => {
+    const modId: AppModuleId =
+      item.qaType === 'QA7_FINAL'
+        ? 'qa7-artic'
+        : item.qaType === 'QA1_PRE'
+        ? 'qa1-artic'
+        : 'daily-artic';
+    if (!checkPermission(modId, 'edit')) return;
     const latest = dailyArticList.find(a => a.id === item.id) || item;
     setEditingArticItem(latest);
     setSelectedUnitForArtic(latest.codeUnit);
@@ -594,6 +704,7 @@ export default function App() {
   };
 
   const handleOpenEditBacklog = (item: BacklogItem) => {
+    if (!checkPermission('backlog', 'edit')) return;
     const latest =
       getBacklogs().find(b => b.id === item.id) ||
       backlogs.find(b => b.id === item.id) ||
@@ -604,6 +715,7 @@ export default function App() {
   };
 
   const handleOpenEditBAP = (item: BAPRecord) => {
+    if (!checkPermission('bap', 'edit')) return;
     const latest = bapList.find(b => b.id === item.id) || item;
     setEditingBapItem(latest);
     setSelectedUnitForBap(latest.codeUnit);
@@ -611,6 +723,7 @@ export default function App() {
   };
 
   const handleOpenEditActivity = (item: AddActivityItem) => {
+    if (!checkPermission('activities', 'edit')) return;
     const latest =
       getActivities().find(a => a.id === item.id) ||
       activities.find(a => a.id === item.id) ||
@@ -764,7 +877,7 @@ export default function App() {
       {/* Desktop Sidebar Navigation (Variation 2) */}
       <Sidebar
         activeTab={activeTab}
-        onChangeTab={setActiveTab}
+        onChangeTab={navigateToTabSafely}
         dailyRigidCount={dailyRigidCount}
         dailyArticCount={dailyArticCount}
         qa1RigidCount={qa1RigidCount}
@@ -808,206 +921,243 @@ export default function App() {
           dailyRigidList={dailyRigidList}
           dailyArticList={dailyArticList}
           activities={activities}
-          onNavigateToTab={tab => setActiveTab(tab)}
+          onNavigateToTab={navigateToTabSafely}
         />
 
         {/* Mobile Quick-Switch Bar (hidden on desktop because sidebar is active) */}
         <div className="lg:hidden no-print bg-[#18181b] border-b border-[rgba(242,239,235,0.1)] sticky top-[53px] z-20 shadow-sm">
           <div className="w-full px-2 py-1.5 flex items-center space-x-1.5 overflow-x-auto scrollbar-none">
           {/* MENU UTAMA: DASHBOARD PENCAPAIAN */}
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
-              activeTab === 'dashboard'
-                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/25 ring-2 ring-amber-400/30'
-                : 'bg-slate-800/80 hover:bg-slate-800 text-amber-400 border-amber-500/30'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>DASHBOARD</span>
-          </button>
+          {canAccessModule('dashboard', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('dashboard')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
+                activeTab === 'dashboard'
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/25 ring-2 ring-amber-400/30'
+                  : 'bg-slate-800/80 hover:bg-slate-800 text-amber-400 border-amber-500/30'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>{settings.modules.dashboard?.label || 'DASHBOARD'}</span>
+            </button>
+          )}
 
           {/* MENU UTAMA: DAILY INSPECTION RIGID */}
-          <button
-            onClick={() => setActiveTab('daily-rigid')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
-              activeTab === 'daily-rigid'
-                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
-                : 'bg-slate-800/80 hover:bg-slate-800 text-amber-400 border-amber-500/30'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>DAILY RIGID</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-              activeTab === 'daily-rigid' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/20 text-amber-300'
-            }`}>
-              {dailyRigidCount}
-            </span>
-          </button>
+          {canAccessModule('daily-rigid', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('daily-rigid')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
+                activeTab === 'daily-rigid'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
+                  : 'bg-slate-800/80 hover:bg-slate-800 text-amber-400 border-amber-500/30'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>{settings.modules['daily-rigid']?.label || 'DAILY RIGID'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                activeTab === 'daily-rigid' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/20 text-amber-300'
+              }`}>
+                {dailyRigidCount}
+              </span>
+            </button>
+          )}
 
           {/* MENU UTAMA: DAILY INSPECTION ARTIC */}
-          <button
-            onClick={() => setActiveTab('daily-artic')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
-              activeTab === 'daily-artic'
-                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400/30'
-                : 'bg-slate-800/80 hover:bg-slate-800 text-emerald-400 border-emerald-500/30'
-            }`}
-          >
-            <Tractor className="w-3.5 h-3.5" />
-            <span>DAILY ARTIC</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-              activeTab === 'daily-artic' ? 'bg-slate-950/20 text-slate-950' : 'bg-emerald-500/20 text-emerald-300'
-            }`}>
-              {dailyArticCount}
-            </span>
-          </button>
+          {canAccessModule('daily-artic', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('daily-artic')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
+                activeTab === 'daily-artic'
+                  ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400/30'
+                  : 'bg-slate-800/80 hover:bg-slate-800 text-emerald-400 border-emerald-500/30'
+              }`}
+            >
+              <Tractor className="w-3.5 h-3.5" />
+              <span>{settings.modules['daily-artic']?.label || 'DAILY ARTIC'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                activeTab === 'daily-artic' ? 'bg-slate-950/20 text-slate-950' : 'bg-emerald-500/20 text-emerald-300'
+              }`}>
+                {dailyArticCount}
+              </span>
+            </button>
+          )}
 
           <div className="h-4 w-px bg-slate-700/60 mx-1 shrink-0" />
 
           {/* 1. QA 1 PRE RIGID */}
-          <button
-            onClick={() => setActiveTab('qa1-rigid')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'qa1-rigid'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>1. QA 1 PRE RIGID</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeTab === 'qa1-rigid' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
-            }`}>
-              {qa1RigidCount}
-            </span>
-          </button>
+          {canAccessModule('qa1-rigid', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('qa1-rigid')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'qa1-rigid'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>1. {settings.modules['qa1-rigid']?.label || 'QA 1 PRE RIGID'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                activeTab === 'qa1-rigid' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
+              }`}>
+                {qa1RigidCount}
+              </span>
+            </button>
+          )}
 
           {/* 2. QA 7 FINAL RIGID */}
-          <button
-            onClick={() => setActiveTab('qa7-rigid')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'qa7-rigid'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>2. QA 7 FINAL RIGID</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeTab === 'qa7-rigid' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
-            }`}>
-              {qa7RigidCount}
-            </span>
-          </button>
+          {canAccessModule('qa7-rigid', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('qa7-rigid')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'qa7-rigid'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>2. {settings.modules['qa7-rigid']?.label || 'QA 7 FINAL RIGID'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                activeTab === 'qa7-rigid' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
+              }`}>
+                {qa7RigidCount}
+              </span>
+            </button>
+          )}
 
           {/* 3. QA 1 PRE ARTIC */}
-          <button
-            onClick={() => setActiveTab('qa1-artic')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'qa1-artic'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <Tractor className="w-3.5 h-3.5" />
-            <span>3. QA 1 PRE ARTIC</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeTab === 'qa1-artic' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
-            }`}>
-              {qa1ArticCount}
-            </span>
-          </button>
+          {canAccessModule('qa1-artic', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('qa1-artic')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'qa1-artic'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <Tractor className="w-3.5 h-3.5" />
+              <span>3. {settings.modules['qa1-artic']?.label || 'QA 1 PRE ARTIC'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                activeTab === 'qa1-artic' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
+              }`}>
+                {qa1ArticCount}
+              </span>
+            </button>
+          )}
 
           {/* 4. QA 7 FINAL ARTIC */}
-          <button
-            onClick={() => setActiveTab('qa7-artic')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'qa7-artic'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>4. QA 7 FINAL ARTIC</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeTab === 'qa7-artic' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
-            }`}>
-              {qa7ArticCount}
-            </span>
-          </button>
+          {canAccessModule('qa7-artic', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('qa7-artic')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'qa7-artic'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>4. {settings.modules['qa7-artic']?.label || 'QA 7 FINAL ARTIC'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                activeTab === 'qa7-artic' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
+              }`}>
+                {qa7ArticCount}
+              </span>
+            </button>
+          )}
 
           {/* BACKLOG */}
-          <button
-            onClick={() => setActiveTab('backlog')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'backlog'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <AlertOctagon className="w-3.5 h-3.5" />
-            <span>BACKLOG</span>
-            {activeBacklogCount > 0 && (
-              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
-                {activeBacklogCount}
-              </span>
-            )}
-          </button>
+          {canAccessModule('backlog', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('backlog')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'backlog'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <AlertOctagon className="w-3.5 h-3.5" />
+              <span>{settings.modules.backlog?.label || 'BACKLOG'}</span>
+              {activeBacklogCount > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
+                  {activeBacklogCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* ACTIVITIES */}
-          <button
-            onClick={() => setActiveTab('activities')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'activities'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <Wrench className="w-3.5 h-3.5" />
-            <span>ADD ACTIVITIES</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeTab === 'activities' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
-            }`}>
-              {activities.length}
-            </span>
-          </button>
+          {canAccessModule('activities', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('activities')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'activities'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              <span>{settings.modules.activities?.label || 'ADD ACTIVITIES'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                activeTab === 'activities' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-700 text-slate-300'
+              }`}>
+                {activities.length}
+              </span>
+            </button>
+          )}
 
           {/* BAP */}
-          <button
-            onClick={() => setActiveTab('bap')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'bap'
-                ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <FileWarning className="w-3.5 h-3.5" />
-            <span>BAP</span>
-            {openBapCount > 0 && (
-              <span className="bg-rose-700 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
-                {openBapCount}
-              </span>
-            )}
-          </button>
+          {canAccessModule('bap', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('bap')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'bap'
+                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <FileWarning className="w-3.5 h-3.5" />
+              <span>{settings.modules.bap?.label || 'BAP'}</span>
+              {openBapCount > 0 && (
+                <span className="bg-rose-700 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
+                  {openBapCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* CODE UNIT */}
-          <button
-            onClick={() => setActiveTab('units')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
-              activeTab === 'units'
-                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>CODE UNIT ({codeUnits.length})</span>
-          </button>
+          {canAccessModule('units', isAdmin) && (
+            <button
+              onClick={() => navigateToTabSafely('units')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center space-x-1.5 transition ${
+                activeTab === 'units'
+                  ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>{settings.modules.units?.label || 'CODE UNIT'} ({codeUnits.length})</span>
+            </button>
+          )}
+
+          {/* ADMIN-ONLY SETTINGS TAB IN MOBILE BAR */}
+          {isAdmin && (
+            <button
+              onClick={() => navigateToTabSafely('settings')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center space-x-1.5 transition border ${
+                activeTab === 'settings'
+                  ? 'bg-[#facc15] text-[#111113] border-[#facc15] shadow-md shadow-[#facc15]/25'
+                  : 'bg-[#facc15]/10 hover:bg-[#facc15]/20 text-[#facc15] border-[#facc15]/40'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>SETTINGS (ADMIN)</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full mx-auto p-3 sm:p-5 ${activeTab === 'dashboard' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+      <main className={`flex-1 w-full mx-auto p-3 sm:p-5 ${activeTab === 'dashboard' || activeTab === 'settings' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {/* DASHBOARD PENCAPAIAN DAILY (HARIAN, BULANAN, TAHUNAN) */}
         {activeTab === 'dashboard' && (
           <DashboardDailyView
@@ -1018,18 +1168,26 @@ export default function App() {
             backlogs={backlogs}
             activities={activities}
             onOpenRigidForUnit={(cu, qaType) => {
+              const targetQa = qaType || 'DAILY_INSPECTION';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-rigid' : targetQa === 'QA1_PRE' ? 'qa1-rigid' : 'daily-rigid';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForRigid(cu);
               setEditingRigidItem(null);
-              setRigidModalQaType(qaType || 'DAILY_INSPECTION');
+              setRigidModalQaType(targetQa);
               setIsRigidModalOpen(true);
             }}
             onOpenArticForUnit={(cu, qaType) => {
+              const targetQa = qaType || 'DAILY_INSPECTION';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-artic' : targetQa === 'QA1_PRE' ? 'qa1-artic' : 'daily-artic';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForArtic(cu);
               setEditingArticItem(null);
-              setArticModalQaType(qaType || 'DAILY_INSPECTION');
+              setArticModalQaType(targetQa);
               setIsArticModalOpen(true);
             }}
-            onNavigateToTab={tab => setActiveTab(tab as ActiveTab)}
+            onNavigateToTab={tab => navigateToTabSafely(tab as ActiveTab)}
           />
         )}
 
@@ -1041,27 +1199,33 @@ export default function App() {
             activities={activities}
             activeQaType="DAILY_INSPECTION"
             onChangeQaType={t => {
-              if (t === 'DAILY_INSPECTION') setActiveTab('daily-rigid');
-              else if (t === 'QA1_PRE') setActiveTab('qa1-rigid');
-              else if (t === 'QA7_FINAL') setActiveTab('qa7-rigid');
+              if (t === 'DAILY_INSPECTION') navigateToTabSafely('daily-rigid');
+              else if (t === 'QA1_PRE') navigateToTabSafely('qa1-rigid');
+              else if (t === 'QA7_FINAL') navigateToTabSafely('qa7-rigid');
             }}
             onOpenCreate={type => {
+              const targetQa = type || 'DAILY_INSPECTION';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-rigid' : targetQa === 'QA1_PRE' ? 'qa1-rigid' : 'daily-rigid';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForRigid('');
               setEditingRigidItem(null);
-              setRigidModalQaType(type || 'DAILY_INSPECTION');
+              setRigidModalQaType(targetQa);
               setIsRigidModalOpen(true);
             }}
             onViewItem={handleViewDailyRigid}
             onEditItem={handleOpenEditDailyRigid}
             onDeleteItem={handleDeleteDailyRigid}
-            onPrintPreview={item => setPrintableReport({ type: 'DAILY_RIGID', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('daily-rigid', { type: 'DAILY_RIGID', data: item })}
             onOpenAddBacklog={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('DAILY_RIGID');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenAddActivity={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1079,27 +1243,33 @@ export default function App() {
             activities={activities}
             activeQaType="DAILY_INSPECTION"
             onChangeQaType={t => {
-              if (t === 'DAILY_INSPECTION') setActiveTab('daily-artic');
-              else if (t === 'QA1_PRE') setActiveTab('qa1-artic');
-              else if (t === 'QA7_FINAL') setActiveTab('qa7-artic');
+              if (t === 'DAILY_INSPECTION') navigateToTabSafely('daily-artic');
+              else if (t === 'QA1_PRE') navigateToTabSafely('qa1-artic');
+              else if (t === 'QA7_FINAL') navigateToTabSafely('qa7-artic');
             }}
             onOpenCreate={type => {
+              const targetQa = type || 'DAILY_INSPECTION';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-artic' : targetQa === 'QA1_PRE' ? 'qa1-artic' : 'daily-artic';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForArtic('');
               setEditingArticItem(null);
-              setArticModalQaType(type || 'DAILY_INSPECTION');
+              setArticModalQaType(targetQa);
               setIsArticModalOpen(true);
             }}
             onViewItem={handleViewDailyArtic}
             onEditItem={handleOpenEditDailyArtic}
             onDeleteItem={handleDeleteDailyArtic}
-            onPrintPreview={item => setPrintableReport({ type: 'DAILY_ARTIC', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('daily-artic', { type: 'DAILY_ARTIC', data: item })}
             onOpenAddBacklog={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('DAILY_ARTIC');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenAddActivity={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1117,27 +1287,33 @@ export default function App() {
             activities={activities}
             activeQaType="QA1_PRE"
             onChangeQaType={t => {
-              if (t === 'DAILY_INSPECTION') setActiveTab('daily-rigid');
-              else if (t === 'QA7_FINAL') setActiveTab('qa7-rigid');
-              else if (t === 'QA1_PRE') setActiveTab('qa1-rigid');
+              if (t === 'DAILY_INSPECTION') navigateToTabSafely('daily-rigid');
+              else if (t === 'QA7_FINAL') navigateToTabSafely('qa7-rigid');
+              else if (t === 'QA1_PRE') navigateToTabSafely('qa1-rigid');
             }}
             onOpenCreate={type => {
+              const targetQa = type || 'QA1_PRE';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-rigid' : targetQa === 'DAILY_INSPECTION' ? 'daily-rigid' : 'qa1-rigid';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForRigid('');
               setEditingRigidItem(null);
-              setRigidModalQaType(type || 'QA1_PRE');
+              setRigidModalQaType(targetQa);
               setIsRigidModalOpen(true);
             }}
             onViewItem={handleViewDailyRigid}
             onEditItem={handleOpenEditDailyRigid}
             onDeleteItem={handleDeleteDailyRigid}
-            onPrintPreview={item => setPrintableReport({ type: 'DAILY_RIGID', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('qa1-rigid', { type: 'DAILY_RIGID', data: item })}
             onOpenAddBacklog={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('QA1_RIGID');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenAddActivity={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1155,27 +1331,33 @@ export default function App() {
             activities={activities}
             activeQaType="QA7_FINAL"
             onChangeQaType={t => {
-              if (t === 'DAILY_INSPECTION') setActiveTab('daily-rigid');
-              else if (t === 'QA1_PRE') setActiveTab('qa1-rigid');
-              else if (t === 'QA7_FINAL') setActiveTab('qa7-rigid');
+              if (t === 'DAILY_INSPECTION') navigateToTabSafely('daily-rigid');
+              else if (t === 'QA1_PRE') navigateToTabSafely('qa1-rigid');
+              else if (t === 'QA7_FINAL') navigateToTabSafely('qa7-rigid');
             }}
             onOpenCreate={type => {
+              const targetQa = type || 'QA7_FINAL';
+              const modId: AppModuleId =
+                targetQa === 'QA1_PRE' ? 'qa1-rigid' : targetQa === 'DAILY_INSPECTION' ? 'daily-rigid' : 'qa7-rigid';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForRigid('');
               setEditingRigidItem(null);
-              setRigidModalQaType(type || 'QA7_FINAL');
+              setRigidModalQaType(targetQa);
               setIsRigidModalOpen(true);
             }}
             onViewItem={handleViewDailyRigid}
             onEditItem={handleOpenEditDailyRigid}
             onDeleteItem={handleDeleteDailyRigid}
-            onPrintPreview={item => setPrintableReport({ type: 'DAILY_RIGID', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('qa7-rigid', { type: 'DAILY_RIGID', data: item })}
             onOpenAddBacklog={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('QA7_RIGID');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenAddActivity={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1193,27 +1375,33 @@ export default function App() {
             activities={activities}
             activeQaType="QA1_PRE"
             onChangeQaType={t => {
-              if (t === 'DAILY_INSPECTION') setActiveTab('daily-artic');
-              else if (t === 'QA7_FINAL') setActiveTab('qa7-artic');
-              else if (t === 'QA1_PRE') setActiveTab('qa1-artic');
+              if (t === 'DAILY_INSPECTION') navigateToTabSafely('daily-artic');
+              else if (t === 'QA7_FINAL') navigateToTabSafely('qa7-artic');
+              else if (t === 'QA1_PRE') navigateToTabSafely('qa1-artic');
             }}
             onOpenCreate={type => {
+              const targetQa = type || 'QA1_PRE';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-artic' : targetQa === 'DAILY_INSPECTION' ? 'daily-artic' : 'qa1-artic';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForArtic('');
               setEditingArticItem(null);
-              setArticModalQaType(type || 'QA1_PRE');
+              setArticModalQaType(targetQa);
               setIsArticModalOpen(true);
             }}
             onViewItem={handleViewDailyArtic}
             onEditItem={handleOpenEditDailyArtic}
             onDeleteItem={handleDeleteDailyArtic}
-            onPrintPreview={item => setPrintableReport({ type: 'DAILY_ARTIC', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('qa1-artic', { type: 'DAILY_ARTIC', data: item })}
             onOpenAddBacklog={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('QA1_ARTIC');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenAddActivity={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1231,27 +1419,33 @@ export default function App() {
             activities={activities}
             activeQaType="QA7_FINAL"
             onChangeQaType={t => {
-              if (t === 'DAILY_INSPECTION') setActiveTab('daily-artic');
-              else if (t === 'QA1_PRE') setActiveTab('qa1-artic');
-              else if (t === 'QA7_FINAL') setActiveTab('qa7-artic');
+              if (t === 'DAILY_INSPECTION') navigateToTabSafely('daily-artic');
+              else if (t === 'QA1_PRE') navigateToTabSafely('qa1-artic');
+              else if (t === 'QA7_FINAL') navigateToTabSafely('qa7-artic');
             }}
             onOpenCreate={type => {
+              const targetQa = type || 'QA7_FINAL';
+              const modId: AppModuleId =
+                targetQa === 'QA1_PRE' ? 'qa1-artic' : targetQa === 'DAILY_INSPECTION' ? 'daily-artic' : 'qa7-artic';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForArtic('');
               setEditingArticItem(null);
-              setArticModalQaType(type || 'QA7_FINAL');
+              setArticModalQaType(targetQa);
               setIsArticModalOpen(true);
             }}
             onViewItem={handleViewDailyArtic}
             onEditItem={handleOpenEditDailyArtic}
             onDeleteItem={handleDeleteDailyArtic}
-            onPrintPreview={item => setPrintableReport({ type: 'DAILY_ARTIC', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('qa7-artic', { type: 'DAILY_ARTIC', data: item })}
             onOpenAddBacklog={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('QA7_ARTIC');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenAddActivity={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1267,6 +1461,7 @@ export default function App() {
             backlogs={backlogs}
             units={codeUnits}
             onOpenCreate={() => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog('');
               setBacklogSource('MANUAL');
               setEditingBacklogItem(null);
@@ -1276,7 +1471,7 @@ export default function App() {
             onEditItem={handleOpenEditBacklog}
             onDeleteItem={handleDeleteBacklog}
             onUpdateStatus={handleUpdateBacklogStatus}
-            onPrintPreview={item => setPrintableReport({ type: 'BACKLOG', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('backlog', { type: 'BACKLOG', data: item })}
           />
         )}
 
@@ -1286,6 +1481,7 @@ export default function App() {
             activities={activities}
             units={codeUnits}
             onOpenCreate={() => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity('');
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
@@ -1294,7 +1490,7 @@ export default function App() {
             onEditItem={handleOpenEditActivity}
             onDeleteItem={handleDeleteActivity}
             onUpdateStatus={handleUpdateActivityStatus}
-            onPrintPreview={item => setPrintableReport({ type: 'ACTIVITY', data: item })}
+            onPrintPreview={item => handleOpenPrintableReport('activities', { type: 'ACTIVITY', data: item })}
           />
         )}
 
@@ -1303,6 +1499,7 @@ export default function App() {
           <BapView
             bapList={bapList}
             onOpenCreateModal={() => {
+              if (!checkPermission('bap', 'create')) return;
               setSelectedUnitForBap('');
               setEditingBapItem(null);
               setIsBapModalOpen(true);
@@ -1310,7 +1507,7 @@ export default function App() {
             onViewBAP={handleViewBAP}
             onEditBAP={handleOpenEditBAP}
             onDeleteBAP={handleDeleteBAP}
-            onPrintPreview={bap => setPrintableReport({ type: 'BAP', data: bap })}
+            onPrintPreview={bap => handleOpenPrintableReport('bap', { type: 'BAP', data: bap })}
           />
         )}
 
@@ -1318,38 +1515,75 @@ export default function App() {
         {activeTab === 'units' && (
           <UnitsView
             units={codeUnits}
-            onOpenManageUnits={() => setIsUnitsManagerModalOpen(true)}
+            onOpenManageUnits={() => {
+              if (!checkPermission('units', 'create')) return;
+              setIsUnitsManagerModalOpen(true);
+            }}
             onViewUnit={handleViewUnit}
-            onEditUnit={() => setIsUnitsManagerModalOpen(true)}
+            onEditUnit={() => {
+              if (!checkPermission('units', 'edit')) return;
+              setIsUnitsManagerModalOpen(true);
+            }}
             onDeleteUnit={handleDeleteUnit}
             onOpenBapForUnit={cu => {
+              if (!checkPermission('bap', 'create')) return;
               setSelectedUnitForBap(cu);
               setEditingBapItem(null);
               setIsBapModalOpen(true);
             }}
             onOpenRigidForUnit={(cu, qaType) => {
+              const targetQa = qaType || 'QA1_PRE';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-rigid' : targetQa === 'DAILY_INSPECTION' ? 'daily-rigid' : 'qa1-rigid';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForRigid(cu);
               setEditingRigidItem(null);
-              setRigidModalQaType(qaType || 'QA1_PRE');
+              setRigidModalQaType(targetQa);
               setIsRigidModalOpen(true);
             }}
             onOpenArticForUnit={(cu, qaType) => {
+              const targetQa = qaType || 'QA1_PRE';
+              const modId: AppModuleId =
+                targetQa === 'QA7_FINAL' ? 'qa7-artic' : targetQa === 'DAILY_INSPECTION' ? 'daily-artic' : 'qa1-artic';
+              if (!checkPermission(modId, 'create')) return;
               setSelectedUnitForArtic(cu);
               setEditingArticItem(null);
-              setArticModalQaType(qaType || 'QA1_PRE');
+              setArticModalQaType(targetQa);
               setIsArticModalOpen(true);
             }}
             onOpenBacklogForUnit={cu => {
+              if (!checkPermission('backlog', 'create')) return;
               setSelectedUnitForBacklog(cu);
               setBacklogSource('MANUAL');
               setEditingBacklogItem(null);
               setIsBacklogModalOpen(true);
             }}
             onOpenActivityForUnit={cu => {
+              if (!checkPermission('activities', 'create')) return;
               setSelectedUnitForActivity(cu);
               setEditingActivityItem(null);
               setIsActivityModalOpen(true);
             }}
+          />
+        )}
+
+        {/* MODUL SETTINGS (KHUSUS ADMIN) */}
+        {activeTab === 'settings' && (
+          <SettingsView
+            codeUnits={codeUnits}
+            bapList={bapList}
+            dailyRigidList={dailyRigidList}
+            dailyArticList={dailyArticList}
+            backlogs={backlogs}
+            activities={activities}
+            sheetsConfig={sheetsConfig}
+            onOpenSheetsModal={() => setIsSheetsModalOpen(true)}
+            onPullData={handlePullData}
+            onPushData={handlePushData}
+            isSyncing={isSyncing}
+            onDatasetReloaded={reloadLocalState}
+            onShowToast={showToast}
+            onNavigateBack={() => navigateToTabSafely(getFirstAccessibleModule(isAdmin))}
           />
         )}
       </main>
@@ -1358,7 +1592,7 @@ export default function App() {
       {/* Android Mobile Bottom Navigation Bar */}
       <BottomNav
         activeTab={activeTab}
-        onChangeTab={setActiveTab}
+        onChangeTab={navigateToTabSafely}
         openBapCount={openBapCount}
         activeBacklogCount={activeBacklogCount}
         dailyRigidCount={dailyRigidCount}
@@ -1385,8 +1619,13 @@ export default function App() {
         backlogs={backlogs}
         activities={activities}
         onSave={handleSaveDailyRigid}
-        onPrintPreview={item => setPrintableReport({ type: 'DAILY_RIGID', data: item })}
+        onPrintPreview={item => {
+          const modId: AppModuleId =
+            item.qaType === 'QA7_FINAL' ? 'qa7-rigid' : item.qaType === 'QA1_PRE' ? 'qa1-rigid' : 'daily-rigid';
+          handleOpenPrintableReport(modId, { type: 'DAILY_RIGID', data: item });
+        }}
         onOpenAddBacklog={cu => {
+          if (!checkPermission('backlog', 'create')) return;
           setSelectedUnitForBacklog(cu);
           setBacklogSource(rigidModalQaType === 'DAILY_INSPECTION' ? 'DAILY_RIGID' : rigidModalQaType === 'QA7_FINAL' ? 'QA7_RIGID' : 'QA1_RIGID');
           setEditingBacklogItem(null);
@@ -1397,6 +1636,7 @@ export default function App() {
           handleViewBacklog(item);
         }}
         onOpenAddActivity={cu => {
+          if (!checkPermission('activities', 'create')) return;
           setSelectedUnitForActivity(cu);
           setEditingActivityItem(null);
           setIsActivityModalOpen(true);
@@ -1417,8 +1657,13 @@ export default function App() {
         backlogs={backlogs}
         activities={activities}
         onSave={handleSaveDailyArtic}
-        onPrintPreview={item => setPrintableReport({ type: 'DAILY_ARTIC', data: item })}
+        onPrintPreview={item => {
+          const modId: AppModuleId =
+            item.qaType === 'QA7_FINAL' ? 'qa7-artic' : item.qaType === 'QA1_PRE' ? 'qa1-artic' : 'daily-artic';
+          handleOpenPrintableReport(modId, { type: 'DAILY_ARTIC', data: item });
+        }}
         onOpenAddBacklog={cu => {
+          if (!checkPermission('backlog', 'create')) return;
           setSelectedUnitForBacklog(cu);
           setBacklogSource(articModalQaType === 'DAILY_INSPECTION' ? 'DAILY_ARTIC' : articModalQaType === 'QA7_FINAL' ? 'QA7_ARTIC' : 'QA1_ARTIC');
           setEditingBacklogItem(null);
@@ -1429,6 +1674,7 @@ export default function App() {
           handleViewBacklog(item);
         }}
         onOpenAddActivity={cu => {
+          if (!checkPermission('activities', 'create')) return;
           setSelectedUnitForActivity(cu);
           setEditingActivityItem(null);
           setIsActivityModalOpen(true);
@@ -1473,7 +1719,7 @@ export default function App() {
         initialCodeUnit={selectedUnitForBap}
         itemToEdit={editingBapItem}
         onSaveBAP={handleSaveBAP}
-        onPrintPreview={bap => setPrintableReport({ type: 'BAP', data: bap })}
+        onPrintPreview={bap => handleOpenPrintableReport('bap', { type: 'BAP', data: bap })}
       />
 
       {/* 6. Modal Master Code Unit */}

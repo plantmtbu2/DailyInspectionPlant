@@ -9,7 +9,11 @@ import {
   Zap,
   ShieldCheck,
   BarChart3,
+  Sliders,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
+import { AppModuleId } from '../services/settingsService';
 
 export type ActiveTab =
   | 'dashboard'
@@ -22,7 +26,8 @@ export type ActiveTab =
   | 'backlog'
   | 'activities'
   | 'bap'
-  | 'units';
+  | 'units'
+  | 'settings';
 
 interface BottomNavProps {
   activeTab: ActiveTab;
@@ -45,11 +50,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   dailyRigidCount,
   dailyArticCount,
 }) => {
-  const navItems = [
+  const { isAdmin } = useAuth();
+  const { settings, canAccessModule } = useSettings();
+
+  const navItems: Array<{
+    id: ActiveTab;
+    label: string;
+    shortLabel: string;
+    icon: React.ElementType;
+    badge: number | null;
+    highlightColor: string;
+    activeIndicator: string;
+    badgeColor?: string;
+  }> = [
     {
       id: 'dashboard' as ActiveTab,
       label: 'Dashboard',
-      shortLabel: 'Dashboard',
+      shortLabel: settings.modules.dashboard?.label || 'Dashboard',
       icon: BarChart3,
       badge: null,
       highlightColor: 'text-[#facc15]',
@@ -58,7 +75,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'daily-rigid' as ActiveTab,
       label: 'Daily Rigid',
-      shortLabel: 'Daily Rigid',
+      shortLabel: settings.modules['daily-rigid']?.label || 'Daily Rigid',
       icon: Truck,
       badge: dailyRigidCount && dailyRigidCount > 0 ? dailyRigidCount : null,
       highlightColor: 'text-amber-400',
@@ -67,7 +84,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'daily-artic' as ActiveTab,
       label: 'Daily Artic',
-      shortLabel: 'Daily Artic',
+      shortLabel: settings.modules['daily-artic']?.label || 'Daily Artic',
       icon: Tractor,
       badge: dailyArticCount && dailyArticCount > 0 ? dailyArticCount : null,
       highlightColor: 'text-emerald-400',
@@ -76,7 +93,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'qa1-rigid' as ActiveTab,
       label: '1. QA 1 Rigid',
-      shortLabel: 'QA 1 Rigid',
+      shortLabel: settings.modules['qa1-rigid']?.label || 'QA 1 Rigid',
       icon: Zap,
       badge: null,
       highlightColor: 'text-amber-400',
@@ -85,7 +102,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'qa7-rigid' as ActiveTab,
       label: '2. QA 7 Rigid',
-      shortLabel: 'QA 7 Rigid',
+      shortLabel: settings.modules['qa7-rigid']?.label || 'QA 7 Rigid',
       icon: ShieldCheck,
       badge: null,
       highlightColor: 'text-emerald-400',
@@ -94,7 +111,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'qa1-artic' as ActiveTab,
       label: '3. QA 1 Artic',
-      shortLabel: 'QA 1 Artic',
+      shortLabel: settings.modules['qa1-artic']?.label || 'QA 1 Artic',
       icon: Tractor,
       badge: null,
       highlightColor: 'text-amber-400',
@@ -103,7 +120,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'qa7-artic' as ActiveTab,
       label: '4. QA 7 Artic',
-      shortLabel: 'QA 7 Artic',
+      shortLabel: settings.modules['qa7-artic']?.label || 'QA 7 Artic',
       icon: ShieldCheck,
       badge: null,
       highlightColor: 'text-emerald-400',
@@ -112,7 +129,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'backlog' as ActiveTab,
       label: 'Backlog',
-      shortLabel: 'Backlog',
+      shortLabel: settings.modules.backlog?.label || 'Backlog',
       icon: AlertOctagon,
       badge: activeBacklogCount > 0 ? activeBacklogCount : null,
       badgeColor: 'bg-amber-500',
@@ -122,7 +139,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'activities' as ActiveTab,
       label: 'Activities',
-      shortLabel: 'Aktivitas',
+      shortLabel: settings.modules.activities?.label || 'Aktivitas',
       icon: Wrench,
       badge: null,
       highlightColor: 'text-emerald-400',
@@ -131,7 +148,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'bap' as ActiveTab,
       label: 'BAP',
-      shortLabel: 'BAP',
+      shortLabel: settings.modules.bap?.label || 'BAP',
       icon: FileWarning,
       badge: openBapCount > 0 ? openBapCount : null,
       badgeColor: 'bg-rose-500',
@@ -141,7 +158,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'units' as ActiveTab,
       label: 'Code Unit',
-      shortLabel: 'Unit',
+      shortLabel: settings.modules.units?.label || 'Unit',
       icon: Layers,
       badge: null,
       highlightColor: 'text-blue-400',
@@ -149,11 +166,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     },
   ];
 
+  const visibleItems = navItems.filter(item => canAccessModule(item.id as AppModuleId, isAdmin));
+  if (isAdmin) {
+    visibleItems.push({
+      id: 'settings' as ActiveTab,
+      label: 'Settings',
+      shortLabel: 'Settings',
+      icon: Sliders,
+      badge: null,
+      highlightColor: 'text-[#facc15]',
+      activeIndicator: 'bg-[#facc15]',
+    });
+  }
+
   return (
     <nav className="no-print lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111113]/95 backdrop-blur-md border-t border-[rgba(242,239,235,0.1)] safe-bottom">
       <div className="w-full px-1 sm:px-3">
         <div className="flex items-center justify-between overflow-x-auto py-1 scrollbar-none gap-0.5">
-          {navItems.map(item => {
+          {visibleItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -171,7 +201,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 )}
                 <div className="relative">
                   <Icon className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isActive ? 'scale-110 text-[#facc15]' : ''}`} />
-                  {item.badge !== null && (
+                  {settings.general.showNavBadges && item.badge !== null && (
                     <span
                       className={`absolute -top-1 -right-2 min-w-3.5 h-3.5 px-1 rounded text-[9px] font-mono font-bold flex items-center justify-center ${
                         item.id === 'backlog'
