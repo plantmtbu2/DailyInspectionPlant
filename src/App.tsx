@@ -1014,6 +1014,7 @@ export default function App() {
             dailyRigidList={dailyRigidList}
             dailyArticList={dailyArticList}
             codeUnits={codeUnits}
+            bapList={bapList}
             backlogs={backlogs}
             activities={activities}
             onOpenRigidForUnit={(cu, qaType) => {

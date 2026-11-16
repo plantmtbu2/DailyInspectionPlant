@@ -765,6 +765,26 @@ export interface DashboardAchievementSummary {
   achievementRate: number;
   rigidCount: number;
   articCount: number;
+  dailyRigidCount?: number;
+  dailyArticCount?: number;
+  qa1RigidCount?: number;
+  qa1ArticCount?: number;
+  qa7RigidCount?: number;
+  qa7ArticCount?: number;
+  bapTotal?: number;
+  bapOpen?: number;
+  bapInProgress?: number;
+  bapCompleted?: number;
+  backlogTotal?: number;
+  backlogWaiting?: number;
+  backlogReady?: number;
+  backlogScheduled?: number;
+  backlogClosed?: number;
+  activityTotal?: number;
+  activityDone?: number;
+  activityClosed?: number;
+  activityMonitoring?: number;
+  activityPending?: number;
   runningCount: number;
   breakdownCount: number;
   standbyCount: number;
@@ -778,31 +798,38 @@ export const formatDashboardAchievementWhatsApp = (s: DashboardAchievementSummar
   const statusEmoji = s.achievementRate >= 85 ? '🟢' : s.achievementRate >= 60 ? '🟡' : '🔴';
 
   const uninspectedText = s.uninspectedUnitCodes.length > 0
-    ? `⚠️ *Unit Belum Diinspeksi (${s.uninspectedUnitCodes.length}):*\n${s.uninspectedUnitCodes.join(', ')}`
-    : `✅ *Semua Armada Telah Diinspeksi 100%!*`;
+    ? `⚠️ *Unit Belum Daily Check (${s.uninspectedUnitCodes.length}):*\n${s.uninspectedUnitCodes.join(', ')}`
+    : `✅ *Semua Armada Telah Daily Check 100%!*`;
 
-  return `📊 *DASHBOARD PENCAPAIAN DAILY INSPEKSI* 📊
-*PT. PAMAPERSADA NUSANTARA - PLANT 2 MTBU*
+  return `📊 *DASHBOARD PENCAPAIAN & MONITORING PLANT 2* 📊
+*PT. PAMAPERSADA NUSANTARA - MTBU*
 ---------------------------------------
 📅 *Periode:* ${s.periodType} (${s.periodLabel})
-${statusEmoji} *Achievement Rate:* *${s.achievementRate.toFixed(1)}%*
+${statusEmoji} *Pencapaian Daily Check:* *${s.achievementRate.toFixed(1)}%* (${s.inspectedUnitsCount}/${s.totalUnits} Unit)
 
-🎯 *TARGET & REALISASI ARMADA:*
-• Total Armada Terdaftar: *${s.totalUnits} Unit*
-• Unit Sudah Diinspeksi: *${s.inspectedUnitsCount} Unit*
-• Total Volume Inspeksi: *${s.totalInspections} Kali*
-  - Rigid Dump Truck: *${s.rigidCount}*
-  - Articulated Dump Truck: *${s.articCount}*
+1️⃣ *DAILY CHECK (RIGID DT & ARTIC GR/CP/WL):*
+• Daily Rigid (DT): *${s.dailyRigidCount ?? s.rigidCount} Form*
+• Daily Artic (GR/CP/WL): *${s.dailyArticCount ?? s.articCount} Form*
+• Total Volume Inspeksi: *${s.totalInspections} Form*
 
-🚜 *STATUS KELAYAKAN UNIT:*
-• Ready / Running: *${s.runningCount} Unit* (${s.inspectedUnitsCount > 0 ? Math.round((s.runningCount / s.inspectedUnitsCount) * 100) : 0}%)
-• Breakdown / Perbaikan: *${s.breakdownCount} Unit*
+2️⃣ *QA 1 PRE & QA 7 FINAL INSPECTION:*
+• QA 1 Pre Rigid (DT): *${s.qa1RigidCount ?? 0}* | Artic: *${s.qa1ArticCount ?? 0}*
+• QA 7 Final Rigid (DT): *${s.qa7RigidCount ?? 0}* | Artic: *${s.qa7ArticCount ?? 0}*
+
+3️⃣ *MONITORING BAP (${s.periodType}):*
+• Total BAP: *${s.bapTotal ?? 0}* (Open: ${s.bapOpen ?? 0} | In Progress: ${s.bapInProgress ?? 0} | Completed: ${s.bapCompleted ?? 0})
+
+4️⃣ *MONITORING BACKLOG (${s.periodType}):*
+• Total Backlog: *${s.backlogTotal ?? s.backlogCount}* (Waiting: ${s.backlogWaiting ?? 0} | Ready: ${s.backlogReady ?? 0} | Scheduled: ${s.backlogScheduled ?? 0} | Closed: ${s.backlogClosed ?? 0})
+
+5️⃣ *MONITORING ADD ACTIVITY (${s.periodType}):*
+• Total Activity: *${s.activityTotal ?? s.activityCount}* (Done/Closed: ${(s.activityDone ?? 0) + (s.activityClosed ?? 0)} | Monitoring: ${s.activityMonitoring ?? 0} | Pending: ${s.activityPending ?? 0})
+
+6️⃣ *RANGKUMAN STATUS UNIT:*
+• Ready / Running: *${s.runningCount} Unit*
+• Breakdown: *${s.breakdownCount} Unit*
 • Standby / Service: *${s.standbyCount} Unit*
-
-🔍 *TEMUAN & TINDAK LANJUT:*
-• Temuan Defect / Deviasi: *${s.defectItemsCount} Temuan*
-• Backlog Sparepart Terbuat: *${s.backlogCount} Item*
-• Tindakan Servis Selesai: *${s.activityCount} Aktivitas*
+• Temuan Defect Checklist: *${s.defectItemsCount} Item*
 
 ---------------------------------------
 ${uninspectedText}
