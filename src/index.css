@@ -53,20 +53,20 @@
 body {
   background-color: var(--bg);
   color: var(--ink);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--app-font-sans, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .font-syne {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--app-font-display, 'Syne', sans-serif);
 }
 
 .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--app-font-mono, 'JetBrains Mono', monospace);
 }
 
 .font-sans {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--app-font-sans, 'Inter', sans-serif);
 }
 
 ::-webkit-scrollbar {

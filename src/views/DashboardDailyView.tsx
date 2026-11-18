@@ -19,8 +19,11 @@ import {
   ShieldCheck,
   ArrowRight,
   Clock,
+  CalendarCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
+import { InspectionPlanModal } from '../components/InspectionPlanModal';
 import {
   DailyCheckRigid,
   DailyCheckArtic,
@@ -29,6 +32,8 @@ import {
   BacklogItem,
   AddActivityItem,
   QAType,
+  InspectionPlanEntry,
+  InspectionPlanModule,
 } from '../types';
 import {
   shareToWhatsApp,
@@ -37,6 +42,15 @@ import {
 } from '../utils/whatsappFormatter';
 import { isRigidUnitCode, isArticUnitCode } from '../utils/unitFilter';
 import { getAppSettings } from '../services/settingsService';
+import {
+  getInspectionPlans,
+  subscribeInspectionPlans,
+} from '../services/inspectionPlanService';
+import {
+  calculateModuleAchievement,
+  combineAchievementResults,
+  NormalizedInspectionForCalc,
+} from '../utils/achievementCalculator';
 
 interface DashboardDailyViewProps {
   dailyRigidList: DailyCheckRigid[];
@@ -200,6 +214,19 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatusFilter, setTableStatusFilter] = useState<TableStatusFilter>('ALL');
   const [groupShareText, setGroupShareText] = useState<string | null>(null);
+  const [inspectionPlans, setInspectionPlans] = useState<InspectionPlanEntry[]>(() =>
+    getInspectionPlans()
+  );
+  const [planModalState, setPlanModalState] = useState<{
+    isOpen: boolean;
+    initialModule: InspectionPlanModule;
+  }>({ isOpen: false, initialModule: 'DAILY_RIGID' });
+
+  React.useEffect(() => {
+    return subscribeInspectionPlans(nextPlans => {
+      setInspectionPlans(nextPlans);
+    });
+  }, []);
 
   // Date Navigators
   const handlePrevDay = () => {
@@ -362,7 +389,146 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
     [qa7ArticInspections]
   );
 
-  // Overall Daily Check target & achievement
+  // Achievement Calculations (Planned + Unplanned/Tambahan on same Date/Month/Year, strictly requiring HM > 0)
+  const normalizedForCalc = useMemo<NormalizedInspectionForCalc[]>(
+    () =>
+      combinedInspections.map(item => ({
+        id: item.id,
+        codeUnit: item.codeUnit,
+        qaTypeNormalized: item.qaTypeNormalized,
+        fleetType: item.fleetType,
+        hmUnit: Number(item.hmUnit) || 0,
+        planningCategory: item.planningCategory,
+        dateParts: item.dateParts,
+      })),
+    [combinedInspections]
+  );
+
+  const dailyRigidAch = useMemo(
+    () =>
+      calculateModuleAchievement(
+        'DAILY_RIGID',
+        normalizedForCalc,
+        inspectionPlans,
+        periodType,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      ),
+    [normalizedForCalc, inspectionPlans, periodType, selectedDate, selectedMonth, selectedYear]
+  );
+
+  const dailyArticAch = useMemo(
+    () =>
+      calculateModuleAchievement(
+        'DAILY_ARTIC',
+        normalizedForCalc,
+        inspectionPlans,
+        periodType,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      ),
+    [normalizedForCalc, inspectionPlans, periodType, selectedDate, selectedMonth, selectedYear]
+  );
+
+  const qa1RigidAch = useMemo(
+    () =>
+      calculateModuleAchievement(
+        'QA1_RIGID',
+        normalizedForCalc,
+        inspectionPlans,
+        periodType,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      ),
+    [normalizedForCalc, inspectionPlans, periodType, selectedDate, selectedMonth, selectedYear]
+  );
+
+  const qa7RigidAch = useMemo(
+    () =>
+      calculateModuleAchievement(
+        'QA7_RIGID',
+        normalizedForCalc,
+        inspectionPlans,
+        periodType,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      ),
+    [normalizedForCalc, inspectionPlans, periodType, selectedDate, selectedMonth, selectedYear]
+  );
+
+  const qa1ArticAch = useMemo(
+    () =>
+      calculateModuleAchievement(
+        'QA1_ARTIC',
+        normalizedForCalc,
+        inspectionPlans,
+        periodType,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      ),
+    [normalizedForCalc, inspectionPlans, periodType, selectedDate, selectedMonth, selectedYear]
+  );
+
+  const qa7ArticAch = useMemo(
+    () =>
+      calculateModuleAchievement(
+        'QA7_ARTIC',
+        normalizedForCalc,
+        inspectionPlans,
+        periodType,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      ),
+    [normalizedForCalc, inspectionPlans, periodType, selectedDate, selectedMonth, selectedYear]
+  );
+
+  const dailyCombinedAch = useMemo(() => {
+    const list =
+      fleetTypeFilter === 'RIGID'
+        ? [dailyRigidAch]
+        : fleetTypeFilter === 'ARTIC'
+        ? [dailyArticAch]
+        : [dailyRigidAch, dailyArticAch];
+    return combineAchievementResults(list);
+  }, [fleetTypeFilter, dailyRigidAch, dailyArticAch]);
+
+  const qa1CombinedAch = useMemo(() => {
+    const list =
+      fleetTypeFilter === 'RIGID'
+        ? [qa1RigidAch]
+        : fleetTypeFilter === 'ARTIC'
+        ? [qa1ArticAch]
+        : [qa1RigidAch, qa1ArticAch];
+    return combineAchievementResults(list);
+  }, [fleetTypeFilter, qa1RigidAch, qa1ArticAch]);
+
+  const qa7CombinedAch = useMemo(() => {
+    const list =
+      fleetTypeFilter === 'RIGID'
+        ? [qa7RigidAch]
+        : fleetTypeFilter === 'ARTIC'
+        ? [qa7ArticAch]
+        : [qa7RigidAch, qa7ArticAch];
+    return combineAchievementResults(list);
+  }, [fleetTypeFilter, qa7RigidAch, qa7ArticAch]);
+
+  const qaAllCombinedAch = useMemo(() => {
+    const list =
+      fleetTypeFilter === 'RIGID'
+        ? [qa1RigidAch, qa7RigidAch]
+        : fleetTypeFilter === 'ARTIC'
+        ? [qa1ArticAch, qa7ArticAch]
+        : [qa1RigidAch, qa1ArticAch, qa7RigidAch, qa7ArticAch];
+    return combineAchievementResults(list);
+  }, [fleetTypeFilter, qa1RigidAch, qa1ArticAch, qa7RigidAch, qa7ArticAch]);
+
+  // Master target units & valid HM>0 inspection coverage
   const dailyTargetUnits = useMemo(() => {
     if (fleetTypeFilter === 'RIGID') return rigidMasterUnits;
     if (fleetTypeFilter === 'ARTIC') return articMasterUnits;
@@ -370,49 +536,51 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
     return merged.length > 0 ? merged : filteredCodeUnits;
   }, [fleetTypeFilter, rigidMasterUnits, articMasterUnits, filteredCodeUnits]);
 
-  const dailyInspectedUnitKeys = useMemo(() => {
-    const s = new Set<string>();
-    dailyCheckInspections.forEach(i => s.add(i.codeUnit.trim().toUpperCase()));
-    return s;
-  }, [dailyCheckInspections]);
-
-  const dailyCoveredTargetCount = useMemo(
-    () => dailyTargetUnits.filter(u => dailyInspectedUnitKeys.has(u.codeUnit.trim().toUpperCase())).length,
-    [dailyTargetUnits, dailyInspectedUnitKeys]
+  const validHmPeriodInspections = useMemo(
+    () => periodInspections.filter(i => Number(i.hmUnit) > 0),
+    [periodInspections]
   );
 
-  const dailyAchievementRate =
-    dailyTargetUnits.length > 0
-      ? Math.min(100, (dailyCoveredTargetCount / dailyTargetUnits.length) * 100)
-      : 0;
+  const validHmDailyInspections = useMemo(
+    () => dailyCheckInspections.filter(i => Number(i.hmUnit) > 0),
+    [dailyCheckInspections]
+  );
 
-  const dailyRigidRate =
-    rigidMasterUnits.length > 0
-      ? Math.min(100, (uniqueDailyRigidUnits.size / rigidMasterUnits.length) * 100)
-      : 0;
+  const dailyInspectedUnitKeys = useMemo(() => {
+    const s = new Set<string>();
+    validHmDailyInspections.forEach(i => s.add(i.codeUnit.trim().toUpperCase()));
+    return s;
+  }, [validHmDailyInspections]);
 
-  const dailyArticRate =
-    articMasterUnits.length > 0
-      ? Math.min(100, (uniqueDailyArticUnits.size / articMasterUnits.length) * 100)
-      : 0;
+  const dailyCoveredTargetCount = dailyCombinedAch.totalRealizedCount;
+  const dailyAchievementRate = dailyCombinedAch.achievementPct;
 
-  // Map any inspection (Daily / QA1 / QA7) per unit for status summary
+  // Map any valid HM inspection (Daily / QA1 / QA7) per unit for status summary
   const inspectedUnitsMap = useMemo(() => {
     const map = new Map<string, (typeof periodInspections)[0]>();
-    periodInspections.forEach(item => {
+    validHmPeriodInspections.forEach(item => {
       const key = item.codeUnit.trim().toUpperCase();
       if (!map.has(key)) {
         map.set(key, item);
       }
     });
     return map;
-  }, [periodInspections]);
+  }, [validHmPeriodInspections]);
 
   const uniqueAnyInspectedCount = inspectedUnitsMap.size;
   const uninspectedDailyUnits = useMemo(
     () => dailyTargetUnits.filter(u => !dailyInspectedUnitKeys.has(u.codeUnit.trim().toUpperCase())),
     [dailyTargetUnits, dailyInspectedUnitKeys]
   );
+  const pendingPlannedDailyCodes = useMemo(() => {
+    const raw =
+      fleetTypeFilter === 'RIGID'
+        ? dailyRigidAch.pendingPlannedUnits
+        : fleetTypeFilter === 'ARTIC'
+        ? dailyArticAch.pendingPlannedUnits
+        : [...dailyRigidAch.pendingPlannedUnits, ...dailyArticAch.pendingPlannedUnits];
+    return Array.from(new Set(raw));
+  }, [fleetTypeFilter, dailyRigidAch.pendingPlannedUnits, dailyArticAch.pendingPlannedUnits]);
 
   // Period-filtered BAP
   const parsedBaps = useMemo(
@@ -877,14 +1045,32 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
   }, [periodInspections, periodActivities]);
 
   // Build WhatsApp Summary Payload
+  const toWaStat = (res: typeof dailyRigidAch) => ({
+    planned: res.plannedCount,
+    plannedRealized: res.plannedRealizedCount,
+    unplanned: res.unplannedRealizedCount,
+    totalRealized: res.totalRealizedCount,
+    pct: res.achievementPct,
+  });
+
   const buildWhatsAppSummary = (): DashboardAchievementSummary => ({
     periodType,
     periodLabel,
-    totalUnits: dailyTargetUnits.length,
-    inspectedUnitsCount: dailyCoveredTargetCount,
-    uninspectedUnitsCount: uninspectedDailyUnits.length,
-    totalInspections: periodInspections.length,
+    totalUnits: dailyCombinedAch.plannedCount,
+    inspectedUnitsCount: dailyCombinedAch.totalRealizedCount,
+    uninspectedUnitsCount: pendingPlannedDailyCodes.length,
+    totalInspections: validHmPeriodInspections.length,
     achievementRate: dailyAchievementRate,
+    dailyPlanned: dailyCombinedAch.plannedCount,
+    dailyPlannedRealized: dailyCombinedAch.plannedRealizedCount,
+    dailyUnplanned: dailyCombinedAch.unplannedRealizedCount,
+    dailyTotalRealized: dailyCombinedAch.totalRealizedCount,
+    dailyRigidStats: toWaStat(dailyRigidAch),
+    dailyArticStats: toWaStat(dailyArticAch),
+    qa1RigidStats: toWaStat(qa1RigidAch),
+    qa1ArticStats: toWaStat(qa1ArticAch),
+    qa7RigidStats: toWaStat(qa7RigidAch),
+    qa7ArticStats: toWaStat(qa7ArticAch),
     rigidCount: rigidInspectionsCount,
     articCount: articInspectionsCount,
     dailyRigidCount: dailyRigidInspections.length,
@@ -913,7 +1099,12 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
     defectItemsCount: totalDefectsCount,
     backlogCount: backlogStats.total,
     activityCount: activityStats.total,
-    uninspectedUnitCodes: uninspectedDailyUnits.map(u => u.codeUnit),
+    uninspectedUnitCodes:
+      pendingPlannedDailyCodes.length > 0
+        ? pendingPlannedDailyCodes
+        : dailyCombinedAch.hasExplicitPlan
+        ? []
+        : uninspectedDailyUnits.map(u => u.codeUnit),
   });
 
   const handleShareWhatsApp = () => {
@@ -959,11 +1150,20 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
             </span>
           </div>
           <p className="text-xs text-[rgba(242,239,235,0.5)] font-mono mt-0.5">
-            Daily Check, QA 1 &amp; QA 7 (Rigid DT &amp; Artic GR/CP/WL), BAP, Backlog, Add Activity &amp; Status Unit • {periodLabel}
+            Daily Check, QA 1 &amp; QA 7 (Plan + Tambahan • HM Terisi), BAP, Backlog &amp; Activity • {periodLabel}
           </p>
         </div>
 
         <div className="flex items-center flex-wrap gap-2 shrink-0">
+          <button
+            onClick={() => setPlanModalState({ isOpen: true, initialModule: 'DAILY_RIGID' })}
+            className="px-3.5 py-2 rounded bg-[#facc15] hover:bg-[#fde047] text-[#111113] text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#facc15]/20"
+            title="Atur daftar unit yang direncanakan per tanggal untuk Daily Check, QA 1 & QA 7"
+          >
+            <CalendarCheck className="w-3.5 h-3.5" />
+            <span>Atur Rencana Unit</span>
+          </button>
+
           <button
             onClick={handleShareWhatsApp}
             className="px-3.5 py-2 rounded bg-[#4ade80] hover:bg-[#22c55e] text-[#111113] text-xs font-mono font-black uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#4ade80]/20"
@@ -1141,24 +1341,29 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
         </div>
       </div>
 
-      {/* SECTION 1 & 2: DAILY CHECK vs QA 1 & QA 7 (RIGID DT & ARTIC GR/CP/WL) */}
+      {/* SECTION 1 & 2: DAILY CHECK vs QA 1 & QA 7 (PLANNED + TAMBAHAN, SYARAT HM TERISI > 0) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
         {/* 1. DAILY CHECK PENCAPAIAN */}
         <div className="bg-[#18181b] p-4 rounded border border-[rgba(242,239,235,0.1)] space-y-3">
-          <div className="flex items-center justify-between border-b border-[rgba(242,239,235,0.08)] pb-2.5">
+          <div className="flex items-start justify-between gap-2 border-b border-[rgba(242,239,235,0.08)] pb-2.5">
             <div className="flex items-center space-x-2">
-              <FileCheck className="w-4 h-4 text-[#facc15]" />
+              <FileCheck className="w-4 h-4 text-[#facc15] shrink-0" />
               <div>
                 <h3 className="font-syne font-extrabold text-sm uppercase text-[#f2efeb]">
                   1. Pencapaian Daily Check (Rigid &amp; Artic)
                 </h3>
-                <span className="text-[10px] font-mono text-[rgba(242,239,235,0.45)]">
-                  Periode {periodType} • {periodLabel}
+                <span className="text-[10px] font-mono text-[rgba(242,239,235,0.45)] block">
+                  {periodType === 'HARIAN'
+                    ? `Tanggal sama (${periodLabel})`
+                    : periodType === 'BULANAN'
+                    ? `Bulan sama (${periodLabel})`
+                    : `Tahun sama (${periodLabel})`}{' '}
+                  • Dihitung jika HM terisi
                 </span>
               </div>
             </div>
             <span
-              className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
+              className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${
                 dailyAchievementRate >= 85
                   ? 'bg-[#4ade80]/15 text-[#4ade80] border-[#4ade80]/30'
                   : dailyAchievementRate >= 60
@@ -1166,7 +1371,7 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
                   : 'bg-[#fb7185]/15 text-[#fb7185] border-[#fb7185]/30'
               }`}
             >
-              {dailyAchievementRate.toFixed(1)}% ({dailyCoveredTargetCount}/{dailyTargetUnits.length} Unit)
+              {dailyAchievementRate.toFixed(1)}% ({dailyCombinedAch.totalRealizedCount}/{dailyCombinedAch.plannedCount} Unit)
             </span>
           </div>
 
@@ -1183,6 +1388,31 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
             />
           </div>
 
+          {/* Combined Planned vs Tambahan Strip */}
+          <div className="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
+            <div className="bg-[#111113] p-1.5 rounded border border-[rgba(242,239,235,0.08)]">
+              <span className="text-[9px] text-[rgba(242,239,235,0.45)] block">DIRENCANAKAN</span>
+              <strong className="text-xs text-[#f2efeb]">{dailyCombinedAch.plannedCount} Unit</strong>
+            </div>
+            <div className="bg-[#111113] p-1.5 rounded border border-[#4ade80]/25">
+              <span className="text-[9px] text-[rgba(242,239,235,0.45)] block">REALISASI PLAN</span>
+              <strong className="text-xs text-[#4ade80]">{dailyCombinedAch.plannedRealizedCount} Unit</strong>
+            </div>
+            <div className="bg-[#111113] p-1.5 rounded border border-[#38bdf8]/25">
+              <span className="text-[9px] text-[rgba(242,239,235,0.45)] block">TAMBAHAN (UNPLAN)</span>
+              <strong className="text-xs text-[#38bdf8]">+{dailyCombinedAch.unplannedRealizedCount} Unit</strong>
+            </div>
+          </div>
+
+          {dailyCombinedAch.excludedZeroHmCount > 0 && (
+            <div className="px-2.5 py-1.5 rounded bg-[#fb7185]/10 border border-[#fb7185]/30 text-[10px] font-mono text-[#fb7185] flex items-center space-x-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {dailyCombinedAch.excludedZeroHmCount} form Daily Check berstatus HM kosong/0 (tidak dihitung sampai HM diisi)
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* Daily Rigid (DT) */}
             <div className="bg-[#111113] p-3 rounded border border-[rgba(242,239,235,0.08)] space-y-2">
@@ -1191,18 +1421,34 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
                   <Truck className="w-3.5 h-3.5" />
                   <span>DAILY RIGID (DT)</span>
                 </span>
-                <span className="text-[10px] font-mono text-[rgba(242,239,235,0.6)]">
-                  {dailyRigidRate.toFixed(0)}%
+                <span className="text-[11px] font-mono font-black text-[#facc15]">
+                  {dailyRigidAch.achievementPct.toFixed(1)}%
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="font-syne font-extrabold text-2xl text-[#f2efeb]">
-                  {dailyRigidInspections.length}
-                  <span className="text-[11px] font-mono font-normal text-[rgba(242,239,235,0.5)] ml-1">Form</span>
+                  {dailyRigidAch.totalRealizedCount}
+                  <span className="text-[11px] font-mono font-normal text-[rgba(242,239,235,0.5)] ml-1">
+                    / {dailyRigidAch.plannedCount} Plan
+                  </span>
                 </span>
-                <span className="text-[11px] font-mono text-[#facc15]">
-                  {uniqueDailyRigidUnits.size}/{rigidMasterUnits.length} Unit DT
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setPlanModalState({ isOpen: true, initialModule: 'DAILY_RIGID' })}
+                  className="text-[9px] font-mono font-bold text-[#38bdf8] hover:underline uppercase"
+                >
+                  Atur Plan
+                </button>
+              </div>
+              <div className="text-[10px] font-mono text-[rgba(242,239,235,0.65)] space-y-0.5 border-t border-[rgba(242,239,235,0.06)] pt-1.5">
+                <div className="flex justify-between">
+                  <span>Plan Terisi HM:</span>
+                  <strong className="text-[#4ade80]">{dailyRigidAch.plannedRealizedCount} / {dailyRigidAch.plannedCount}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tambahan (HM &gt; 0):</span>
+                  <strong className="text-[#38bdf8]">+{dailyRigidAch.unplannedRealizedCount} Unit</strong>
+                </div>
               </div>
               {onNavigateToTab && (
                 <button
@@ -1223,18 +1469,34 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
                   <Tractor className="w-3.5 h-3.5" />
                   <span>DAILY ARTIC (GR/CP/WL)</span>
                 </span>
-                <span className="text-[10px] font-mono text-[rgba(242,239,235,0.6)]">
-                  {dailyArticRate.toFixed(0)}%
+                <span className="text-[11px] font-mono font-black text-[#4ade80]">
+                  {dailyArticAch.achievementPct.toFixed(1)}%
                 </span>
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="font-syne font-extrabold text-2xl text-[#f2efeb]">
-                  {dailyArticInspections.length}
-                  <span className="text-[11px] font-mono font-normal text-[rgba(242,239,235,0.5)] ml-1">Form</span>
+                  {dailyArticAch.totalRealizedCount}
+                  <span className="text-[11px] font-mono font-normal text-[rgba(242,239,235,0.5)] ml-1">
+                    / {dailyArticAch.plannedCount} Plan
+                  </span>
                 </span>
-                <span className="text-[11px] font-mono text-[#4ade80]">
-                  {uniqueDailyArticUnits.size}/{articMasterUnits.length} Unit
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setPlanModalState({ isOpen: true, initialModule: 'DAILY_ARTIC' })}
+                  className="text-[9px] font-mono font-bold text-[#38bdf8] hover:underline uppercase"
+                >
+                  Atur Plan
+                </button>
+              </div>
+              <div className="text-[10px] font-mono text-[rgba(242,239,235,0.65)] space-y-0.5 border-t border-[rgba(242,239,235,0.06)] pt-1.5">
+                <div className="flex justify-between">
+                  <span>Plan Terisi HM:</span>
+                  <strong className="text-[#4ade80]">{dailyArticAch.plannedRealizedCount} / {dailyArticAch.plannedCount}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tambahan (HM &gt; 0):</span>
+                  <strong className="text-[#38bdf8]">+{dailyArticAch.unplannedRealizedCount} Unit</strong>
+                </div>
               </div>
               {onNavigateToTab && (
                 <button
@@ -1252,22 +1514,67 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
 
         {/* 2. QA 1 PRE & QA 7 FINAL (RIGID DT & ARTIC GR/CP/WL) */}
         <div className="bg-[#18181b] p-4 rounded border border-[rgba(242,239,235,0.1)] space-y-3">
-          <div className="flex items-center justify-between border-b border-[rgba(242,239,235,0.08)] pb-2.5">
+          <div className="flex items-start justify-between gap-2 border-b border-[rgba(242,239,235,0.08)] pb-2.5">
             <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-[#4ade80]" />
+              <ShieldCheck className="w-4 h-4 text-[#4ade80] shrink-0" />
               <div>
                 <h3 className="font-syne font-extrabold text-sm uppercase text-[#f2efeb]">
                   2. QA 1 Pre &amp; QA 7 Final (Rigid &amp; Artic)
                 </h3>
-                <span className="text-[10px] font-mono text-[rgba(242,239,235,0.45)]">
-                  Periode {periodType} • {periodLabel}
+                <span className="text-[10px] font-mono text-[rgba(242,239,235,0.45)] block">
+                  {periodType === 'HARIAN'
+                    ? `Tanggal sama (${periodLabel})`
+                    : periodType === 'BULANAN'
+                    ? `Bulan sama (${periodLabel})`
+                    : `Tahun sama (${periodLabel})`}{' '}
+                  • Plan + Tambahan (HM &gt; 0)
                 </span>
               </div>
             </div>
-            <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-[#38bdf8]/15 text-[#38bdf8] border-[#38bdf8]/30">
-              Total {qa1Inspections.length + qa7Inspections.length} Form QA
+            <span
+              className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${
+                qaAllCombinedAch.achievementPct >= 85
+                  ? 'bg-[#4ade80]/15 text-[#4ade80] border-[#4ade80]/30'
+                  : qaAllCombinedAch.achievementPct >= 60
+                  ? 'bg-[#facc15]/15 text-[#facc15] border-[#facc15]/30'
+                  : 'bg-[#38bdf8]/15 text-[#38bdf8] border-[#38bdf8]/30'
+              }`}
+            >
+              {qaAllCombinedAch.achievementPct.toFixed(1)}% ({qaAllCombinedAch.totalRealizedCount}/{qaAllCombinedAch.plannedCount} Unit)
             </span>
           </div>
+
+          <div className="w-full h-2 rounded bg-[#111113] overflow-hidden border border-[rgba(242,239,235,0.1)]">
+            <div
+              className="h-full bg-[#38bdf8] transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(0, qaAllCombinedAch.achievementPct))}%` }}
+            />
+          </div>
+
+          {/* Combined QA Plan vs Tambahan Strip */}
+          <div className="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
+            <div className="bg-[#111113] p-1.5 rounded border border-[rgba(242,239,235,0.08)]">
+              <span className="text-[9px] text-[rgba(242,239,235,0.45)] block">DIRENCANAKAN QA</span>
+              <strong className="text-xs text-[#f2efeb]">{qaAllCombinedAch.plannedCount} Unit</strong>
+            </div>
+            <div className="bg-[#111113] p-1.5 rounded border border-[#4ade80]/25">
+              <span className="text-[9px] text-[rgba(242,239,235,0.45)] block">REALISASI PLAN</span>
+              <strong className="text-xs text-[#4ade80]">{qaAllCombinedAch.plannedRealizedCount} Unit</strong>
+            </div>
+            <div className="bg-[#111113] p-1.5 rounded border border-[#38bdf8]/25">
+              <span className="text-[9px] text-[rgba(242,239,235,0.45)] block">TAMBAHAN (UNPLAN)</span>
+              <strong className="text-xs text-[#38bdf8]">+{qaAllCombinedAch.unplannedRealizedCount} Unit</strong>
+            </div>
+          </div>
+
+          {qaAllCombinedAch.excludedZeroHmCount > 0 && (
+            <div className="px-2.5 py-1.5 rounded bg-[#fb7185]/10 border border-[#fb7185]/30 text-[10px] font-mono text-[#fb7185] flex items-center space-x-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {qaAllCombinedAch.excludedZeroHmCount} form QA1/QA7 HM kosong/0 (tidak dihitung sampai HM diisi)
+              </span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* QA 1 PRE */}
@@ -1277,26 +1584,50 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
                   <Zap className="w-3.5 h-3.5" />
                   <span>QA 1 PRE INSPECTION</span>
                 </span>
-                <span className="text-xs font-syne font-extrabold text-[#f2efeb]">
-                  {qa1Inspections.length}
+                <span className="text-[11px] font-mono font-black text-[#facc15]">
+                  {qa1CombinedAch.achievementPct.toFixed(1)}%
                 </span>
               </div>
-              <div className="space-y-1 text-[11px] font-mono">
-                <div className="flex items-center justify-between text-[rgba(242,239,235,0.75)]">
-                  <span>• Rigid (DT):</span>
-                  <strong className="text-[#facc15]">
-                    {qa1RigidInspections.length} Form ({uniqueQa1RigidUnits.size} Unit)
-                  </strong>
+              <div className="space-y-1.5 text-[10px] font-mono">
+                <div className="p-1.5 rounded bg-[#18181b] border border-[rgba(242,239,235,0.06)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[rgba(242,239,235,0.8)] font-bold">• Rigid (DT):</span>
+                    <strong className="text-[#facc15]">
+                      {qa1RigidAch.achievementPct.toFixed(0)}% ({qa1RigidAch.totalRealizedCount}/{qa1RigidAch.plannedCount})
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] text-[rgba(242,239,235,0.5)] mt-0.5">
+                    <span>Plan HM: {qa1RigidAch.plannedRealizedCount} • Tambahan: +{qa1RigidAch.unplannedRealizedCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPlanModalState({ isOpen: true, initialModule: 'QA1_RIGID' })}
+                      className="text-[#38bdf8] hover:underline"
+                    >
+                      Plan
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[rgba(242,239,235,0.75)]">
-                  <span>• Artic (GR/CP/WL):</span>
-                  <strong className="text-[#4ade80]">
-                    {qa1ArticInspections.length} Form ({uniqueQa1ArticUnits.size} Unit)
-                  </strong>
+                <div className="p-1.5 rounded bg-[#18181b] border border-[rgba(242,239,235,0.06)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[rgba(242,239,235,0.8)] font-bold">• Artic (GR/CP/WL):</span>
+                    <strong className="text-[#4ade80]">
+                      {qa1ArticAch.achievementPct.toFixed(0)}% ({qa1ArticAch.totalRealizedCount}/{qa1ArticAch.plannedCount})
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] text-[rgba(242,239,235,0.5)] mt-0.5">
+                    <span>Plan HM: {qa1ArticAch.plannedRealizedCount} • Tambahan: +{qa1ArticAch.unplannedRealizedCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPlanModalState({ isOpen: true, initialModule: 'QA1_ARTIC' })}
+                      className="text-[#38bdf8] hover:underline"
+                    >
+                      Plan
+                    </button>
+                  </div>
                 </div>
               </div>
               {onNavigateToTab && (
-                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                   <button
                     type="button"
                     onClick={() => onNavigateToTab('qa1-rigid')}
@@ -1322,26 +1653,50 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>QA 7 FINAL INSPECTION</span>
                 </span>
-                <span className="text-xs font-syne font-extrabold text-[#f2efeb]">
-                  {qa7Inspections.length}
+                <span className="text-[11px] font-mono font-black text-[#4ade80]">
+                  {qa7CombinedAch.achievementPct.toFixed(1)}%
                 </span>
               </div>
-              <div className="space-y-1 text-[11px] font-mono">
-                <div className="flex items-center justify-between text-[rgba(242,239,235,0.75)]">
-                  <span>• Rigid (DT):</span>
-                  <strong className="text-[#facc15]">
-                    {qa7RigidInspections.length} Form ({uniqueQa7RigidUnits.size} Unit)
-                  </strong>
+              <div className="space-y-1.5 text-[10px] font-mono">
+                <div className="p-1.5 rounded bg-[#18181b] border border-[rgba(242,239,235,0.06)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[rgba(242,239,235,0.8)] font-bold">• Rigid (DT):</span>
+                    <strong className="text-[#facc15]">
+                      {qa7RigidAch.achievementPct.toFixed(0)}% ({qa7RigidAch.totalRealizedCount}/{qa7RigidAch.plannedCount})
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] text-[rgba(242,239,235,0.5)] mt-0.5">
+                    <span>Plan HM: {qa7RigidAch.plannedRealizedCount} • Tambahan: +{qa7RigidAch.unplannedRealizedCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPlanModalState({ isOpen: true, initialModule: 'QA7_RIGID' })}
+                      className="text-[#38bdf8] hover:underline"
+                    >
+                      Plan
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[rgba(242,239,235,0.75)]">
-                  <span>• Artic (GR/CP/WL):</span>
-                  <strong className="text-[#4ade80]">
-                    {qa7ArticInspections.length} Form ({uniqueQa7ArticUnits.size} Unit)
-                  </strong>
+                <div className="p-1.5 rounded bg-[#18181b] border border-[rgba(242,239,235,0.06)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[rgba(242,239,235,0.8)] font-bold">• Artic (GR/CP/WL):</span>
+                    <strong className="text-[#4ade80]">
+                      {qa7ArticAch.achievementPct.toFixed(0)}% ({qa7ArticAch.totalRealizedCount}/{qa7ArticAch.plannedCount})
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] text-[rgba(242,239,235,0.5)] mt-0.5">
+                    <span>Plan HM: {qa7ArticAch.plannedRealizedCount} • Tambahan: +{qa7ArticAch.unplannedRealizedCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPlanModalState({ isOpen: true, initialModule: 'QA7_ARTIC' })}
+                      className="text-[#38bdf8] hover:underline"
+                    >
+                      Plan
+                    </button>
+                  </div>
                 </div>
               </div>
               {onNavigateToTab && (
-                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                   <button
                     type="button"
                     onClick={() => onNavigateToTab('qa7-rigid')}
@@ -2102,6 +2457,14 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
         onClose={() => setGroupShareText(null)}
         title={`Dashboard Pencapaian ${periodType} (${periodLabel})`}
         messageText={groupShareText || ''}
+      />
+
+      <InspectionPlanModal
+        isOpen={planModalState.isOpen}
+        onClose={() => setPlanModalState(prev => ({ ...prev, isOpen: false }))}
+        codeUnits={codeUnits}
+        initialDate={selectedDate}
+        initialModule={planModalState.initialModule}
       />
     </div>
   );

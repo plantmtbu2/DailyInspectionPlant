@@ -6,6 +6,7 @@ import {
   BacklogItem,
   AddActivityItem,
   QAType,
+  PlanningCategory,
 } from '../types';
 import { getActiveArticChecklistItems, getAppSettings } from '../services/settingsService';
 import { CodeUnitSelector } from './CodeUnitSelector';
@@ -81,6 +82,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
   const [finishTime, setFinishTime] = useState('');
   const [totalJam, setTotalJam] = useState('');
   const [hmUnit, setHmUnit] = useState<number>(0);
+  const [planningCategory, setPlanningCategory] = useState<PlanningCategory>('PLANNED');
   const [picMekanik, setPicMekanik] = useState('');
   const [divalidasiOleh, setDivalidasiOleh] = useState('');
 
@@ -174,6 +176,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setFinishTime(itemToEdit.finishTime || '');
       setTotalJam(itemToEdit.totalJam || '');
       setHmUnit(Number(itemToEdit.hmUnit) || 0);
+      setPlanningCategory(itemToEdit.planningCategory || 'PLANNED');
       setPicMekanik(itemToEdit.picMekanik || '');
       setDivalidasiOleh(itemToEdit.divalidasiOleh || '');
 
@@ -214,6 +217,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setStartTime('');
       setFinishTime('');
       setTotalJam('');
+      setPlanningCategory('PLANNED');
       setPicMekanik('');
       setDivalidasiOleh('');
       setItems(
@@ -234,6 +238,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       setFinishTime('');
       setTotalJam('');
       setHmUnit(0);
+      setPlanningCategory('PLANNED');
       setPicMekanik('');
       setDivalidasiOleh('');
       setItems(
@@ -303,6 +308,7 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
       const record: DailyCheckArtic = {
         id: itemToEdit ? itemToEdit.id : `${codeUnit}-${formattedDate.replace(/\//g, '')}-${Date.now().toString().slice(-4)}`,
         qaType: activeQaType,
+        planningCategory,
         codeUnit,
         egi: egi || 'Articulated / Grader',
         tanggal: formattedDate,
@@ -629,16 +635,29 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">HM Unit Saat Ini *</label>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    HM Unit Saat Ini <span className="text-[10px] text-amber-400 font-normal">(Terisi &gt; 0 = Terhitung Pencapaian)</span>
+                  </label>
                   <input
                     type="number"
-                    required
                     min="0"
                     value={hmUnit || ''}
                     onChange={e => setHmUnit(Number(e.target.value))}
-                    placeholder="Contoh: 9150"
+                    placeholder="Contoh: 9150 (Kosong = belum dihitung)"
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono outline-none focus:border-amber-400"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Kategori Perencanaan (Dashboard)</label>
+                  <select
+                    value={planningCategory}
+                    onChange={e => setPlanningCategory(e.target.value as PlanningCategory)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-amber-400 font-medium"
+                  >
+                    <option value="PLANNED">Direncanakan (Unit Plan)</option>
+                    <option value="UNPLANNED">Tidak Direncanakan (Tambahan)</option>
+                  </select>
                 </div>
 
                 <div>
@@ -653,11 +672,11 @@ export const DailyArticModal: React.FC<DailyArticModalProps> = ({
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-slate-300 font-semibold mb-1">Divalidasi Oleh (Group Leader / Pengawas) *</label>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Divalidasi Oleh (Group Leader / Pengawas)</label>
                   <input
                     type="text"
-                    required
+                    required={getAppSettings().inspection.requireValidator}
                     value={divalidasiOleh}
                     onChange={e => setDivalidasiOleh(e.target.value)}
                     placeholder="Nama Group Leader"

@@ -772,6 +772,14 @@ ${photoCount > 0 ? `\n📷 *DOKUMENTASI FOTO:* Terlampir ${photoCount} Foto Prog
 _Aplikasi Plant 2 MTBU - PT. Pamapersada Nusantara_`;
 };
 
+export interface ModuleAchievementWhatsAppStat {
+  planned: number;
+  plannedRealized: number;
+  unplanned: number;
+  totalRealized: number;
+  pct: number;
+}
+
 export interface DashboardAchievementSummary {
   periodType: 'HARIAN' | 'BULANAN' | 'TAHUNAN';
   periodLabel: string;
@@ -780,6 +788,16 @@ export interface DashboardAchievementSummary {
   uninspectedUnitsCount: number;
   totalInspections: number;
   achievementRate: number;
+  dailyPlanned?: number;
+  dailyPlannedRealized?: number;
+  dailyUnplanned?: number;
+  dailyTotalRealized?: number;
+  dailyRigidStats?: ModuleAchievementWhatsAppStat;
+  dailyArticStats?: ModuleAchievementWhatsAppStat;
+  qa1RigidStats?: ModuleAchievementWhatsAppStat;
+  qa1ArticStats?: ModuleAchievementWhatsAppStat;
+  qa7RigidStats?: ModuleAchievementWhatsAppStat;
+  qa7ArticStats?: ModuleAchievementWhatsAppStat;
   rigidCount: number;
   articCount: number;
   dailyRigidCount?: number;
@@ -811,27 +829,40 @@ export interface DashboardAchievementSummary {
   uninspectedUnitCodes: string[];
 }
 
+const fmtStat = (st?: ModuleAchievementWhatsAppStat, fallbackCount = 0) => {
+  if (!st) return `*${fallbackCount} Form*`;
+  return `*${st.pct.toFixed(1)}%* (Total: ${st.totalRealized}/${st.planned} | Plan: ${st.plannedRealized}, Tambahan: ${st.unplanned})`;
+};
+
 export const formatDashboardAchievementWhatsApp = (s: DashboardAchievementSummary): string => {
   const statusEmoji = s.achievementRate >= 85 ? '🟢' : s.achievementRate >= 60 ? '🟡' : '🔴';
 
   const uninspectedText = s.uninspectedUnitCodes.length > 0
-    ? `⚠️ *Unit Belum Daily Check (${s.uninspectedUnitCodes.length}):*\n${s.uninspectedUnitCodes.join(', ')}`
-    : `✅ *Semua Armada Telah Daily Check 100%!*`;
+    ? `⚠️ *Unit Planned Belum Terpenuhi / Tanpa HM (${s.uninspectedUnitCodes.length}):*\n${s.uninspectedUnitCodes.join(', ')}`
+    : `✅ *Semua Unit Rencana Telah Terealisasi (HM Terisi)!*`;
+
+  const dailyRatioText =
+    s.dailyPlanned !== undefined
+      ? `*${s.achievementRate.toFixed(1)}%* (${s.dailyTotalRealized ?? s.inspectedUnitsCount}/${s.dailyPlanned} Unit | Plan: ${s.dailyPlannedRealized ?? 0}, Tambahan: ${s.dailyUnplanned ?? 0})`
+      : `*${s.achievementRate.toFixed(1)}%* (${s.inspectedUnitsCount}/${s.totalUnits} Unit)`;
 
   return `📊 *DASHBOARD PENCAPAIAN & MONITORING PLANT 2* 📊
 *PT. PAMAPERSADA NUSANTARA - MTBU*
 ---------------------------------------
 📅 *Periode:* ${s.periodType} (${s.periodLabel})
-${statusEmoji} *Pencapaian Daily Check:* *${s.achievementRate.toFixed(1)}%* (${s.inspectedUnitsCount}/${s.totalUnits} Unit)
+_(Syarat: HM Unit Terisi > 0 | Plan + Tambahan)_
+${statusEmoji} *Pencapaian Daily Check:* ${dailyRatioText}
 
 1️⃣ *DAILY CHECK (RIGID DT & ARTIC GR/CP/WL):*
-• Daily Rigid (DT): *${s.dailyRigidCount ?? s.rigidCount} Form*
-• Daily Artic (GR/CP/WL): *${s.dailyArticCount ?? s.articCount} Form*
-• Total Volume Inspeksi: *${s.totalInspections} Form*
+• Daily Rigid (DT): ${fmtStat(s.dailyRigidStats, s.dailyRigidCount ?? s.rigidCount)}
+• Daily Artic (GR/CP/WL): ${fmtStat(s.dailyArticStats, s.dailyArticCount ?? s.articCount)}
+• Total Inspeksi Valid HM: *${s.totalInspections} Form*
 
 2️⃣ *QA 1 PRE & QA 7 FINAL INSPECTION:*
-• QA 1 Pre Rigid (DT): *${s.qa1RigidCount ?? 0}* | Artic: *${s.qa1ArticCount ?? 0}*
-• QA 7 Final Rigid (DT): *${s.qa7RigidCount ?? 0}* | Artic: *${s.qa7ArticCount ?? 0}*
+• QA 1 Pre Rigid (DT): ${fmtStat(s.qa1RigidStats, s.qa1RigidCount ?? 0)}
+• QA 1 Pre Artic (GR/CP/WL): ${fmtStat(s.qa1ArticStats, s.qa1ArticCount ?? 0)}
+• QA 7 Final Rigid (DT): ${fmtStat(s.qa7RigidStats, s.qa7RigidCount ?? 0)}
+• QA 7 Final Artic (GR/CP/WL): ${fmtStat(s.qa7ArticStats, s.qa7ArticCount ?? 0)}
 
 3️⃣ *MONITORING BAP (${s.periodType}):*
 • Total BAP: *${s.bapTotal ?? 0}* (Open: ${s.bapOpen ?? 0} | In Progress: ${s.bapInProgress ?? 0} | Completed: ${s.bapCompleted ?? 0})

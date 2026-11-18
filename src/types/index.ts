@@ -42,9 +42,28 @@ export interface ChecklistItemStatus {
 
 export type QAType = 'DAILY_INSPECTION' | 'QA1_PRE' | 'QA7_FINAL';
 
+export type PlanningCategory = 'PLANNED' | 'UNPLANNED';
+
+export type InspectionPlanModule =
+  | 'DAILY_RIGID'
+  | 'DAILY_ARTIC'
+  | 'QA1_RIGID'
+  | 'QA7_RIGID'
+  | 'QA1_ARTIC'
+  | 'QA7_ARTIC';
+
+export interface InspectionPlanEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  module: InspectionPlanModule;
+  plannedUnitCodes: string[];
+  updatedAt: string;
+}
+
 export interface DailyCheckRigid {
   id: string;
   qaType?: QAType; // 'QA1_PRE' (QA 1 PRE INSPECTION) or 'QA7_FINAL' (QA 7 FINAL INSPECTION)
+  planningCategory?: PlanningCategory; // 'PLANNED' (Direncanakan) or 'UNPLANNED' (Tambahan)
   codeUnit: string;
   egi: string;
   tanggal: string;
@@ -69,6 +88,7 @@ export interface DailyCheckRigid {
 export interface DailyCheckArtic {
   id: string;
   qaType?: QAType; // 'QA1_PRE' (QA 1 PRE INSPECTION) or 'QA7_FINAL' (QA 7 FINAL INSPECTION)
+  planningCategory?: PlanningCategory; // 'PLANNED' (Direncanakan) or 'UNPLANNED' (Tambahan)
   codeUnit: string;
   egi: string;
   tanggal: string;

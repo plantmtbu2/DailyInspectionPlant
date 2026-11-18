@@ -7,6 +7,7 @@ import {
   saveAppSettings,
   resetAppSettings,
   subscribeAppSettings,
+  applyAppearanceToDocument,
   APP_MODULE_ORDER,
 } from '../services/settingsService';
 
@@ -39,6 +40,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setSettings(next);
     });
   }, []);
+
+  useEffect(() => {
+    applyAppearanceToDocument(settings.appearance);
+  }, [settings.appearance]);
 
   const updateSettings = useCallback(
     (updater: AppSettings | ((prev: AppSettings) => AppSettings)): AppSettings => {

@@ -11,7 +11,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <script>
       (function() {
         try {
@@ -25,6 +25,34 @@
           } else {
             document.documentElement.setAttribute('data-theme', 'dark');
             document.documentElement.classList.add('dark');
+          }
+          var rawSettings = localStorage.getItem('fleetcheck_app_settings_v1');
+          if (rawSettings) {
+            var parsed = JSON.parse(rawSettings);
+            var app = parsed && parsed.appearance;
+            if (app) {
+              var px = Number(app.baseFontSizePx);
+              if (px >= 12 && px <= 22) {
+                document.documentElement.style.fontSize = px + 'px';
+              }
+              var fontStacks = {
+                DEFAULT: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+                INTER: "'Inter', sans-serif",
+                PLUS_JAKARTA: "'Plus Jakarta Sans', sans-serif",
+                ROBOTO: "'Roboto', sans-serif",
+                POPPINS: "'Poppins', sans-serif",
+                IBM_PLEX: "'IBM Plex Sans', sans-serif",
+                SPACE_GROTESK: "'Space Grotesk', sans-serif",
+                JETBRAINS_MONO: "'JetBrains Mono', monospace",
+                SYSTEM: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+              };
+              var chosen = fontStacks[app.fontFamily] || fontStacks.DEFAULT;
+              document.documentElement.style.setProperty('--app-font-sans', chosen);
+              if (app.fontFamily && app.fontFamily !== 'DEFAULT' && app.applyFontGlobally !== false) {
+                document.documentElement.style.setProperty('--app-font-display', chosen);
+                document.documentElement.style.setProperty('--app-font-mono', chosen);
+              }
+            }
           }
         } catch (e) {}
       })();

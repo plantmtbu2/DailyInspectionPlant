@@ -33,6 +33,91 @@ export interface ChecklistParameterConfig extends ChecklistDefinition {
   enabled: boolean;
 }
 
+export type AppFontFamilyId =
+  | 'DEFAULT'
+  | 'INTER'
+  | 'PLUS_JAKARTA'
+  | 'ROBOTO'
+  | 'POPPINS'
+  | 'IBM_PLEX'
+  | 'SPACE_GROTESK'
+  | 'JETBRAINS_MONO'
+  | 'SYSTEM';
+
+export interface FontOptionInfo {
+  id: AppFontFamilyId;
+  label: string;
+  category: string;
+  cssStack: string;
+  description: string;
+}
+
+export const APP_FONT_OPTIONS: FontOptionInfo[] = [
+  {
+    id: 'DEFAULT',
+    label: 'Default Sistem (Syne + Inter + Mono)',
+    category: 'Default',
+    cssStack: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    description: 'Kombinasi standar aplikasi (Syne judul, Inter teks, JetBrains Mono angka)',
+  },
+  {
+    id: 'INTER',
+    label: 'Inter',
+    category: 'Sans-Serif Modern',
+    cssStack: "'Inter', sans-serif",
+    description: 'Sangat rapi, tajam, dan nyaman dibaca di layar HP maupun desktop',
+  },
+  {
+    id: 'PLUS_JAKARTA',
+    label: 'Plus Jakarta Sans',
+    category: 'Geometric UI',
+    cssStack: "'Plus Jakarta Sans', sans-serif",
+    description: 'Bersih, modern, dan proporsional untuk dashboard & tabel operasional',
+  },
+  {
+    id: 'ROBOTO',
+    label: 'Roboto',
+    category: 'Industrial / Android',
+    cssStack: "'Roboto', sans-serif",
+    description: 'Font standar industrial Android yang lugas dan familiar',
+  },
+  {
+    id: 'POPPINS',
+    label: 'Poppins',
+    category: 'Geometric Rounded',
+    cssStack: "'Poppins', sans-serif",
+    description: 'Karakter huruf bulat yang tegas, ramah mata, dan jelas dibaca',
+  },
+  {
+    id: 'IBM_PLEX',
+    label: 'IBM Plex Sans',
+    category: 'Enterprise Engineering',
+    cssStack: "'IBM Plex Sans', sans-serif",
+    description: 'Font teknis enterprise dengan keterbacaan angka dan kode yang tinggi',
+  },
+  {
+    id: 'SPACE_GROTESK',
+    label: 'Space Grotesk',
+    category: 'Technical Display',
+    cssStack: "'Space Grotesk', sans-serif",
+    description: 'Nuansa teknik & alat berat yang tegas dan khas',
+  },
+  {
+    id: 'JETBRAINS_MONO',
+    label: 'JetBrains Mono',
+    category: 'Monospace',
+    cssStack: "'JetBrains Mono', monospace",
+    description: 'Lebar karakter seragam — ideal untuk pembacaan kode unit & HM',
+  },
+  {
+    id: 'SYSTEM',
+    label: 'System UI (Bawaan Perangkat)',
+    category: 'Native OS',
+    cssStack: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    description: 'Mengikuti font sistem operasi Android / Windows / iOS',
+  },
+];
+
 export interface AppSettings {
   modules: Record<AppModuleId, ModuleControlConfig>;
   general: {
@@ -43,6 +128,11 @@ export interface AppSettings {
     companyName: string;
     defaultLandingTab: AppModuleId;
     showNavBadges: boolean;
+  };
+  appearance: {
+    fontFamily: AppFontFamilyId;
+    baseFontSizePx: number;
+    applyFontGlobally: boolean;
   };
   inspection: {
     rigidUnitPrefixes: string[];
@@ -217,6 +307,11 @@ export const getDefaultAppSettings = (): AppSettings => ({
     defaultLandingTab: 'daily-rigid',
     showNavBadges: true,
   },
+  appearance: {
+    fontFamily: 'DEFAULT',
+    baseFontSizePx: 16,
+    applyFontGlobally: true,
+  },
   inspection: {
     rigidUnitPrefixes: ['DT'],
     articUnitPrefixes: ['GR', 'CP', 'WL'],
@@ -269,6 +364,11 @@ const mergeWithDefaults = (raw: Partial<AppSettings> | null | undefined): AppSet
   return {
     modules: mergedModules,
     general: { ...defaults.general, ...(raw.general || {}) },
+    appearance: {
+      ...defaults.appearance,
+      ...(raw.appearance || {}),
+      baseFontSizePx: Math.max(12, Math.min(22, Number(raw.appearance?.baseFontSizePx) || defaults.appearance.baseFontSizePx)),
+    },
     inspection: {
       ...defaults.inspection,
       ...(raw.inspection || {}),
@@ -331,6 +431,27 @@ export const getAppSettings = (): AppSettings => {
   }
 };
 
+export const applyAppearanceToDocument = (appearance?: AppSettings['appearance']) => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const defaults = getDefaultAppSettings().appearance;
+  const cfg = appearance || defaults;
+
+  const px = Math.max(12, Math.min(22, Number(cfg.baseFontSizePx) || defaults.baseFontSizePx));
+  root.style.fontSize = `${px}px`;
+
+  const foundFont = APP_FONT_OPTIONS.find(f => f.id === cfg.fontFamily) || APP_FONT_OPTIONS[0];
+  root.style.setProperty('--app-font-sans', foundFont.cssStack);
+
+  if (cfg.fontFamily !== 'DEFAULT' && cfg.applyFontGlobally !== false) {
+    root.style.setProperty('--app-font-display', foundFont.cssStack);
+    root.style.setProperty('--app-font-mono', foundFont.cssStack);
+  } else {
+    root.style.setProperty('--app-font-display', "'Syne', sans-serif");
+    root.style.setProperty('--app-font-mono', "'JetBrains Mono', monospace");
+  }
+};
+
 export const saveAppSettings = (nextSettings: AppSettings): AppSettings => {
   const normalized = mergeWithDefaults({
     ...nextSettings,
@@ -343,6 +464,7 @@ export const saveAppSettings = (nextSettings: AppSettings): AppSettings => {
       console.warn('Gagal menyimpan pengaturan ke localStorage:', e);
     }
   }
+  applyAppearanceToDocument(normalized.appearance);
   notifyListeners(normalized);
   return normalized;
 };
@@ -356,6 +478,7 @@ export const resetAppSettings = (): AppSettings => {
       // Ignore
     }
   }
+  applyAppearanceToDocument(defaults.appearance);
   notifyListeners(defaults);
   return defaults;
 };

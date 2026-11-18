@@ -26,12 +26,15 @@ import {
   Eye,
   EyeOff,
   ClipboardCheck,
+  Type,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSettings } from '../context/SettingsContext';
 import {
   APP_MODULE_ORDER,
+  APP_FONT_OPTIONS,
+  AppFontFamilyId,
   AppModuleId,
   AppSettings,
   ChecklistParameterConfig,
@@ -179,6 +182,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     updateSettings(prev => ({
       ...prev,
       general: { ...prev.general, ...patch },
+    }));
+  };
+
+  const updateAppearance = (patch: Partial<AppSettings['appearance']>) => {
+    updateSettings(prev => ({
+      ...prev,
+      appearance: { ...prev.appearance, ...patch },
     }));
   };
 
@@ -465,7 +475,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     { id: 'inspection', label: 'Inspeksi & Checklist', icon: ClipboardCheck },
     { id: 'operations', label: 'Backlog, Activity & BAP', icon: Wrench },
     { id: 'reporting', label: 'Dashboard, WA & PDF', icon: BarChart3 },
-    { id: 'system', label: 'Sistem, Sheet & Backup', icon: Database },
+    { id: 'system', label: 'Tampilan, Sistem & Backup', icon: Database },
   ];
 
   return (
@@ -1359,6 +1369,208 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Font Family & Font Size Configuration */}
+          {(() => {
+            const activeFont =
+              APP_FONT_OPTIONS.find(f => f.id === settings.appearance.fontFamily) || APP_FONT_OPTIONS[0];
+            const currentSize = settings.appearance.baseFontSizePx || 16;
+            const scalePct = Math.round((currentSize / 16) * 100);
+            const sizePresets = [
+              { label: 'Kecil', px: 14 },
+              { label: 'Normal', px: 16 },
+              { label: 'Besar', px: 18 },
+              { label: 'Ekstra', px: 20 },
+            ];
+
+            return (
+              <div className="lg:col-span-2 bg-[#18181b] border border-[rgba(242,239,235,0.1)] rounded p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[rgba(242,239,235,0.08)]">
+                  <div>
+                    <h2 className="font-syne font-bold text-sm uppercase text-[#facc15] flex items-center space-x-2">
+                      <Type className="w-4 h-4" />
+                      <span>Pengaturan Jenis Font &amp; Ukuran Font Aplikasi</span>
+                    </h2>
+                    <p className="text-[11px] font-mono text-[rgba(242,239,235,0.55)] mt-0.5">
+                      Ubah jenis huruf dan skala ukuran font secara real-time di seluruh modul aplikasi.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateAppearance({
+                        fontFamily: 'DEFAULT',
+                        baseFontSizePx: 16,
+                        applyFontGlobally: true,
+                      });
+                      onShowToast('Jenis & ukuran font dikembalikan ke standar default (16px).', 'success');
+                    }}
+                    className="px-2.5 py-1.5 rounded bg-[#111113] hover:bg-[rgba(242,239,235,0.08)] border border-[rgba(242,239,235,0.15)] text-[10px] font-mono font-bold uppercase text-[rgba(242,239,235,0.75)] flex items-center space-x-1.5 self-start sm:self-auto transition"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset Font Default</span>
+                  </button>
+                </div>
+
+                {/* Font Size Controls */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-[#111113] border border-[rgba(242,239,235,0.1)] rounded p-3.5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold uppercase text-[#f2efeb]">
+                        Ukuran Font Dasar
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-[#facc15]/15 border border-[#facc15]/30 text-[#facc15] text-[11px] font-mono font-bold">
+                        {currentSize}px ({scalePct}%)
+                      </span>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {sizePresets.map(preset => {
+                        const isSelected = currentSize === preset.px;
+                        return (
+                          <button
+                            key={preset.px}
+                            type="button"
+                            onClick={() => updateAppearance({ baseFontSizePx: preset.px })}
+                            className={`px-2 py-2 rounded border text-[11px] font-mono font-bold uppercase transition flex flex-col items-center ${
+                              isSelected
+                                ? 'bg-[#facc15] text-[#111113] border-[#facc15]'
+                                : 'bg-[#18181b] text-[rgba(242,239,235,0.7)] border-[rgba(242,239,235,0.15)] hover:border-[#facc15]/50'
+                            }`}
+                          >
+                            <span>{preset.label}</span>
+                            <span className="text-[10px] opacity-80">{preset.px}px</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Slider & Fine Stepper */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => updateAppearance({ baseFontSizePx: Math.max(12, currentSize - 1) })}
+                        disabled={currentSize <= 12}
+                        className="w-8 h-8 rounded bg-[#18181b] border border-[rgba(242,239,235,0.2)] text-[#f2efeb] font-mono font-bold text-sm hover:border-[#facc15] disabled:opacity-40 transition"
+                        title="Perkecil 1px"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="range"
+                        min={12}
+                        max={22}
+                        step={1}
+                        value={currentSize}
+                        onChange={e => updateAppearance({ baseFontSizePx: Number(e.target.value) })}
+                        className="flex-1 accent-[#facc15] cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateAppearance({ baseFontSizePx: Math.min(22, currentSize + 1) })}
+                        disabled={currentSize >= 22}
+                        className="w-8 h-8 rounded bg-[#18181b] border border-[rgba(242,239,235,0.2)] text-[#f2efeb] font-mono font-bold text-sm hover:border-[#facc15] disabled:opacity-40 transition"
+                        title="Perbesar 1px"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="flex justify-between text-[10px] font-mono text-[rgba(242,239,235,0.45)]">
+                      <span>12px (Padat)</span>
+                      <span>16px (Standar)</span>
+                      <span>22px (Maksimal)</span>
+                    </div>
+                  </div>
+
+                  {/* Global Font Application & Live Preview */}
+                  <div className="bg-[#111113] border border-[rgba(242,239,235,0.1)] rounded p-3.5 space-y-3 flex flex-col justify-between">
+                    <label className="flex items-center justify-between gap-2 p-2.5 rounded bg-[#18181b] border border-[rgba(242,239,235,0.1)] cursor-pointer text-xs font-mono">
+                      <div>
+                        <div className="font-bold text-[#f2efeb]">Terapkan ke Seluruh Teks</div>
+                        <div className="text-[10px] text-[rgba(242,239,235,0.5)]">
+                          Sertakan judul modul &amp; label angka agar seragam mengikuti jenis font pilihan
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={settings.appearance.applyFontGlobally !== false}
+                        onChange={e => updateAppearance({ applyFontGlobally: e.target.checked })}
+                        className="w-4 h-4 accent-[#facc15] shrink-0"
+                      />
+                    </label>
+
+                    <div
+                      className="p-3 rounded bg-[#18181b] border border-[#facc15]/25 space-y-1.5"
+                      style={{
+                        fontFamily: activeFont.cssStack,
+                        fontSize: `${currentSize}px`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between text-[0.7em] uppercase tracking-wider text-[#facc15] font-bold">
+                        <span>PRATINJAU TIPOGRAFI AKTIF</span>
+                        <span>{activeFont.label}</span>
+                      </div>
+                      <div className="font-bold text-[#f2efeb] text-[1.05em]">
+                        DT5500 • HM 14,820 • Daily Check Rigid 100%
+                      </div>
+                      <p className="text-[0.8em] text-[rgba(242,239,235,0.7)] leading-snug">
+                        Status Unit READY • Rencana 10 Unit (8 Plan + 2 Tambahan) • Validasi Mekanik Plant 2.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Font Family Selector Grid */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="font-bold uppercase text-[#f2efeb]">Pilih Jenis Font ({APP_FONT_OPTIONS.length} Pilihan)</span>
+                    <span className="text-[11px] text-[#4ade80]">Aktif: {activeFont.label}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {APP_FONT_OPTIONS.map(fontOpt => {
+                      const selected = settings.appearance.fontFamily === fontOpt.id;
+                      return (
+                        <button
+                          key={fontOpt.id}
+                          type="button"
+                          onClick={() => updateAppearance({ fontFamily: fontOpt.id as AppFontFamilyId })}
+                          className={`p-3 rounded border text-left transition flex flex-col justify-between gap-1.5 ${
+                            selected
+                              ? 'bg-[#facc15]/12 border-[#facc15] shadow-sm'
+                              : 'bg-[#111113] border-[rgba(242,239,235,0.12)] hover:border-[rgba(242,239,235,0.3)]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-sm font-bold truncate ${
+                                selected ? 'text-[#facc15]' : 'text-[#f2efeb]'
+                              }`}
+                              style={{ fontFamily: fontOpt.cssStack }}
+                            >
+                              {fontOpt.label}
+                            </span>
+                            <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-[rgba(242,239,235,0.08)] text-[rgba(242,239,235,0.65)] shrink-0">
+                              {fontOpt.category}
+                            </span>
+                          </div>
+                          <div
+                            className="text-xs text-[rgba(242,239,235,0.85)] py-1 border-y border-[rgba(242,239,235,0.06)] truncate"
+                            style={{ fontFamily: fontOpt.cssStack }}
+                          >
+                            PLANT 2 • DT5500 • HM 14,820 • OK/GOOD
+                          </div>
+                          <p className="text-[10px] font-mono text-[rgba(242,239,235,0.5)] leading-snug">
+                            {fontOpt.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Google Sheet Sync Control */}
           <div className="bg-[#18181b] border border-[rgba(242,239,235,0.1)] rounded p-4 space-y-3">

@@ -180,10 +180,24 @@ export const replaceEntireDataset = (data: {
     safeSetCollection(STORAGE_KEYS.BAP, deduplicateById(data.bapList));
   }
   if (data.dailyRigidList !== undefined) {
-    safeSetCollection(STORAGE_KEYS.DAILY_RIGID, deduplicateById(data.dailyRigidList));
+    const prevRigidMap = new Map(getDailyRigidList().map(r => [r.id, r]));
+    const mergedRigid = deduplicateById(data.dailyRigidList).map(r => {
+      const prev = prevRigidMap.get(r.id);
+      return !r.planningCategory && prev?.planningCategory
+        ? { ...r, planningCategory: prev.planningCategory }
+        : r;
+    });
+    safeSetCollection(STORAGE_KEYS.DAILY_RIGID, mergedRigid);
   }
   if (data.dailyArticList !== undefined) {
-    safeSetCollection(STORAGE_KEYS.DAILY_ARTIC, deduplicateById(data.dailyArticList));
+    const prevArticMap = new Map(getDailyArticList().map(a => [a.id, a]));
+    const mergedArtic = deduplicateById(data.dailyArticList).map(a => {
+      const prev = prevArticMap.get(a.id);
+      return !a.planningCategory && prev?.planningCategory
+        ? { ...a, planningCategory: prev.planningCategory }
+        : a;
+    });
+    safeSetCollection(STORAGE_KEYS.DAILY_ARTIC, mergedArtic);
   }
   if (data.backlogs !== undefined) {
     // Ensure any locally saved backlog photos (still in localStorage/vault) are preserved even when Sheet omits >50k cells
