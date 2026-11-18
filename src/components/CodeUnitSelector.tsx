@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { CodeUnit } from '../types';
 import { getCodeUnits } from '../services/storageService';
+import { useTheme } from '../context/ThemeContext';
 import {
   Truck,
   Plus,
@@ -32,6 +33,8 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
   filterType,
   label,
 }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const activeSelectedCode = selectedCodeUnit !== undefined ? selectedCodeUnit : (selectedUnit !== undefined ? selectedUnit : '');
   const triggerChange = (u: CodeUnit | undefined) => {
     if (onChange) onChange(u);
@@ -251,10 +254,19 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
             <select
               value={activeCode}
               onChange={handleSelectChange}
-              style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              style={{
+                backgroundColor: isLight ? '#ffffff' : '#1e293b',
+                color: isLight ? '#0f172a' : '#ffffff',
+              }}
               className="w-full bg-slate-800 border-2 border-slate-700 hover:border-slate-600 focus:border-amber-400 rounded-xl px-3 py-2.5 text-xs text-white font-medium focus:outline-none transition cursor-pointer shadow-sm"
             >
-              <option value="" style={{ backgroundColor: '#0f172a', color: '#94a3b8' }}>
+              <option
+                value=""
+                style={{
+                  backgroundColor: isLight ? '#ffffff' : '#0f172a',
+                  color: isLight ? '#475569' : '#94a3b8',
+                }}
+              >
                 {allUnits.length === 0
                   ? filterType === 'Rigid'
                     ? '-- Belum ada unit DT terdaftar di Master Unit --'
@@ -268,7 +280,10 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
               {activeCode && !currentUnit && (
                 <option
                   value={activeCode}
-                  style={{ backgroundColor: '#0f172a', color: '#f59e0b' }}
+                  style={{
+                    backgroundColor: isLight ? '#ffffff' : '#0f172a',
+                    color: isLight ? '#a16207' : '#f59e0b',
+                  }}
                 >
                   ★ {activeCode} (Unit Terpilih)
                 </option>
@@ -278,7 +293,10 @@ export const CodeUnitSelector: React.FC<CodeUnitSelectorProps> = ({
                 <option
                   key={`${unit.id}-${unitIdx}`}
                   value={unit.codeUnit}
-                  style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+                  style={{
+                    backgroundColor: isLight ? '#ffffff' : '#0f172a',
+                    color: isLight ? '#0f172a' : '#ffffff',
+                  }}
                   className="bg-slate-900 text-white py-1.5"
                 >
                   {unit.codeUnit} | {unit.brand} - {unit.egi} ({unit.lokasiPit}) [{unit.currentHm.toLocaleString()} HM - {unit.statusUnit}]
