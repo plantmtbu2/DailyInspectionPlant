@@ -49,6 +49,7 @@ import {
 import { initAuth } from './services/firebaseAuth';
 import { initPhotoVault } from './services/photoStorageService';
 import { isRigidUnitCode, isArticUnitCode } from './utils/unitFilter';
+import { logCurrentUserActivity } from './services/userActivityLogService';
 
 // Components
 import { LoginScreen } from './components/LoginScreen';
@@ -296,6 +297,11 @@ export default function App() {
       const pulled = await pullAllDataFromGoogleSheet();
       replaceEntireDataset(pulled);
       reloadLocalState();
+      logCurrentUserActivity({
+        actionType: 'SYNC_PULL',
+        module: 'Google Sheet',
+        description: `Tarik data dari Google Sheet (${pulled.codeUnits.length} Unit, ${pulled.bapList.length} BAP, ${pulled.dailyRigidList.length} Rigid, ${pulled.dailyArticList.length} Artic, ${pulled.backlogs.length} Backlog, ${pulled.activities.length} Activity)`,
+      });
       showToast(
         `Berhasil menarik data dari Google Sheet: ${pulled.codeUnits.length} Unit, ${pulled.bapList.length} BAP, ${pulled.dailyRigidList.length} Rigid, ${pulled.dailyArticList.length} Artic, ${pulled.backlogs.length} Backlog`,
         'success'
@@ -320,15 +326,21 @@ export default function App() {
     try {
       setIsSyncing(true);
       setSyncMode('pushing');
-      await pushAllDataToGoogleSheet({
+      const snapshot = {
         codeUnits: getCodeUnits(),
         bapList: getBAPList(),
         dailyRigidList: getDailyRigidList(),
         dailyArticList: getDailyArticList(),
         backlogs: getBacklogs(),
         activities: getActivities(),
-      });
+      };
+      await pushAllDataToGoogleSheet(snapshot);
       reloadLocalState();
+      logCurrentUserActivity({
+        actionType: 'SYNC_PUSH',
+        module: 'Google Sheet',
+        description: `Kirim semua data lokal ke Google Sheet (${snapshot.codeUnits.length} Unit, ${snapshot.dailyRigidList.length} Rigid, ${snapshot.dailyArticList.length} Artic, ${snapshot.backlogs.length} Backlog)`,
+      });
       showToast('Semua data lokal berhasil dikirim & tersimpan di Google Sheet!', 'success');
     } catch (err: any) {
       showToast(`Gagal mengirim data ke Google Sheet: ${err.message}`, 'error');
@@ -447,6 +459,11 @@ export default function App() {
         | { type: 'ACTIVITY'; data: AddActivityItem }
     ) => {
       if (!checkPermission(moduleId, 'export')) return;
+      logCurrentUserActivity({
+        actionType: 'EXPORT_PDF',
+        module: reportData.type,
+        description: `Buka Cetak / Simpan PDF ${reportData.type} unit ${reportData.data.codeUnit} (${reportData.data.id})`,
+      });
       setPrintableReport(reportData);
     },
     [checkPermission]
@@ -458,8 +475,14 @@ export default function App() {
 
   // Master Unit Handlers
   const handleSaveUnit = (unit: CodeUnit) => {
+    const isEdit = codeUnits.some(u => u.id === unit.id);
     const updated = addOrUpdateCodeUnit(unit);
     setCodeUnits([...updated]);
+    logCurrentUserActivity({
+      actionType: isEdit ? 'UPDATE' : 'CREATE',
+      module: 'Code Unit',
+      description: `${isEdit ? 'Edit' : 'Tambah'} Master Unit ${unit.codeUnit} (${unit.brand} ${unit.egi}, HM ${unit.currentHm}, Status: ${unit.statusUnit})`,
+    });
     triggerBackgroundPush();
   };
 
@@ -485,6 +508,11 @@ export default function App() {
         setBacklogs(getBacklogs());
         setActivities(getActivities());
         setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+        logCurrentUserActivity({
+          actionType: 'DELETE',
+          module: 'Code Unit',
+          description: `Hapus permanen Master Unit ${name} (ID: ${id}) beserta riwayat terkait`,
+        });
         showToast(`Unit ${name} dan semua riwayat terkait berhasil dihapus secara permanen!`, 'info');
         triggerBackgroundPush();
       },
@@ -493,6 +521,7 @@ export default function App() {
 
   // BAP Handlers
   const handleSaveBAP = async (item: BAPRecord) => {
+    const isEdit = !!editingBapItem;
     if (editingBapItem) {
       const updated = await updateBAPRecord(item);
       setBapList([...updated]);
@@ -502,6 +531,11 @@ export default function App() {
     }
     setCodeUnits(getCodeUnits());
     setEditingBapItem(item);
+    logCurrentUserActivity({
+      actionType: isEdit ? 'UPDATE' : 'CREATE',
+      module: 'BAP',
+      description: `${isEdit ? 'Edit' : 'Input'} BAP ${item.id} unit ${item.codeUnit} (MO: ${item.mo || '-'}, Status: ${item.status})`,
+    });
     triggerBackgroundPush();
   };
 
@@ -516,6 +550,11 @@ export default function App() {
         const updated = await deleteBAPRecord(item.id);
         setBapList([...updated]);
         setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+        logCurrentUserActivity({
+          actionType: 'DELETE',
+          module: 'BAP',
+          description: `Hapus permanen BAP ${item.id} unit ${item.codeUnit}`,
+        });
         showToast(`BAP ${item.id} (${item.codeUnit}) berhasil dihapus secara permanen!`, 'info');
         triggerBackgroundPush();
       },
@@ -524,6 +563,7 @@ export default function App() {
 
   // Daily Rigid Handlers
   const handleSaveDailyRigid = async (item: DailyCheckRigid) => {
+    const isEdit = !!editingRigidItem;
     if (editingRigidItem) {
       const updated = await updateDailyRigid(item);
       setDailyRigidList([...updated]);
@@ -533,6 +573,17 @@ export default function App() {
     }
     setCodeUnits(getCodeUnits());
     setEditingRigidItem(item);
+    const modName =
+      item.qaType === 'QA7_FINAL'
+        ? 'QA 7 Final Rigid'
+        : item.qaType === 'QA1_PRE'
+        ? 'QA 1 Pre Rigid'
+        : 'Daily Rigid';
+    logCurrentUserActivity({
+      actionType: isEdit ? 'UPDATE' : 'CREATE',
+      module: modName,
+      description: `${isEdit ? 'Edit' : 'Input'} ${modName} unit ${item.codeUnit} (Tanggal: ${item.tanggal}, HM: ${item.hmUnit}, Status: ${item.status})`,
+    });
     triggerBackgroundPush();
   };
 
@@ -545,6 +596,12 @@ export default function App() {
         : 'daily-rigid';
     if (!checkPermission(modId, 'delete')) return;
     const titleText = item.qaType === 'QA7_FINAL' ? 'Hapus Permanen QA 7 Final Rigid?' : item.qaType === 'DAILY_INSPECTION' ? 'Hapus Permanen Daily Rigid?' : 'Hapus Permanen QA 1 Pre Rigid?';
+    const modName =
+      item.qaType === 'QA7_FINAL'
+        ? 'QA 7 Final Rigid'
+        : item.qaType === 'QA1_PRE'
+        ? 'QA 1 Pre Rigid'
+        : 'Daily Rigid';
     setDeleteDialog({
       isOpen: true,
       title: titleText,
@@ -554,6 +611,11 @@ export default function App() {
         const updated = await deleteDailyRigid(item.id);
         setDailyRigidList([...updated]);
         setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+        logCurrentUserActivity({
+          actionType: 'DELETE',
+          module: modName,
+          description: `Hapus ${modName} ${item.id} unit ${item.codeUnit} (${item.tanggal})`,
+        });
         showToast(`Inspeksi Rigid ${item.id} berhasil dihapus secara permanen!`, 'info');
         triggerBackgroundPush();
       },
@@ -562,6 +624,7 @@ export default function App() {
 
   // Daily Artic Handlers
   const handleSaveDailyArtic = async (item: DailyCheckArtic) => {
+    const isEdit = !!editingArticItem;
     if (editingArticItem) {
       const updated = await updateDailyArtic(item);
       setDailyArticList([...updated]);
@@ -571,6 +634,17 @@ export default function App() {
     }
     setCodeUnits(getCodeUnits());
     setEditingArticItem(item);
+    const modName =
+      item.qaType === 'QA7_FINAL'
+        ? 'QA 7 Final Artic'
+        : item.qaType === 'QA1_PRE'
+        ? 'QA 1 Pre Artic'
+        : 'Daily Artic';
+    logCurrentUserActivity({
+      actionType: isEdit ? 'UPDATE' : 'CREATE',
+      module: modName,
+      description: `${isEdit ? 'Edit' : 'Input'} ${modName} unit ${item.codeUnit} (Tanggal: ${item.tanggal}, HM: ${item.hmUnit}, Status: ${item.status})`,
+    });
     triggerBackgroundPush();
   };
 
@@ -583,6 +657,12 @@ export default function App() {
         : 'daily-artic';
     if (!checkPermission(modId, 'delete')) return;
     const titleText = item.qaType === 'QA7_FINAL' ? 'Hapus Permanen QA 7 Final Artic?' : item.qaType === 'DAILY_INSPECTION' ? 'Hapus Permanen Daily Artic?' : 'Hapus Permanen QA 1 Pre Artic?';
+    const modName =
+      item.qaType === 'QA7_FINAL'
+        ? 'QA 7 Final Artic'
+        : item.qaType === 'QA1_PRE'
+        ? 'QA 1 Pre Artic'
+        : 'Daily Artic';
     setDeleteDialog({
       isOpen: true,
       title: titleText,
@@ -592,6 +672,11 @@ export default function App() {
         const updated = await deleteDailyArtic(item.id);
         setDailyArticList([...updated]);
         setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+        logCurrentUserActivity({
+          actionType: 'DELETE',
+          module: modName,
+          description: `Hapus ${modName} ${item.id} unit ${item.codeUnit} (${item.tanggal})`,
+        });
         showToast(`Inspeksi Artic ${item.id} berhasil dihapus secara permanen!`, 'info');
         triggerBackgroundPush();
       },
@@ -600,6 +685,7 @@ export default function App() {
 
   // Backlog Handlers
   const handleSaveBacklog = async (item: BacklogItem) => {
+    const isEdit = !!editingBacklogItem;
     if (editingBacklogItem) {
       const updated = await updateBacklog(item);
       setBacklogs([...updated]);
@@ -608,6 +694,11 @@ export default function App() {
       setBacklogs([...updated]);
     }
     setEditingBacklogItem(item);
+    logCurrentUserActivity({
+      actionType: isEdit ? 'UPDATE' : 'CREATE',
+      module: 'Backlog',
+      description: `${isEdit ? 'Edit' : 'Input'} Backlog ${item.id} unit ${item.codeUnit} (${item.deskripsiBacklog || item.partNumber}, Status: ${item.status})`,
+    });
     triggerBackgroundPush();
   };
 
@@ -615,6 +706,11 @@ export default function App() {
     if (!checkPermission('backlog', 'edit')) return;
     const updated = updateBacklogStatus(id, status);
     setBacklogs([...updated]);
+    logCurrentUserActivity({
+      actionType: 'UPDATE',
+      module: 'Backlog',
+      description: `Ubah status Backlog ${id} menjadi ${status}`,
+    });
     triggerBackgroundPush();
   };
 
@@ -629,6 +725,11 @@ export default function App() {
         const updated = await deleteBacklog(item.id);
         setBacklogs([...updated]);
         setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+        logCurrentUserActivity({
+          actionType: 'DELETE',
+          module: 'Backlog',
+          description: `Hapus permanen Backlog ${item.id} unit ${item.codeUnit} (${item.partNumber})`,
+        });
         showToast(`Backlog ${item.id} (${item.partNumber}) berhasil dihapus secara permanen!`, 'info');
         triggerBackgroundPush();
       },
@@ -637,6 +738,7 @@ export default function App() {
 
   // Activity Handlers
   const handleSaveActivity = async (item: AddActivityItem) => {
+    const isEdit = !!editingActivityItem;
     if (editingActivityItem) {
       const updated = await updateActivity(item);
       setActivities([...updated]);
@@ -645,6 +747,11 @@ export default function App() {
       setActivities([...updated]);
     }
     setEditingActivityItem(item);
+    logCurrentUserActivity({
+      actionType: isEdit ? 'UPDATE' : 'CREATE',
+      module: 'Add Activity',
+      description: `${isEdit ? 'Edit' : 'Input'} Activity ${item.id} unit ${item.codeUnit} (${item.deskripsiAktivitas}, Status: ${item.status})`,
+    });
     triggerBackgroundPush();
   };
 
@@ -652,6 +759,11 @@ export default function App() {
     if (!checkPermission('activities', 'edit')) return;
     const updated = updateActivityStatus(id, status);
     setActivities([...updated]);
+    logCurrentUserActivity({
+      actionType: 'UPDATE',
+      module: 'Add Activity',
+      description: `Ubah status Activity ${id} menjadi ${status}`,
+    });
     triggerBackgroundPush();
   };
 
@@ -666,6 +778,11 @@ export default function App() {
         const updated = await deleteActivity(item.id);
         setActivities([...updated]);
         setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+        logCurrentUserActivity({
+          actionType: 'DELETE',
+          module: 'Add Activity',
+          description: `Hapus permanen Activity ${item.id} unit ${item.codeUnit}`,
+        });
         showToast(`Aktivitas ${item.id} berhasil dihapus secara permanen!`, 'info');
         triggerBackgroundPush();
       },

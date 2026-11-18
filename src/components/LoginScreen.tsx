@@ -24,6 +24,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   const { theme, toggleTheme } = useTheme();
 
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
+  const [adminName, setAdminName] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [operatorName, setOperatorName] = useState('');
@@ -33,10 +34,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    if (!adminName.trim()) {
+      setErrorMessage('Nama Admin wajib diisi!');
+      return;
+    }
     setIsLoading(true);
 
     setTimeout(() => {
-      const res = login('admin', adminPassword);
+      const res = login('admin', adminPassword, adminName.trim());
       setIsLoading(false);
       if (res.success) {
         if (onSuccess) onSuccess();
@@ -49,10 +54,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   const handleUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    if (!operatorName.trim()) {
+      setErrorMessage('Nama User / Mekanik wajib diisi!');
+      return;
+    }
     setIsLoading(true);
 
     setTimeout(() => {
-      const res = login('user', undefined, operatorName);
+      const res = login('user', undefined, operatorName.trim());
       setIsLoading(false);
       if (res.success) {
         if (onSuccess) onSuccess();
@@ -176,7 +185,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
             <form onSubmit={handleAdminSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-[rgba(242,239,235,0.8)]">
-                  Password Admin
+                  Nama Admin <span className="text-[#fb7185] text-[10px]">* Wajib</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={adminName}
+                    onChange={e => {
+                      setAdminName(e.target.value);
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    placeholder="Masukkan nama lengkap Admin..."
+                    autoFocus
+                    required
+                    className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] focus:border-[#facc15] rounded pl-9 pr-3 py-2.5 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.35)] outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-[rgba(242,239,235,0.8)]">
+                  Password Admin <span className="text-[#fb7185] text-[10px]">* Wajib</span>
                 </label>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
@@ -188,7 +218,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
                       if (errorMessage) setErrorMessage('');
                     }}
                     placeholder="Masukkan password admin..."
-                    autoFocus
                     required
                     className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] focus:border-[#facc15] rounded pl-9 pr-10 py-2.5 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.35)] outline-none transition"
                   />
@@ -225,16 +254,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
             <form onSubmit={handleUserSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-[rgba(242,239,235,0.8)]">
-                  Nama Mekanik / Teknisi <span className="text-[rgba(242,239,235,0.4)] text-[10px]">(Opsional)</span>
+                  Nama User / Mekanik <span className="text-[#fb7185] text-[10px]">* Wajib</span>
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
                   <input
                     type="text"
                     value={operatorName}
-                    onChange={e => setOperatorName(e.target.value)}
-                    placeholder="Contoh: Mekanik Shift 1 / Budi..."
+                    onChange={e => {
+                      setOperatorName(e.target.value);
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    placeholder="Contoh: Budi Santoso / Mekanik Shift 1..."
                     autoFocus
+                    required
                     className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] focus:border-[#38bdf8] rounded pl-9 pr-3 py-2.5 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.35)] outline-none transition"
                   />
                 </div>

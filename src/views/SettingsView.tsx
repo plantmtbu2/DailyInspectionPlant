@@ -65,6 +65,7 @@ import {
   getBacklogs,
   getActivities,
 } from '../services/storageService';
+import { logCurrentUserActivity } from '../services/userActivityLogService';
 
 type SettingsSectionTab = 'modules' | 'inspection' | 'operations' | 'reporting' | 'system';
 
@@ -232,6 +233,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const defaults = getDefaultAppSettings().modules;
     if (preset === 'RESET' || preset === 'ALL_ACTIVE') {
       updateSettings(prev => ({ ...prev, modules: defaults }));
+      logCurrentUserActivity({
+        actionType: 'SETTINGS',
+        module: 'Settings',
+        description:
+          preset === 'RESET'
+            ? 'Reset hak akses modul ke standar default'
+            : 'Aktifkan penuh seluruh 11 modul aplikasi',
+      });
       onShowToast(
         preset === 'RESET'
           ? 'Konfigurasi seluruh modul dikembalikan ke standar default.'
@@ -256,6 +265,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }
         return { ...prev, modules: next };
       });
+      logCurrentUserActivity({
+        actionType: 'SETTINGS',
+        module: 'Settings',
+        description: 'Terapkan preset Mode Read-Only User pada semua modul',
+      });
       onShowToast('Mode Read-Only User aktif: User hanya dapat melihat & export data.', 'info');
       return;
     }
@@ -270,6 +284,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           };
         }
         return { ...prev, modules: next };
+      });
+      logCurrentUserActivity({
+        actionType: 'SETTINGS',
+        module: 'Settings',
+        description: 'Kunci izin Hapus Data bagi User pada semua modul',
       });
       onShowToast('Hapus Data dikunci untuk User Operasional di semua modul.', 'info');
     }
@@ -389,6 +408,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setOldPass('');
       setNewPass('');
       setConfirmPass('');
+      logCurrentUserActivity({
+        actionType: 'SETTINGS',
+        module: 'Settings',
+        description: 'Ubah Password Administrator',
+      });
       onShowToast('Password Administrator berhasil diperbarui!', 'success');
     } else {
       onShowToast(res.error || 'Gagal mengganti password.', 'error');
@@ -1819,8 +1843,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     setRigidPrefixesText(next.inspection.rigidUnitPrefixes.join(', '));
                     setArticPrefixesText(next.inspection.articUnitPrefixes.join(', '));
                     setConfirmResetModal('NONE');
+                    logCurrentUserActivity({
+                      actionType: 'SETTINGS',
+                      module: 'Settings',
+                      description: 'Reset seluruh pengaturan aplikasi ke standar default',
+                    });
                     onShowToast('Seluruh pengaturan aplikasi berhasil direset ke default!', 'info');
                   } else {
+                    logCurrentUserActivity({
+                      actionType: 'SETTINGS',
+                      module: 'Settings',
+                      description: 'Reset parameter checklist Rigid & Artic ke standar QA7',
+                    });
                     handleResetChecklistToDefault();
                   }
                 }}

@@ -20,6 +20,7 @@ import {
   savePlanForDateAndModule,
   copyDayPlansToDate,
 } from '../services/inspectionPlanService';
+import { logCurrentUserActivity } from '../services/userActivityLogService';
 
 interface InspectionPlanModalProps {
   isOpen: boolean;
@@ -109,11 +110,17 @@ export const InspectionPlanModal: React.FC<InspectionPlanModalProps> = ({
   const toggleUnit = (code: string) => {
     const clean = code.trim().toUpperCase();
     if (!clean) return;
-    const next = selectedUnits.includes(clean)
+    const isRemoving = selectedUnits.includes(clean);
+    const next = isRemoving
       ? selectedUnits.filter(u => u !== clean)
       : [...selectedUnits, clean];
     setSelectedUnits(next);
     savePlanForDateAndModule(planDate, activeModule, next);
+    logCurrentUserActivity({
+      actionType: 'PLAN_UPDATE',
+      module: 'Rencana Unit',
+      description: `${isRemoving ? 'Hapus' : 'Tambah'} unit ${clean} pada rencana ${currentModuleMeta.shortLabel} tanggal ${planDate} (Total: ${next.length} unit)`,
+    });
     setRefreshTick(t => t + 1);
   };
 
@@ -126,6 +133,11 @@ export const InspectionPlanModal: React.FC<InspectionPlanModalProps> = ({
     );
     setSelectedUnits(allCodes);
     savePlanForDateAndModule(planDate, activeModule, allCodes);
+    logCurrentUserActivity({
+      actionType: 'PLAN_UPDATE',
+      module: 'Rencana Unit',
+      description: `Pilih semua (${allCodes.length} unit) untuk rencana ${currentModuleMeta.shortLabel} tanggal ${planDate}`,
+    });
     setRefreshTick(t => t + 1);
     showNotice(`${allCodes.length} unit ditambahkan ke rencana ${currentModuleMeta.shortLabel}.`);
   };
@@ -133,6 +145,11 @@ export const InspectionPlanModal: React.FC<InspectionPlanModalProps> = ({
   const handleClearModule = () => {
     setSelectedUnits([]);
     savePlanForDateAndModule(planDate, activeModule, []);
+    logCurrentUserActivity({
+      actionType: 'PLAN_UPDATE',
+      module: 'Rencana Unit',
+      description: `Kosongkan rencana ${currentModuleMeta.shortLabel} tanggal ${planDate}`,
+    });
     setRefreshTick(t => t + 1);
     showNotice(`Rencana ${currentModuleMeta.shortLabel} tanggal ${planDate} dikosongkan.`);
   };
@@ -145,6 +162,11 @@ export const InspectionPlanModal: React.FC<InspectionPlanModalProps> = ({
       const next = [...selectedUnits, clean];
       setSelectedUnits(next);
       savePlanForDateAndModule(planDate, activeModule, next);
+      logCurrentUserActivity({
+        actionType: 'PLAN_UPDATE',
+        module: 'Rencana Unit',
+        description: `Tambah unit manual ${clean} ke rencana ${currentModuleMeta.shortLabel} tanggal ${planDate}`,
+      });
       setRefreshTick(t => t + 1);
     }
     setCustomUnitInput('');
@@ -160,6 +182,11 @@ export const InspectionPlanModal: React.FC<InspectionPlanModalProps> = ({
       return;
     }
     copyDayPlansToDate(prevIso, planDate);
+    logCurrentUserActivity({
+      actionType: 'PLAN_UPDATE',
+      module: 'Rencana Unit',
+      description: `Salin rencana unit dari ${prevIso} ke tanggal ${planDate}`,
+    });
     setRefreshTick(t => t + 1);
     showNotice(`Rencana dari ${prevIso} berhasil disalin ke ${planDate}.`);
   };

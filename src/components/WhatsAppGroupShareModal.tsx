@@ -23,6 +23,7 @@ import {
   shareToWhatsAppGroup,
   copyTextToClipboard,
 } from '../utils/whatsappFormatter';
+import { logCurrentUserActivity } from '../services/userActivityLogService';
 
 interface WhatsAppGroupShareModalProps {
   isOpen: boolean;
@@ -144,6 +145,11 @@ export const WhatsAppGroupShareModal: React.FC<WhatsAppGroupShareModalProps> = (
         title,
         onToast: msg => setStatusFeedback(msg),
       });
+      logCurrentUserActivity({
+        actionType: 'EXPORT_WA',
+        module: 'WhatsApp',
+        description: `Share laporan "${title}" ke WhatsApp (${includePdf ? 'dengan PDF' : 'teks/foto'})`,
+      });
     } finally {
       setIsBusy(false);
     }
@@ -174,6 +180,11 @@ export const WhatsAppGroupShareModal: React.FC<WhatsAppGroupShareModalProps> = (
         pdfFileName,
         title,
         onToast: msg => setStatusFeedback(msg),
+      });
+      logCurrentUserActivity({
+        actionType: 'EXPORT_WA',
+        module: 'WhatsApp',
+        description: `Kirim laporan "${title}" ke Group WA "${group.name}"`,
       });
     } finally {
       setIsBusy(false);

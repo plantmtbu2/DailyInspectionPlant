@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { UserRole, AuthUser } from '../types';
+import { recordUserActivity } from '../services/userActivityLogService';
 
 interface AuthContextType {
   currentUser: AuthUser | null;
@@ -17,6 +18,9 @@ const ADMIN_PASS_KEY = 'fleetcheck_admin_pass';
 const DEFAULT_ADMIN_PASSWORD = 'mtbu2026';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const generateSessionId = () =>
+  `SES-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -44,8 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_ADMIN_PASSWORD;
   };
 
-  const login = (role: UserRole, password?: string, operatorName?: string): { success: boolean; error?: string } => {
+  const login = (
+    role: UserRole,
+    password?: string,
+    operatorName?: string,
+    isSwitch?: boolean
+  ): { success: boolean; error?: string } => {
+    const cleanName = (operatorName || '').trim();
+
     if (role === 'admin') {
+      if (!cleanName) {
+        return { success: false, error: 'Nama Admin wajib diisi!' };
+      }
       const currentAdminPass = getAdminPassword();
       const enteredPass = password?.trim() || '';
       if (!enteredPass) {
@@ -55,35 +69,97 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Password Admin salah! Silakan periksa kembali.' };
       }
 
+      if (isSwitch && currentUser) {
+        recordUserActivity({
+          userName: currentUser.displayName,
+          role: currentUser.role,
+          sessionId: currentUser.sessionId || `SES-${currentUser.loginTime}`,
+          actionType: 'SWITCH_PROFILE',
+          module: 'Autentikasi',
+          description: `Beralih profil dari ${currentUser.role.toUpperCase()} (${currentUser.displayName}) ke ADMIN (${cleanName})`,
+        });
+      }
+
+      const sessionId = generateSessionId();
       const user: AuthUser = {
         role: 'admin',
-        username: 'admin',
-        displayName: 'Administrator MTBU',
-        loginTime: new Date().toISOString(),
-      };
-      setCurrentUser(user);
-      try {
-        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
-      } catch {}
-      return { success: true };
-    } else {
-      // Role: User / Operator
-      const cleanName = operatorName?.trim() || 'User Operasional';
-      const user: AuthUser = {
-        role: 'user',
-        username: 'operator',
+        username: cleanName.toLowerCase().replace(/\s+/g, '_'),
         displayName: cleanName,
         loginTime: new Date().toISOString(),
+        sessionId,
       };
       setCurrentUser(user);
       try {
         localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
       } catch {}
+
+      recordUserActivity({
+        userName: cleanName,
+        role: 'admin',
+        sessionId,
+        actionType: 'LOGIN',
+        module: 'Autentikasi',
+        description: isSwitch
+          ? `Login masuk sebagai ADMIN (${cleanName}) via ganti profil`
+          : `Login masuk sebagai ADMIN (${cleanName})`,
+      });
+
+      return { success: true };
+    } else {
+      if (!cleanName) {
+        return { success: false, error: 'Nama User / Mekanik wajib diisi!' };
+      }
+
+      if (isSwitch && currentUser) {
+        recordUserActivity({
+          userName: currentUser.displayName,
+          role: currentUser.role,
+          sessionId: currentUser.sessionId || `SES-${currentUser.loginTime}`,
+          actionType: 'SWITCH_PROFILE',
+          module: 'Autentikasi',
+          description: `Beralih profil dari ${currentUser.role.toUpperCase()} (${currentUser.displayName}) ke USER (${cleanName})`,
+        });
+      }
+
+      const sessionId = generateSessionId();
+      const user: AuthUser = {
+        role: 'user',
+        username: cleanName.toLowerCase().replace(/\s+/g, '_'),
+        displayName: cleanName,
+        loginTime: new Date().toISOString(),
+        sessionId,
+      };
+      setCurrentUser(user);
+      try {
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
+      } catch {}
+
+      recordUserActivity({
+        userName: cleanName,
+        role: 'user',
+        sessionId,
+        actionType: 'LOGIN',
+        module: 'Autentikasi',
+        description: isSwitch
+          ? `Login masuk sebagai USER (${cleanName}) via ganti profil`
+          : `Login masuk sebagai USER (${cleanName})`,
+      });
+
       return { success: true };
     }
   };
 
   const logout = () => {
+    if (currentUser) {
+      recordUserActivity({
+        userName: currentUser.displayName,
+        role: currentUser.role,
+        sessionId: currentUser.sessionId || `SES-${currentUser.loginTime}`,
+        actionType: 'LOGOUT',
+        module: 'Autentikasi',
+        description: `Logout keluar dari sistem (${currentUser.role.toUpperCase()}: ${currentUser.displayName})`,
+      });
+    }
     setCurrentUser(null);
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
@@ -91,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchProfile = (role: UserRole, password?: string, operatorName?: string): { success: boolean; error?: string } => {
-    return login(role, password, operatorName);
+    return login(role, password, operatorName, true);
   };
 
   const changeAdminPassword = (oldPass: string, newPass: string): { success: boolean; error?: string } => {

@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
 import { InspectionPlanModal } from '../components/InspectionPlanModal';
+import { AdminActivityMonitoringPanel } from '../components/AdminActivityMonitoringPanel';
+import { useAuth } from '../context/AuthContext';
 import {
   DailyCheckRigid,
   DailyCheckArtic,
@@ -197,6 +199,7 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
   onOpenArticForUnit,
   onNavigateToTab,
 }) => {
+  const { isAdmin } = useAuth();
   const today = useMemo(() => new Date(), []);
   const todayIso = useMemo(() => today.toISOString().slice(0, 10), [today]);
 
@@ -2451,6 +2454,9 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* SECTION 6 (KHUSUS ADMIN): MONITORING LOGIN & AKTIVITAS USER / ADMIN */}
+      {isAdmin && <AdminActivityMonitoringPanel dashboardDate={selectedDate} />}
 
       <WhatsAppGroupShareModal
         isOpen={!!groupShareText}

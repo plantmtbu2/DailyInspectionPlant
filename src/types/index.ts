@@ -169,4 +169,32 @@ export interface AuthUser {
   username: string;
   displayName: string;
   loginTime: string;
+  sessionId?: string;
+}
+
+export type ActivityLogActionType =
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'SWITCH_PROFILE'
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'EXPORT_WA'
+  | 'EXPORT_PDF'
+  | 'SYNC_PULL'
+  | 'SYNC_PUSH'
+  | 'SETTINGS'
+  | 'PLAN_UPDATE';
+
+export interface UserActivityLog {
+  id: string;
+  userName: string;
+  role: UserRole;
+  sessionId: string;
+  actionType: ActivityLogActionType;
+  module: string;
+  description: string;
+  tanggal: string; // YYYY-MM-DD
+  jam: string; // HH:mm:ss
+  timestamp: string; // ISO string
 }

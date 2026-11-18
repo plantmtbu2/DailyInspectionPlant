@@ -23,8 +23,10 @@ interface UserProfileModalProps {
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
   const { currentUser, isAdmin, logout, switchProfile, changeAdminPassword } = useAuth();
 
-  const [mode, setMode] = useState<'view' | 'switch-admin' | 'change-password'>('view');
+  const [mode, setMode] = useState<'view' | 'switch-admin' | 'switch-user' | 'change-password'>('view');
+  const [adminNameInput, setAdminNameInput] = useState('');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [userNameInput, setUserNameInput] = useState('');
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -41,11 +43,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   const handleSwitchToAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMsg(null);
-    const res = switchProfile('admin', adminPasswordInput);
+    if (!adminNameInput.trim()) {
+      setStatusMsg({ type: 'error', text: 'Nama Admin wajib diisi!' });
+      return;
+    }
+    const res = switchProfile('admin', adminPasswordInput, adminNameInput.trim());
     if (res.success) {
-      setStatusMsg({ type: 'success', text: 'Berhasil beralih ke profil Administrator!' });
+      setStatusMsg({ type: 'success', text: `Berhasil beralih ke profil Admin (${adminNameInput.trim()})!` });
       setTimeout(() => {
         setMode('view');
+        setAdminNameInput('');
         setAdminPasswordInput('');
         onClose();
       }, 700);
@@ -54,12 +61,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     }
   };
 
-  const handleSwitchToUser = () => {
-    switchProfile('user', undefined, 'User Operasional');
-    setStatusMsg({ type: 'success', text: 'Beralih ke profil User Operasional.' });
-    setTimeout(() => {
-      onClose();
-    }, 600);
+  const handleSwitchToUserSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatusMsg(null);
+    if (!userNameInput.trim()) {
+      setStatusMsg({ type: 'error', text: 'Nama User / Mekanik wajib diisi!' });
+      return;
+    }
+    const res = switchProfile('user', undefined, userNameInput.trim());
+    if (res.success) {
+      setStatusMsg({ type: 'success', text: `Beralih ke profil User (${userNameInput.trim()}).` });
+      setTimeout(() => {
+        setMode('view');
+        setUserNameInput('');
+        onClose();
+      }, 600);
+    } else {
+      setStatusMsg({ type: 'error', text: res.error || 'Gagal beralih profil.' });
+    }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
@@ -213,7 +232,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={handleSwitchToUser}
+                      onClick={() => {
+                        setStatusMsg(null);
+                        setMode('switch-user');
+                      }}
                       className="py-2 px-2.5 rounded bg-[rgba(242,239,235,0.06)] hover:bg-[rgba(242,239,235,0.12)] text-[rgba(242,239,235,0.8)] border border-[rgba(242,239,235,0.15)] text-[11px] font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition"
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5" />
@@ -251,13 +273,31 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               <div className="p-3 rounded bg-[rgba(250,204,21,0.08)] border border-[#facc15]/30 text-xs font-mono space-y-1">
                 <span className="font-bold text-[#facc15] uppercase">Otorisasi Administrator</span>
                 <p className="text-[11px] text-[rgba(242,239,235,0.7)]">
-                  Masukkan password admin untuk membuka seluruh hak akses termasuk sinkronisasi Sheet 24/7.
+                  Masukkan nama dan password admin untuk membuka seluruh hak akses termasuk sinkronisasi Sheet 24/7.
                 </p>
               </div>
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-mono uppercase text-[rgba(242,239,235,0.7)]">
-                  Password Admin
+                  Nama Admin <span className="text-[#fb7185] text-[10px]">* Wajib</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={adminNameInput}
+                    onChange={e => setAdminNameInput(e.target.value)}
+                    placeholder="Masukkan nama lengkap Admin..."
+                    autoFocus
+                    required
+                    className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] focus:border-[#facc15] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono uppercase text-[rgba(242,239,235,0.7)]">
+                  Password Admin <span className="text-[#fb7185] text-[10px]">* Wajib</span>
                 </label>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
@@ -266,7 +306,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                     value={adminPasswordInput}
                     onChange={e => setAdminPasswordInput(e.target.value)}
                     placeholder="Masukkan password admin..."
-                    autoFocus
                     required
                     className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] focus:border-[#facc15] rounded pl-9 pr-10 py-2 text-xs font-mono text-[#f2efeb] outline-none"
                   />
@@ -297,6 +336,56 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                 >
                   <ShieldCheck className="w-4 h-4" />
                   <span>Verifikasi</span>
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* SWITCH TO USER MODE */}
+          {mode === 'switch-user' && (
+            <form onSubmit={handleSwitchToUserSubmit} className="space-y-4">
+              <div className="p-3 rounded bg-[rgba(56,189,248,0.08)] border border-[#38bdf8]/30 text-xs font-mono space-y-1">
+                <span className="font-bold text-[#38bdf8] uppercase">Beralih ke Profil User</span>
+                <p className="text-[11px] text-[rgba(242,239,235,0.7)]">
+                  Masukkan nama User / Mekanik yang bertugas sebelum beralih ke mode User Operasional.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono uppercase text-[rgba(242,239,235,0.7)]">
+                  Nama User / Mekanik <span className="text-[#fb7185] text-[10px]">* Wajib</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={userNameInput}
+                    onChange={e => setUserNameInput(e.target.value)}
+                    placeholder="Contoh: Budi Santoso / Mekanik Shift 1..."
+                    autoFocus
+                    required
+                    className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] focus:border-[#38bdf8] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('view');
+                    setStatusMsg(null);
+                  }}
+                  className="flex-1 py-2 rounded border border-[rgba(242,239,235,0.2)] text-xs font-mono uppercase text-[rgba(242,239,235,0.7)] hover:bg-[rgba(242,239,235,0.06)]"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded bg-[#38bdf8] hover:bg-[#7dd3fc] text-[#111113] text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Masuk User</span>
                 </button>
               </div>
             </form>
