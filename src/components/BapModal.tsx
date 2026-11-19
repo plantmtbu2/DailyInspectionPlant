@@ -467,9 +467,9 @@ export const BapModal: React.FC<BapModalProps> = ({
                     onChange={e => setStatus(e.target.value as any)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2 py-2 text-white focus:border-amber-400 outline-none"
                   >
-                    <option value="OPEN">OPEN (Menunggu)</option>
+                    <option value="OPEN">OPEN</option>
                     <option value="IN_PROGRESS">IN PROGRESS</option>
-                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="COMPLETED">CLOSE</option>
                   </select>
                 </div>
               </div>

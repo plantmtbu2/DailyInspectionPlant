@@ -1061,10 +1061,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   }
                   className="w-full bg-[#111113] border border-[rgba(242,239,235,0.2)] rounded px-3 py-2 text-[#f2efeb] outline-none"
                 >
-                  <option value="DONE">DONE</option>
-                  <option value="CLOSED">CLOSED</option>
+                  <option value="OPEN">OPEN</option>
+                  <option value="CLOSE">CLOSE</option>
                   <option value="MONITORING">MONITORING</option>
-                  <option value="PENDING">PENDING</option>
+                  <option value="MIDLIFE">MIDLIFE</option>
                 </select>
               </div>
 
@@ -1081,7 +1081,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 >
                   <option value="OPEN">OPEN</option>
                   <option value="IN_PROGRESS">IN_PROGRESS</option>
-                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CLOSE">CLOSE</option>
                 </select>
               </div>
 

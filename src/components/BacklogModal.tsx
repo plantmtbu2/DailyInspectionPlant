@@ -681,8 +681,8 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
                     <option value="QA7_ARTIC">4. QA 7 Final Inspection Artic</option>
                     <option value="DAILY_RIGID">Daily Check Rigid</option>
                     <option value="DAILY_ARTIC">Daily Check Artic</option>
-                    <option value="PERIODIC_INSPECTION">Periodic Inspection (PS)</option>
-                    <option value="BREAKDOWN">Breakdown Incident</option>
+                    <option value="BREAKDOWN SCHEDULE">Scm</option>
+                    <option value="BREAKDOWN UNSCHEDULE">Usm/Icm</option>
                     <option value="MANUAL">Manual Finding</option>
                   </select>
                 </div>
@@ -696,7 +696,6 @@ export const BacklogModal: React.FC<BacklogModalProps> = ({
                   >
                     <option value="WAITING_PART">WAITING PART (Menunggu Sparepart)</option>
                     <option value="READY_TO_INSTALL">READY TO INSTALL (Part Tersedia)</option>
-                    <option value="SCHEDULED">SCHEDULED (Dijadwalkan di PS)</option>
                     <option value="CLOSED">CLOSED (Sudah Terpasang/Selesai)</option>
                   </select>
                 </div>
