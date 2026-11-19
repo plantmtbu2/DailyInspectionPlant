@@ -23,7 +23,7 @@ export interface BAPRecord {
   tanggal: string; // YYYY-MM-DD
   jam: string;
   picMekanik: string;
-  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSE';
   catatanTambahan?: string;
   syncedToSheets?: boolean;
   photoUrl?: string; // Foto kerusakan / bukti fisik BAP (primary / single)
@@ -127,7 +127,18 @@ export interface BacklogItem {
   partNumber: string; // Ringkasan part number atau part utama
   deskripsiPart: string; // Ringkasan deskripsi part
   qty: number | string; // Total kuantitas
-  sumberTemuan: 'QA1_RIGID' | 'QA7_RIGID' | 'QA1_ARTIC' | 'QA7_ARTIC' | 'DAILY_RIGID' | 'DAILY_ARTIC' | 'PERIODIC_INSPECTION' | 'BREAKDOWN' | 'MANUAL';
+  sumberTemuan:
+    | 'QA1_RIGID'
+    | 'QA7_RIGID'
+    | 'QA1_ARTIC'
+    | 'QA7_ARTIC'
+    | 'DAILY_RIGID'
+    | 'DAILY_ARTIC'
+    | 'PERIODIC_INSPECTION'
+    | 'BREAKDOWN'
+    | 'BREAKDOWN SCHEDULE'
+    | 'BREAKDOWN UNSCHEDULE'
+    | 'MANUAL';
   status: 'WAITING_PART' | 'READY_TO_INSTALL' | 'SCHEDULED' | 'CLOSED';
   tanggalTemuan: string;
   pic: string;
@@ -143,7 +154,7 @@ export interface AddActivityItem {
   codeUnit: string;
   deskripsiAktivitas: string;
   action: string; // Tindakan perbaikan yang dilakukan
-  status: 'PENDING' | 'DONE' | 'MONITORING' | 'CLOSED';
+  status: 'PENDING' | 'DONE' | 'MONITORING' | 'CLOSED' | 'OPEN' | 'CLOSE' | 'MIDLIFE';
   tanggalTemuan: string;
   pic: string;
   relatedInspectionId?: string;

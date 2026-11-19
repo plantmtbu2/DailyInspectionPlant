@@ -18,12 +18,24 @@ import {
   User,
   LogOut,
   Sliders,
+  Smartphone,
+  Tablet,
+  Laptop,
+  Monitor,
+  MonitorSmartphone,
+  Check,
 } from 'lucide-react';
 import { GoogleSheetsConfig, CodeUnit, BacklogItem, BAPRecord, DailyCheckRigid, DailyCheckArtic, AddActivityItem } from '../types';
 import { ActiveTab } from './BottomNav';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import {
+  useScreenLayout,
+  SCREEN_MODE_OPTIONS,
+  ScreenModePreference,
+  getScreenModeDisplayName,
+} from '../context/ScreenLayoutContext';
 import { UserProfileModal } from './UserProfileModal';
 
 interface HeaderProps {
@@ -60,21 +72,42 @@ export const Header: React.FC<HeaderProps> = ({
   const { theme, toggleTheme } = useTheme();
   const { currentUser, isAdmin } = useAuth();
   const { settings } = useSettings();
+  const {
+    preference: screenPref,
+    setPreference: setScreenPref,
+    detectedMode,
+    effectiveMode,
+    isCompactNav,
+  } = useScreenLayout();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isScreenMenuOpen, setIsScreenMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const screenMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close search dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setIsSearchOpen(false);
       }
+      if (screenMenuRef.current && !screenMenuRef.current.contains(e.target as Node)) {
+        setIsScreenMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const renderScreenIcon = (pref: ScreenModePreference | 'effective') => {
+    const target = pref === 'effective' ? effectiveMode : pref;
+    if (target === 'MOBILE' || target === 'mobile') return <Smartphone className="w-3.5 h-3.5" />;
+    if (target === 'TABLET' || target === 'tablet') return <Tablet className="w-3.5 h-3.5" />;
+    if (target === 'NOTEBOOK' || target === 'notebook') return <Laptop className="w-3.5 h-3.5" />;
+    if (target === 'PC' || target === 'pc') return <Monitor className="w-3.5 h-3.5" />;
+    return <MonitorSmartphone className="w-3.5 h-3.5" />;
+  };
 
   const q = searchQuery.trim().toLowerCase();
 
@@ -156,9 +189,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="no-print bg-[#111113] text-[#f2efeb] sticky top-0 z-30 border-b border-[rgba(242,239,235,0.1)]">
-      <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-        {/* Brand - Visible on mobile/tablet when sidebar is hidden */}
-        <div className="flex items-center space-x-2.5 shrink-0 lg:hidden">
+      <div className="w-full px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2 sm:gap-3">
+        {/* Brand - Visible when sidebar is hidden (HP / Tablet mode) */}
+        <div className={`items-center space-x-2.5 shrink-0 ${isCompactNav ? 'flex' : 'hidden'}`}>
           <div className="w-8 h-8 rounded bg-[#18181b] p-1 border border-[rgba(242,239,235,0.15)] flex items-center justify-center shrink-0">
             <img
               src="/assets/aistudio/PAMA_SMALL_4167d1d0.png"
@@ -415,10 +448,10 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={onPullData}
                     disabled={isSyncing}
                     title="Tarik data terbaru dari Google Sheet ke aplikasi"
-                    className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
+                    className="p-1.5 sm:px-2.5 sm:py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
                   >
                     <Download className={`w-3.5 h-3.5 ${syncMode === 'pulling' ? 'animate-bounce text-[#facc15]' : 'text-[rgba(242,239,235,0.6)]'}`} />
-                    <span className="hidden sm:inline">Tarik Data</span>
+                    <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden sm:inline'}>Tarik Data</span>
                   </button>
 
                   {/* Kirim Data (Push) */}
@@ -426,27 +459,27 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={onPushData}
                     disabled={isSyncing}
                     title="Kirim dan simpan semua data lokal ke Google Sheet"
-                    className="px-3 py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
+                    className="p-1.5 sm:px-2.5 sm:py-1.5 rounded border border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-40"
                   >
                     <Upload className={`w-3.5 h-3.5 ${syncMode === 'pushing' ? 'animate-bounce text-[#4ade80]' : 'text-[rgba(242,239,235,0.6)]'}`} />
-                    <span className="hidden sm:inline">Kirim Data</span>
+                    <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden sm:inline'}>Kirim Data</span>
                   </button>
 
                   {/* Sheet Status Indicator */}
                   <button
                     onClick={onOpenSheetsModal}
                     title="Google Sheet selalu terhubung dan aktif otomatis"
-                    className="px-3 py-1.5 rounded border border-[#4ade80] text-[#4ade80] bg-[#4ade80]/5 hover:bg-[#4ade80]/15 text-xs font-mono uppercase tracking-wider flex items-center space-x-2 transition active:scale-95"
+                    className="px-2 sm:px-3 py-1.5 rounded border border-[#4ade80] text-[#4ade80] bg-[#4ade80]/5 hover:bg-[#4ade80]/15 text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95"
                   >
                     <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse shrink-0" />
-                    <span className="font-semibold text-xs hidden sm:inline">
+                    <span className={effectiveMode === 'mobile' ? 'hidden' : 'font-semibold text-xs hidden sm:inline'}>
                       {syncMode === 'pulling'
                         ? 'Memuat...'
                         : syncMode === 'pushing'
                         ? 'Menyimpan...'
                         : 'Sheet 24/7 Aktif'}
                     </span>
-                    <span className="font-semibold text-xs sm:hidden">
+                    <span className={effectiveMode === 'mobile' ? 'font-semibold text-[10px]' : 'font-semibold text-xs sm:hidden'}>
                       {syncMode === 'pulling' ? 'Memuat' : syncMode === 'pushing' ? 'Simpan' : 'Live'}
                     </span>
                   </button>
@@ -454,14 +487,89 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <button
                   onClick={onOpenSheetsModal}
-                  className="px-3.5 py-1.5 rounded bg-[#facc15] hover:bg-[#fde047] text-[#111113] text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#facc15]/20"
+                  className="px-2.5 py-1.5 rounded bg-[#facc15] hover:bg-[#fde047] text-[#111113] text-xs font-mono font-bold uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 shadow-md shadow-[#facc15]/20"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Hubungkan Sheet</span>
+                  <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden sm:inline'}>Hubungkan Sheet</span>
                 </button>
               )}
             </>
           )}
+
+          {/* Screen Layout Mode Switcher (Pengaturan Layar HP / Tablet / Notebook / PC) */}
+          <div className="relative" ref={screenMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsScreenMenuOpen(o => !o)}
+              title={`Pengaturan Tampilan Layar (Aktif: ${
+                screenPref === 'AUTO'
+                  ? `Otomatis - ${getScreenModeDisplayName(detectedMode)}`
+                  : getScreenModeDisplayName(effectiveMode)
+              })`}
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded border text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95 ${
+                screenPref !== 'AUTO'
+                  ? 'border-[#38bdf8] bg-[#38bdf8]/15 text-[#38bdf8]'
+                  : 'border-[rgba(242,239,235,0.15)] bg-transparent hover:bg-[rgba(242,239,235,0.08)] text-[#f2efeb]'
+              }`}
+            >
+              <span className="text-[#38bdf8]">{renderScreenIcon('effective')}</span>
+              <span className={effectiveMode === 'mobile' || effectiveMode === 'tablet' ? 'hidden' : 'hidden md:inline font-bold text-[10px]'}>
+                Layar: {screenPref === 'AUTO' ? `Auto (${getScreenModeDisplayName(detectedMode)})` : getScreenModeDisplayName(effectiveMode)}
+              </span>
+            </button>
+
+            {isScreenMenuOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-[#18181b] border border-[rgba(242,239,235,0.18)] rounded-lg shadow-2xl z-50 p-2.5 space-y-1.5 animate-fade-in">
+                <div className="px-2 py-1.5 border-b border-[rgba(242,239,235,0.1)] flex items-center justify-between">
+                  <div>
+                    <div className="font-syne font-extrabold text-xs uppercase text-[#f2efeb]">
+                      Pengaturan Layar
+                    </div>
+                    <div className="text-[10px] font-mono text-[rgba(242,239,235,0.5)]">
+                      Terdeteksi: <strong className="text-[#38bdf8]">{getScreenModeDisplayName(detectedMode)}</strong>
+                    </div>
+                  </div>
+                  <MonitorSmartphone className="w-4 h-4 text-[#facc15]" />
+                </div>
+
+                <div className="space-y-1">
+                  {SCREEN_MODE_OPTIONS.map(opt => {
+                    const isActive = screenPref === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setScreenPref(opt.id);
+                          setIsScreenMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-2 rounded border transition flex items-start space-x-2.5 ${
+                          isActive
+                            ? 'bg-[#38bdf8]/15 border-[#38bdf8] text-[#f2efeb]'
+                            : 'bg-[#111113] border-[rgba(242,239,235,0.08)] hover:border-[rgba(242,239,235,0.25)] text-[rgba(242,239,235,0.8)]'
+                        }`}
+                      >
+                        <div className={`mt-0.5 shrink-0 ${isActive ? 'text-[#38bdf8]' : 'text-[rgba(242,239,235,0.5)]'}`}>
+                          {renderScreenIcon(opt.id)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-mono font-bold text-[11px] uppercase truncate">
+                              {opt.label}
+                            </span>
+                            {isActive && <Check className="w-3.5 h-3.5 text-[#38bdf8] shrink-0" />}
+                          </div>
+                          <p className="text-[10px] font-mono text-[rgba(242,239,235,0.5)] leading-snug mt-0.5">
+                            {opt.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Theme Toggle (Light / Dark Mode) */}
           <button
@@ -473,12 +581,12 @@ export const Header: React.FC<HeaderProps> = ({
             {theme === 'dark' ? (
               <>
                 <Sun className="w-3.5 h-3.5 text-[#facc15]" />
-                <span className="hidden sm:inline font-bold text-[10px]">Terang</span>
+                <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden sm:inline font-bold text-[10px]'}>Terang</span>
               </>
             ) : (
               <>
                 <Moon className="w-3.5 h-3.5 text-[#facc15]" />
-                <span className="hidden sm:inline font-bold text-[10px]">Gelap</span>
+                <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden sm:inline font-bold text-[10px]'}>Gelap</span>
               </>
             )}
           </button>
@@ -492,7 +600,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="p-1.5 sm:px-2.5 sm:py-1.5 rounded border border-[#facc15]/40 bg-[#facc15]/10 hover:bg-[#facc15]/20 text-[#facc15] text-xs font-mono uppercase tracking-wider flex items-center space-x-1.5 transition active:scale-95"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span className="hidden md:inline font-bold text-[10px]">Settings</span>
+              <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden md:inline font-bold text-[10px]'}>Settings</span>
             </button>
           )}
 
@@ -501,14 +609,14 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={() => setIsProfileModalOpen(true)}
             title="Kelola Profil Pengguna & Hak Akses"
-            className={`px-2.5 py-1.5 rounded border text-xs font-mono uppercase font-bold flex items-center space-x-1.5 transition active:scale-95 ${
+            className={`px-2 sm:px-2.5 py-1.5 rounded border text-xs font-mono uppercase font-bold flex items-center space-x-1.5 transition active:scale-95 ${
               isAdmin
                 ? 'border-[#facc15]/40 bg-[#facc15]/10 hover:bg-[#facc15]/20 text-[#facc15]'
                 : 'border-[#38bdf8]/40 bg-[#38bdf8]/10 hover:bg-[#38bdf8]/20 text-[#38bdf8]'
             }`}
           >
             {isAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline font-mono text-[11px]">
+            <span className={effectiveMode === 'mobile' ? 'hidden' : 'hidden sm:inline font-mono text-[11px]'}>
               {isAdmin ? 'ADMIN' : currentUser?.displayName || 'USER'}
             </span>
           </button>

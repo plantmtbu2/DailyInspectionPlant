@@ -605,7 +605,7 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
   const bapStats = useMemo(() => {
     const open = periodBaps.filter(b => b.status === 'OPEN').length;
     const inProgress = periodBaps.filter(b => b.status === 'IN_PROGRESS').length;
-    const completed = periodBaps.filter(b => b.status === 'COMPLETED').length;
+    const completed = periodBaps.filter(b => b.status === 'COMPLETED' || b.status === 'CLOSE').length;
     const total = periodBaps.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, open, inProgress, completed, completionRate };
@@ -918,23 +918,85 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
     fleetTypeFilter,
   ]);
 
+  // Helper: HM Unit terisi valid (HM > 0)
+  const hasFilledHm = (hm: unknown): boolean => {
+    const n = Number(hm);
+    return !Number.isNaN(n) && n > 0;
+  };
+
+  // Format badge: BELUM (jika 0 / HM belum diisi), SUDAH (jika 1x), SUDAH (N) (jika > 1x dalam 1 bulan sama)
+  const formatStatusWithMonthlyCount = (hasValidInPeriod: boolean, countInSameMonth: number): string => {
+    if (!hasValidInPeriod || countInSameMonth <= 0) return 'BELUM';
+    if (countInSameMonth === 1) return 'SUDAH';
+    return `SUDAH (${countInSameMonth})`;
+  };
+
   // Rangkuman Monitoring Status Inspeksi Unit (per-unit matrix for the selected period)
   const unitMonitoringRows = useMemo(() => {
+    const targetDayParts = periodType === 'HARIAN' ? parseDateParts(selectedDate) : null;
+    const targetMonth = periodType === 'HARIAN' ? targetDayParts?.month || selectedMonth : selectedMonth;
+    const targetYear = periodType === 'HARIAN' ? targetDayParts?.year || selectedYear : selectedYear;
+
+    // All valid HM>0 inspections in the same month (for HARIAN / BULANAN) or same year (for TAHUNAN)
+    const sameMonthValidInspections = combinedInspections.filter(i => {
+      if (!hasFilledHm(i.hmUnit) || !i.dateParts) return false;
+      if (fleetTypeFilter === 'RIGID' && i.fleetType !== 'RIGID') return false;
+      if (fleetTypeFilter === 'ARTIC' && i.fleetType !== 'ARTIC') return false;
+      if (periodType === 'TAHUNAN') {
+        return i.dateParts.year === targetYear;
+      }
+      return i.dateParts.month === targetMonth && i.dateParts.year === targetYear;
+    });
+
     return filteredCodeUnits
       .map(unit => {
         const key = unit.codeUnit.trim().toUpperCase();
-        const unitInspections = periodInspections.filter(
+        const unitPeriodAll = periodInspections.filter(
           i => i.codeUnit.trim().toUpperCase() === key
         );
-        const dailyList = unitInspections.filter(i => i.qaTypeNormalized === 'DAILY_INSPECTION');
-        const qa1List = unitInspections.filter(i => i.qaTypeNormalized === 'QA1_PRE');
-        const qa7List = unitInspections.filter(i => i.qaTypeNormalized === 'QA7_FINAL');
+        const unitMonthValidAll = sameMonthValidInspections.filter(
+          i => i.codeUnit.trim().toUpperCase() === key
+        );
+
+        const dailyPeriodRaw = unitPeriodAll.filter(i => i.qaTypeNormalized === 'DAILY_INSPECTION');
+        const qa1PeriodRaw = unitPeriodAll.filter(i => i.qaTypeNormalized === 'QA1_PRE');
+        const qa7PeriodRaw = unitPeriodAll.filter(i => i.qaTypeNormalized === 'QA7_FINAL');
+
+        const dailyPeriodValid = dailyPeriodRaw.filter(i => hasFilledHm(i.hmUnit));
+        const qa1PeriodValid = qa1PeriodRaw.filter(i => hasFilledHm(i.hmUnit));
+        const qa7PeriodValid = qa7PeriodRaw.filter(i => hasFilledHm(i.hmUnit));
+
+        const dailyMonthCount = unitMonthValidAll.filter(
+          i => i.qaTypeNormalized === 'DAILY_INSPECTION'
+        ).length;
+        const qa1MonthCount = unitMonthValidAll.filter(
+          i => i.qaTypeNormalized === 'QA1_PRE'
+        ).length;
+        const qa7MonthCount = unitMonthValidAll.filter(
+          i => i.qaTypeNormalized === 'QA7_FINAL'
+        ).length;
+
+        const hasDaily = dailyPeriodValid.length > 0;
+        const hasQa1 = qa1PeriodValid.length > 0;
+        const hasQa7 = qa7PeriodValid.length > 0;
+
+        const dailyMissingHmDraft = !hasDaily && dailyPeriodRaw.length > 0;
+        const qa1MissingHmDraft = !hasQa1 && qa1PeriodRaw.length > 0;
+        const qa7MissingHmDraft = !hasQa7 && qa7PeriodRaw.length > 0;
+
         const unitBaps = periodBaps.filter(b => b.codeUnit.trim().toUpperCase() === key);
         const unitBacklogs = periodBacklogs.filter(b => b.codeUnit.trim().toUpperCase() === key);
         const unitActivities = periodActivities.filter(a => a.codeUnit.trim().toUpperCase() === key);
 
-        const latestInsp = dailyList[0] || qa7List[0] || qa1List[0] || null;
-        const hasOpenBap = unitBaps.some(b => b.status !== 'COMPLETED');
+        const latestInsp =
+          dailyPeriodValid[0] ||
+          qa7PeriodValid[0] ||
+          qa1PeriodValid[0] ||
+          dailyPeriodRaw[0] ||
+          qa7PeriodRaw[0] ||
+          qa1PeriodRaw[0] ||
+          null;
+        const hasOpenBap = unitBaps.some(b => b.status !== 'COMPLETED' && b.status !== 'CLOSE');
         const openBacklogCount = unitBacklogs.filter(b => b.status !== 'CLOSED').length;
         const fleetCategory = isRigidUnitCode(unit.codeUnit)
           ? 'RIGID (DT)'
@@ -945,17 +1007,25 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
         return {
           unit,
           fleetCategory,
-          dailyCount: dailyList.length,
-          qa1Count: qa1List.length,
-          qa7Count: qa7List.length,
+          dailyCount: dailyMonthCount,
+          qa1Count: qa1MonthCount,
+          qa7Count: qa7MonthCount,
+          dailyStatusText: formatStatusWithMonthlyCount(hasDaily, dailyMonthCount),
+          qa1StatusText: formatStatusWithMonthlyCount(hasQa1, qa1MonthCount),
+          qa7StatusText: formatStatusWithMonthlyCount(hasQa7, qa7MonthCount),
+          dailyMissingHmDraft,
+          qa1MissingHmDraft,
+          qa7MissingHmDraft,
           bapCount: unitBaps.length,
           hasOpenBap,
           backlogCount: unitBacklogs.length,
           openBacklogCount,
           activityCount: unitActivities.length,
           latestInspection: latestInsp,
-          hasDaily: dailyList.length > 0,
-          hasQa: qa1List.length > 0 || qa7List.length > 0,
+          hasDaily,
+          hasQa1,
+          hasQa7,
+          hasQa: hasQa1 || hasQa7,
           hasIssue:
             hasOpenBap ||
             openBacklogCount > 0 ||
@@ -980,7 +1050,13 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
       });
   }, [
     filteredCodeUnits,
+    combinedInspections,
     periodInspections,
+    periodType,
+    selectedDate,
+    selectedMonth,
+    selectedYear,
+    fleetTypeFilter,
     periodBaps,
     periodBacklogs,
     periodActivities,
@@ -988,7 +1064,7 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
     tableStatusFilter,
   ]);
 
-  // Unit Inspection Summary Strip counts
+  // Unit Inspection Summary Strip counts (strictly requires HM Unit > 0)
   const unitSummaryStrip = useMemo(() => {
     const total = filteredCodeUnits.length;
     let dailyDone = 0;
@@ -1000,9 +1076,36 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
 
     filteredCodeUnits.forEach(u => {
       const key = u.codeUnit.trim().toUpperCase();
-      if (periodInspections.some(i => i.codeUnit.trim().toUpperCase() === key && i.qaTypeNormalized === 'DAILY_INSPECTION')) dailyDone++;
-      if (periodInspections.some(i => i.codeUnit.trim().toUpperCase() === key && i.qaTypeNormalized === 'QA1_PRE')) qa1Done++;
-      if (periodInspections.some(i => i.codeUnit.trim().toUpperCase() === key && i.qaTypeNormalized === 'QA7_FINAL')) qa7Done++;
+      if (
+        periodInspections.some(
+          i =>
+            i.codeUnit.trim().toUpperCase() === key &&
+            i.qaTypeNormalized === 'DAILY_INSPECTION' &&
+            hasFilledHm(i.hmUnit)
+        )
+      ) {
+        dailyDone++;
+      }
+      if (
+        periodInspections.some(
+          i =>
+            i.codeUnit.trim().toUpperCase() === key &&
+            i.qaTypeNormalized === 'QA1_PRE' &&
+            hasFilledHm(i.hmUnit)
+        )
+      ) {
+        qa1Done++;
+      }
+      if (
+        periodInspections.some(
+          i =>
+            i.codeUnit.trim().toUpperCase() === key &&
+            i.qaTypeNormalized === 'QA7_FINAL' &&
+            hasFilledHm(i.hmUnit)
+        )
+      ) {
+        qa7Done++;
+      }
       if (periodBaps.some(b => b.codeUnit.trim().toUpperCase() === key)) bapUnits++;
       if (periodBacklogs.some(b => b.codeUnit.trim().toUpperCase() === key)) backlogUnits++;
       if (periodActivities.some(a => a.codeUnit.trim().toUpperCase() === key)) activityUnits++;
@@ -2241,26 +2344,61 @@ export const DashboardDailyView: React.FC<DashboardDailyViewProps> = ({
 
                   <td className="py-2.5 px-2.5">
                     {row.hasDaily ? (
-                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#4ade80]/15 text-[#4ade80] border border-[#4ade80]/30">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>SUDAH ({row.dailyCount})</span>
+                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#4ade80]/15 text-[#4ade80] border border-[#4ade80]/30 whitespace-nowrap">
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                        <span>{row.dailyStatusText}</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb7185]/15 text-[#fb7185] border border-[#fb7185]/30">
-                        <XCircle className="w-3 h-3" />
-                        <span>BELUM</span>
-                      </span>
+                      <div className="space-y-0.5">
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb7185]/15 text-[#fb7185] border border-[#fb7185]/30 whitespace-nowrap">
+                          <XCircle className="w-3 h-3 shrink-0" />
+                          <span>BELUM</span>
+                        </span>
+                        {row.dailyMissingHmDraft && (
+                          <span className="block text-[9px] text-[#facc15]">
+                            (HM Unit belum terisi)
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
 
                   <td className="py-2.5 px-2.5">
                     <div className="flex flex-col gap-1 text-[10px]">
-                      <span className={row.qa1Count > 0 ? 'text-[#facc15] font-bold' : 'text-[rgba(242,239,235,0.35)]'}>
-                        QA1: {row.qa1Count > 0 ? `✓ ${row.qa1Count}x` : '-'}
-                      </span>
-                      <span className={row.qa7Count > 0 ? 'text-[#38bdf8] font-bold' : 'text-[rgba(242,239,235,0.35)]'}>
-                        QA7: {row.qa7Count > 0 ? `✓ ${row.qa7Count}x` : '-'}
-                      </span>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="text-[9px] text-[rgba(242,239,235,0.5)] w-7">QA1:</span>
+                        {row.hasQa1 ? (
+                          <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#4ade80]/15 text-[#4ade80] border border-[#4ade80]/30 font-bold whitespace-nowrap">
+                            <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
+                            <span>{row.qa1StatusText}</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#fb7185]/15 text-[#fb7185] border border-[#fb7185]/30 font-bold whitespace-nowrap"
+                            title={row.qa1MissingHmDraft ? 'Form ada, namun HM Unit belum terisi' : undefined}
+                          >
+                            <XCircle className="w-2.5 h-2.5 shrink-0" />
+                            <span>BELUM</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="text-[9px] text-[rgba(242,239,235,0.5)] w-7">QA7:</span>
+                        {row.hasQa7 ? (
+                          <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30 font-bold whitespace-nowrap">
+                            <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
+                            <span>{row.qa7StatusText}</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-[#fb7185]/15 text-[#fb7185] border border-[#fb7185]/30 font-bold whitespace-nowrap"
+                            title={row.qa7MissingHmDraft ? 'Form ada, namun HM Unit belum terisi' : undefined}
+                          >
+                            <XCircle className="w-2.5 h-2.5 shrink-0" />
+                            <span>BELUM</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
 

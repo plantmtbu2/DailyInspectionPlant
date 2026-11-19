@@ -19,6 +19,7 @@ import { ActiveTab } from './BottomNav';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import { useScreenLayout } from '../context/ScreenLayoutContext';
 import { AppModuleId } from '../services/settingsService';
 
 interface SidebarProps {
@@ -53,6 +54,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { theme, setTheme } = useTheme();
   const { currentUser, isAdmin, logout } = useAuth();
   const { settings, canAccessModule } = useSettings();
+  const { isDesktopSidebar, effectiveMode } = useScreenLayout();
+
+  if (!isDesktopSidebar) {
+    return null;
+  }
 
   const navItems: Array<{
     id: AppModuleId;
@@ -134,7 +140,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const visibleNavItems = navItems.filter(item => canAccessModule(item.id, isAdmin));
 
   return (
-    <aside className="hidden lg:flex flex-col w-[280px] shrink-0 h-screen sticky top-0 bg-gradient-to-b from-[#18181b] to-[#111113] border-r border-[rgba(242,239,235,0.1)] p-5 select-none z-30">
+    <aside
+      className={`flex flex-col shrink-0 h-screen sticky top-0 bg-gradient-to-b from-[#18181b] to-[#111113] border-r border-[rgba(242,239,235,0.1)] select-none z-30 ${
+        effectiveMode === 'notebook' ? 'w-[240px] p-4' : 'w-[280px] p-5'
+      }`}
+    >
       {/* Brand Section */}
       <div className="mb-7 pb-4 border-b border-[rgba(242,239,235,0.08)]">
         <div className="flex items-center space-x-3 mb-2">

@@ -68,6 +68,7 @@ import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DetailViewModal } from './components/DetailViewModal';
 import { useAuth } from './context/AuthContext';
 import { useSettings } from './context/SettingsContext';
+import { useScreenLayout } from './context/ScreenLayoutContext';
 import { AppModuleId, getAppSettings } from './services/settingsService';
 
 // Views
@@ -86,6 +87,7 @@ import { Zap, ShieldCheck, Tractor, AlertOctagon, Wrench, FileWarning, Layers, T
 export default function App() {
   const { isAdmin, isAuthenticated } = useAuth();
   const { settings, canAccessModule, getModulePermission, getFirstAccessibleModule } = useSettings();
+  const { effectiveMode, isCompactNav, isDesktopSidebar } = useScreenLayout();
 
   // Navigation: initialized from Settings defaultLandingTab
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => getFirstAccessibleModule(isAdmin));
@@ -989,26 +991,46 @@ export default function App() {
     return <LoginScreen />;
   }
 
+  const shellLayoutClass =
+    effectiveMode === 'mobile'
+      ? 'min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] flex flex-col w-full max-w-[480px] mx-auto shadow-2xl border-x border-[rgba(242,239,235,0.08)] font-sans selection:bg-[#facc15] selection:text-[#111113]'
+      : effectiveMode === 'tablet'
+      ? 'min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] flex flex-col w-full max-w-[900px] mx-auto shadow-2xl border-x border-[rgba(242,239,235,0.08)] font-sans selection:bg-[#facc15] selection:text-[#111113]'
+      : effectiveMode === 'notebook'
+      ? 'min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] grid grid-cols-[240px_1fr] font-sans selection:bg-[#facc15] selection:text-[#111113]'
+      : 'min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] grid grid-cols-[280px_1fr] font-sans selection:bg-[#facc15] selection:text-[#111113]';
+
+  const mainContainerClass =
+    effectiveMode === 'mobile'
+      ? 'flex-1 w-full mx-auto p-2.5 max-w-full'
+      : effectiveMode === 'tablet'
+      ? 'flex-1 w-full mx-auto p-3.5 sm:p-4 max-w-full'
+      : effectiveMode === 'notebook'
+      ? `flex-1 w-full mx-auto p-4 ${activeTab === 'dashboard' || activeTab === 'settings' ? 'max-w-5xl' : 'max-w-4xl'}`
+      : `flex-1 w-full mx-auto p-5 lg:p-6 ${activeTab === 'dashboard' || activeTab === 'settings' ? 'max-w-[1440px]' : 'max-w-6xl'}`;
+
   return (
-    <div className="min-h-screen bg-[var(--bg,#111113)] text-[var(--ink,#f2efeb)] flex flex-col lg:grid lg:grid-cols-[280px_1fr] font-sans selection:bg-[#facc15] selection:text-[#111113]">
-      {/* Desktop Sidebar Navigation (Variation 2) */}
-      <Sidebar
-        activeTab={activeTab}
-        onChangeTab={navigateToTabSafely}
-        dailyRigidCount={dailyRigidCount}
-        dailyArticCount={dailyArticCount}
-        qa1RigidCount={qa1RigidCount}
-        qa7RigidCount={qa7RigidCount}
-        qa1ArticCount={qa1ArticCount}
-        qa7ArticCount={qa7ArticCount}
-        activeBacklogCount={activeBacklogCount}
-        activitiesCount={activities.length}
-        openBapCount={openBapCount}
-        codeUnitsCount={codeUnits.length}
-      />
+    <div className={shellLayoutClass}>
+      {/* Desktop Sidebar Navigation (Notebook / PC) */}
+      {isDesktopSidebar && (
+        <Sidebar
+          activeTab={activeTab}
+          onChangeTab={navigateToTabSafely}
+          dailyRigidCount={dailyRigidCount}
+          dailyArticCount={dailyArticCount}
+          qa1RigidCount={qa1RigidCount}
+          qa7RigidCount={qa7RigidCount}
+          qa1ArticCount={qa1ArticCount}
+          qa7ArticCount={qa7ArticCount}
+          activeBacklogCount={activeBacklogCount}
+          activitiesCount={activities.length}
+          openBapCount={openBapCount}
+          codeUnitsCount={codeUnits.length}
+        />
+      )}
 
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Global In-App Toast Notification */}
         {toastNotification && (
           <div
@@ -1041,9 +1063,10 @@ export default function App() {
           onNavigateToTab={navigateToTabSafely}
         />
 
-        {/* Mobile Quick-Switch Bar (hidden on desktop because sidebar is active) */}
-        <div className="lg:hidden no-print bg-[#18181b] border-b border-[rgba(242,239,235,0.1)] sticky top-[53px] z-20 shadow-sm">
-          <div className="w-full px-2 py-1.5 flex items-center space-x-1.5 overflow-x-auto scrollbar-none">
+        {/* Compact Quick-Switch Bar (active for HP & Tablet layout modes) */}
+        {isCompactNav && (
+          <div className="no-print bg-[#18181b] border-b border-[rgba(242,239,235,0.1)] sticky top-[53px] z-20 shadow-sm">
+            <div className="w-full px-2 py-1.5 flex items-center space-x-1.5 overflow-x-auto scrollbar-none">
           {/* MENU UTAMA: DASHBOARD PENCAPAIAN */}
           {canAccessModule('dashboard', isAdmin) && (
             <button
@@ -1271,10 +1294,11 @@ export default function App() {
             </button>
           )}
         </div>
-      </div>
+        </div>
+        )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full mx-auto p-3 sm:p-5 ${activeTab === 'dashboard' || activeTab === 'settings' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+      <main className={mainContainerClass}>
         {/* DASHBOARD PENCAPAIAN DAILY (HARIAN, BULANAN, TAHUNAN) */}
         {activeTab === 'dashboard' && (
           <DashboardDailyView

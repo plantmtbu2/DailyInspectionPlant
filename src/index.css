@@ -433,6 +433,25 @@ body {
   }
 }
 
+/* ============================================================================ */
+/* SCREEN LAYOUT MODE REFINEMENTS (HP / TABLET / NOTEBOOK / PC)                 */
+/* ============================================================================ */
+[data-effective-screen="mobile"] {
+  font-size: max(13px, calc(var(--app-base-font-size, 14px) - 1px));
+}
+[data-effective-screen="mobile"] .font-syne.text-2xl {
+  font-size: 1.25rem;
+}
+[data-effective-screen="tablet"] {
+  font-size: var(--app-base-font-size, 14px);
+}
+[data-effective-screen="notebook"] {
+  font-size: var(--app-base-font-size, 14px);
+}
+[data-effective-screen="pc"] {
+  font-size: max(14px, var(--app-base-font-size, 14px));
+}
+
 @media print {
   /* Hide all app chrome, navigation, headers, modal backdrops, and action buttons during print */
   html, body {

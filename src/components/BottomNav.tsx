@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import { useScreenLayout } from '../context/ScreenLayoutContext';
 import { AppModuleId } from '../services/settingsService';
 
 export type ActiveTab =
@@ -52,6 +53,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const { isAdmin } = useAuth();
   const { settings, canAccessModule } = useSettings();
+  const { isCompactNav } = useScreenLayout();
+
+  if (!isCompactNav) {
+    return null;
+  }
 
   const navItems: Array<{
     id: ActiveTab;
@@ -180,7 +186,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   }
 
   return (
-    <nav className="no-print lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111113]/95 backdrop-blur-md border-t border-[rgba(242,239,235,0.1)] safe-bottom">
+    <nav className="no-print fixed bottom-0 left-0 right-0 z-40 bg-[#111113]/95 backdrop-blur-md border-t border-[rgba(242,239,235,0.1)] safe-bottom">
       <div className="w-full px-1 sm:px-3">
         <div className="flex items-center justify-between overflow-x-auto py-1 scrollbar-none gap-0.5">
           {visibleItems.map(item => {

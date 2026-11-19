@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DailyCheckRigid, QAType, BacklogItem, AddActivityItem } from '../types';
 import {
   Truck,
@@ -21,6 +21,11 @@ import {
   Users,
 } from 'lucide-react';
 import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
+import {
+  ModuleCalendarSelector,
+  normalizeRecordDateToIso,
+  formatIsoDateIndonesian,
+} from '../components/ModuleCalendarSelector';
 import {
   formatDailyRigidWhatsApp,
   shareToWhatsApp,
@@ -62,7 +67,14 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
   onEditBacklog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
+
+  // Reset selected calendar date whenever switching Daily / QA1 / QA7 / ALL tab (Rule Awal: Kalender)
+  useEffect(() => {
+    setSelectedDate(null);
+    setSearchTerm('');
+  }, [activeQaType]);
 
   const isDaily = activeQaType === 'DAILY_INSPECTION';
   const isFinal = activeQaType === 'QA7_FINAL';
@@ -81,7 +93,24 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
     return itemQaType === activeQaType;
   });
 
-  const filtered = currentList.filter(
+  const calendarRecords = useMemo(
+    () =>
+      currentList.map(item => ({
+        dateRaw: item.tanggal,
+        createdAt: item.createdAt,
+        codeUnit: item.codeUnit,
+        hasAlert: (item.items || []).some(chk => chk.status === 'DEFECT') || item.status === 'BREAKDOWN',
+      })),
+    [currentList]
+  );
+
+  const dateFiltered = selectedDate
+    ? currentList.filter(
+        item => normalizeRecordDateToIso(item.tanggal, item.createdAt) === selectedDate
+      )
+    : [];
+
+  const filtered = dateFiltered.filter(
     item =>
       item.codeUnit.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.egi.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -213,21 +242,43 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
         </button>
       </div>
 
-      {/* Search Input */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          placeholder="FILTER INSPEKSI RIGID: Unit, EGI, PIC, Tanggal, ID..."
-          className="w-full bg-[#18181b] border border-[rgba(242,239,235,0.15)] hover:border-[rgba(242,239,235,0.25)] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.4)] focus:border-[#facc15] outline-none transition"
-        />
-      </div>
+      {/* Calendar-First Rule: User must pick a date on the calendar before showing inspected units */}
+      <ModuleCalendarSelector
+        records={calendarRecords}
+        selectedDate={selectedDate}
+        onSelectDate={iso => {
+          setSelectedDate(iso);
+          setSearchTerm('');
+        }}
+        moduleTitle={
+          isDaily
+            ? 'Kalender Daily Inspection Rigid (DT)'
+            : isFinal
+            ? 'Kalender QA 7 Final Rigid (DT)'
+            : isAll
+            ? 'Kalender Semua Inspeksi Rigid (DT)'
+            : 'Kalender QA 1 Pre Rigid (DT)'
+        }
+        itemLabel="Unit"
+        accentTheme={isFinal ? 'emerald' : 'amber'}
+      />
 
-      {/* Inspection List Cards */}
-      <div className="space-y-4">
-        {filtered.map((item, index) => {
+      {/* Search Input & Inspection Cards (Only rendered after a date is clicked) */}
+      {selectedDate && (
+        <>
+          <div className="relative">
+            <Search className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder={`FILTER UNIT TANGGAL ${formatIsoDateIndonesian(selectedDate).toUpperCase()}: Unit, EGI, PIC, ID...`}
+              className="w-full bg-[#18181b] border border-[rgba(242,239,235,0.15)] hover:border-[rgba(242,239,235,0.25)] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.4)] focus:border-[#facc15] outline-none transition"
+            />
+          </div>
+
+          <div className="space-y-4">
+            {filtered.map((item, index) => {
           const defects = item.items.filter(i => i.status === 'DEFECT');
           const monitors = item.items.filter(i => i.status === 'MONITOR');
           const okCount = item.items.filter(i => i.status === 'OK').length;
@@ -542,14 +593,17 @@ export const DailyRigidView: React.FC<DailyRigidViewProps> = ({
           <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800/80">
             <Truck className="w-10 h-10 text-slate-600 mx-auto mb-2" />
             <p className="text-sm font-semibold text-slate-400">
-              Belum ada data {isFinal ? 'QA 7 Final Inspection Rigid' : 'QA 1 Pre Inspection Rigid'}
+              Tidak ada unit {isDaily ? 'Daily Rigid' : isFinal ? 'QA 7 Final Rigid' : 'QA 1 Pre Rigid'} pada tanggal{' '}
+              {formatIsoDateIndonesian(selectedDate)}
             </p>
             <p className="text-xs text-slate-500 mt-0.5">
-              Klik "{isFinal ? '+ Form QA 7 Final Rigid' : '+ Form QA 1 Pre Rigid'}" untuk memulai pengisian 19 parameter.
+              Pilih tanggal lain yang bertanda hijau di kalender, atau klik &quot;{createButtonLabel}&quot; untuk mengisi inspeksi baru.
             </p>
           </div>
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       <WhatsAppGroupShareModal
         isOpen={!!groupShareData}

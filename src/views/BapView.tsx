@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BAPRecord } from '../types';
 import {
   FileWarning,
@@ -17,6 +17,11 @@ import {
 } from 'lucide-react';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { WhatsAppGroupShareModal } from '../components/WhatsAppGroupShareModal';
+import {
+  ModuleCalendarSelector,
+  normalizeRecordDateToIso,
+  formatIsoDateIndonesian,
+} from '../components/ModuleCalendarSelector';
 import { formatBAPWhatsApp, shareToWhatsApp } from '../utils/whatsappFormatter';
 
 interface BapViewProps {
@@ -38,6 +43,7 @@ export const BapView: React.FC<BapViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<{
     urls: string[];
     index?: number;
@@ -46,7 +52,24 @@ export const BapView: React.FC<BapViewProps> = ({
   } | null>(null);
   const [groupShareData, setGroupShareData] = useState<{ title: string; message: string; photoUrls: string[] } | null>(null);
 
-  const filtered = bapList.filter(item => {
+  const calendarRecords = useMemo(
+    () =>
+      bapList.map(bap => ({
+        dateRaw: bap.tanggal,
+        createdAt: bap.createdAt,
+        codeUnit: bap.codeUnit,
+        hasAlert: bap.status === 'OPEN',
+      })),
+    [bapList]
+  );
+
+  const dateFiltered = selectedDate
+    ? bapList.filter(
+        item => normalizeRecordDateToIso(item.tanggal, item.createdAt) === selectedDate
+      )
+    : [];
+
+  const filtered = dateFiltered.filter(item => {
     const matchesSearch =
       item.codeUnit.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,7 +77,10 @@ export const BapView: React.FC<BapViewProps> = ({
       item.mo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.picMekanik.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = filterStatus === 'ALL' || item.status === filterStatus;
+    const matchesStatus =
+      filterStatus === 'ALL' ||
+      item.status === filterStatus ||
+      (filterStatus === 'COMPLETED' && item.status === 'CLOSE');
     return matchesSearch && matchesStatus;
   });
 
@@ -83,39 +109,53 @@ export const BapView: React.FC<BapViewProps> = ({
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-2.5">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            placeholder="FILTER BAP: Code Unit, MO, Kerusakan, PIC..."
-            className="w-full bg-[#18181b] border border-[rgba(242,239,235,0.15)] hover:border-[rgba(242,239,235,0.25)] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.4)] focus:border-[#fb7185] outline-none transition"
-          />
-        </div>
+      {/* Calendar-First Rule: User must pick a date on the calendar before showing BAP units */}
+      <ModuleCalendarSelector
+        records={calendarRecords}
+        selectedDate={selectedDate}
+        onSelectDate={iso => {
+          setSelectedDate(iso);
+          setSearchTerm('');
+        }}
+        moduleTitle="Kalender Berita Acara Kerusakan (BAP)"
+        itemLabel="BAP"
+        accentTheme="rose"
+      />
 
-        <div className="flex space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {(['ALL', 'OPEN', 'IN_PROGRESS', 'COMPLETED'] as const).map(st => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`px-3 py-1.5 rounded text-[11px] font-mono font-bold uppercase whitespace-nowrap transition border ${
-                filterStatus === st
-                  ? 'bg-[#fb7185]/20 text-[#fb7185] border-[#fb7185]'
-                  : 'bg-[#18181b] text-[rgba(242,239,235,0.6)] border-[rgba(242,239,235,0.1)] hover:border-[rgba(242,239,235,0.25)]'
-              }`}
-            >
-              {st === 'ALL' ? 'Semua Status' : st}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Filter, Search & BAP Cards (Only rendered after a date is clicked) */}
+      {selectedDate && (
+        <>
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-[rgba(242,239,235,0.4)] absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder={`FILTER BAP TANGGAL ${formatIsoDateIndonesian(selectedDate).toUpperCase()}: Unit, MO, Kerusakan...`}
+                className="w-full bg-[#18181b] border border-[rgba(242,239,235,0.15)] hover:border-[rgba(242,239,235,0.25)] rounded pl-9 pr-3 py-2 text-xs font-mono text-[#f2efeb] placeholder-[rgba(242,239,235,0.4)] focus:border-[#fb7185] outline-none transition"
+              />
+            </div>
 
-      {/* Records Cards */}
-      <div className="space-y-3.5">
-        {filtered.map((bap, index) => (
+            <div className="flex space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
+              {(['ALL', 'OPEN', 'IN_PROGRESS', 'COMPLETED'] as const).map(st => (
+                <button
+                  key={st}
+                  onClick={() => setFilterStatus(st)}
+                  className={`px-3 py-1.5 rounded text-[11px] font-mono font-bold uppercase whitespace-nowrap transition border ${
+                    filterStatus === st
+                      ? 'bg-[#fb7185]/20 text-[#fb7185] border-[#fb7185]'
+                      : 'bg-[#18181b] text-[rgba(242,239,235,0.6)] border-[rgba(242,239,235,0.1)] hover:border-[rgba(242,239,235,0.25)]'
+                  }`}
+                >
+                  {st === 'ALL' ? 'Semua Status' : st === 'COMPLETED' ? 'CLOSE' : st}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3.5">
+            {filtered.map((bap, index) => (
           <div
             key={`${bap.id}-${index}`}
             className="bg-[#18181b] border border-[rgba(242,239,235,0.1)] hover:border-[rgba(242,239,235,0.25)] rounded p-4 sm:p-5 space-y-3.5 transition shadow-sm border-l-[3px] border-[#fb7185]"
@@ -283,13 +323,17 @@ export const BapView: React.FC<BapViewProps> = ({
         {filtered.length === 0 && (
           <div className="text-center py-12 bg-[#18181b] rounded border border-[rgba(242,239,235,0.1)]">
             <FileWarning className="w-10 h-10 text-[rgba(242,239,235,0.3)] mx-auto mb-2" />
-            <p className="text-sm font-syne font-bold text-[#f2efeb]">Belum ada data BAP</p>
+            <p className="text-sm font-syne font-bold text-[#f2efeb]">
+              Tidak ada data BAP pada tanggal {formatIsoDateIndonesian(selectedDate)}
+            </p>
             <p className="text-xs font-mono text-[rgba(242,239,235,0.5)] mt-0.5">
-              Klik "+ Buat BAP Baru" untuk mencatat laporan kerusakan alat berat.
+              Pilih tanggal lain pada kalender atau klik &quot;+ Buat BAP Baru&quot;.
             </p>
           </div>
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       {previewPhoto && (
         <PhotoPreviewModal
